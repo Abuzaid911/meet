@@ -15,15 +15,23 @@ interface CreateEventPayload {
 }
 
 // Validation function
-function validateEventPayload(data: any): data is CreateEventPayload {
+function validateEventPayload(data: unknown): data is CreateEventPayload {
   return (
-    typeof data.name === 'string' && data.name.trim().length > 0 &&
-    typeof data.date === 'string' && !isNaN(new Date(data.date).getTime()) &&
-    typeof data.time === 'string' && data.time.trim().length > 0 &&
-    typeof data.location === 'string' && data.location.trim().length > 0 &&
-    (data.description === undefined || typeof data.description === 'string')
-  )
+    typeof data === 'object' &&
+    data !== null &&
+    typeof (data as CreateEventPayload).name === 'string' &&
+    (data as CreateEventPayload).name.trim().length > 0 &&
+    typeof (data as CreateEventPayload).date === 'string' &&
+    !isNaN(new Date((data as CreateEventPayload).date).getTime()) &&
+    typeof (data as CreateEventPayload).time === 'string' &&
+    (data as CreateEventPayload).time.trim().length > 0 &&
+    typeof (data as CreateEventPayload).location === 'string' &&
+    (data as CreateEventPayload).location.trim().length > 0 &&
+    ((data as CreateEventPayload).description === undefined ||
+      typeof (data as CreateEventPayload).description === 'string')
+  );
 }
+
 
 export async function GET(request: Request) {
   try {

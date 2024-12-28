@@ -1,10 +1,14 @@
+// app/api/auth/[...nextauth]/route.ts
 import NextAuth from "next-auth"
 import { PrismaAdapter } from "@auth/prisma-adapter"
 import { PrismaClient } from "@prisma/client"
 import GoogleProvider from "next-auth/providers/google"
 import { NextAuthOptions } from "next-auth"
+import { prisma } from "@/lib/prisma" // Use the prisma singleton
 
-const prisma = new PrismaClient()
+function generateUsername(name: string): string {
+  return name.toLowerCase().replace(/\s+/g, '') + Math.floor(Math.random() * 1000).toString()
+}
 
 export const authOptions: NextAuthOptions = {
   adapter: PrismaAdapter(prisma),
@@ -22,22 +26,62 @@ export const authOptions: NextAuthOptions = {
     }),
   ],
   callbacks: {
-    async signIn({ user, account, profile, email, credentials }) {
-      console.log('Sign in callback. User:', user, 'Account:', account, 'Profile:', profile)
+    async signIn({ user, account, profile }) {
+      // Allow sign in if the user exists or if it's a new account
       if (account?.provider === "google") {
-        return profile?.email_verified && profile?.email?.endsWith("@gmail.com")
+        const existingUser = await prisma.user.findUnique({
+          where: { email: user.email! },
+          include: { accounts: true }
+        })
+
+        // If user doesn't exist, create a new one
+        if (!existingUser && user.name) {
+          const username = generateUsername(user.name)
+          await prisma.user.create({
+            data: {
+              name: user.name,
+              email: user.email!,
+              image: user.image,
+              username,
+            },
+          })
+          return true
+        }
+
+        // If user exists but hasn't linked this OAuth account yet
+        if (existingUser && existingUser.accounts.length === 0) {
+          await prisma.account.create({
+            data: {
+              userId: existingUser.id,
+              type: account.type,
+              provider: account.provider,
+              providerAccountId: account.providerAccountId,
+              access_token: account.access_token,
+              expires_at: account.expires_at,
+              token_type: account.token_type,
+              scope: account.scope,
+              id_token: account.id_token,
+            },
+          })
+          return true
+        }
+
+        // Allow sign in if the account is already linked
+        return true
       }
+
       return true
     },
     async session({ session, user }) {
-      console.log('Session callback. Session:', session, 'User:', user)
       if (session?.user) {
-        session.user.id = user.id;
+        session.user.id = user.id
       }
-      return session;
+      return session
     },
     async jwt({ token, user, account, profile }) {
-      console.log('JWT callback. Token:', token, 'User:', user, 'Account:', account, 'Profile:', profile)
+      if (user) {
+        token.id = user.id
+      }
       return token
     }
   },
@@ -45,21 +89,9 @@ export const authOptions: NextAuthOptions = {
     signIn: '/auth/signin',
     error: '/auth/error',
   },
-  debug: true,
-  logger: {
-    error: (code, metadata) => {
-      console.error('NextAuth error:', code, metadata)
-    },
-    warn: (code) => {
-      console.warn('NextAuth warning:', code)
-    },
-    debug: (code, metadata) => {
-      console.log('NextAuth debug:', code, metadata)
-    },
-  },
+  debug: process.env.NODE_ENV === 'development',
 }
 
 const handler = NextAuth(authOptions)
 
 export { handler as GET, handler as POST }
-

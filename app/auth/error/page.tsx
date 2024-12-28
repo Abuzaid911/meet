@@ -1,28 +1,50 @@
+// app/auth/error/page.tsx
 'use client'
 
-import { useEffect } from 'react'
 import { useSearchParams } from 'next/navigation'
-import { useToast } from "../../components/ui/use-toast"
+import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/card'
+import { Button } from '../../components/ui/button'
+import Link from 'next/link'
 
 export default function AuthError() {
   const searchParams = useSearchParams()
   const error = searchParams.get('error')
-  const { addToast } = useToast()
 
-  useEffect(() => {
-    if (error) {
-      addToast(`Authentication error: ${error}`, 'error')
+  const getErrorMessage = (error: string | null) => {
+    switch (error) {
+      case 'OAuthAccountNotLinked':
+        return 'This email is already associated with another account. Please sign in using your original authentication method.'
+      case 'AccessDenied':
+        return 'Access was denied. Please try again.'
+      case 'Verification':
+        return 'The verification failed. Please try again.'
+      default:
+        return 'An unknown error occurred. Please try again.'
     }
-  }, [error, addToast])
+  }
 
   return (
-    <div className="flex flex-col items-center justify-center min-h-screen py-2">
-      <h1 className="text-4xl font-bold mb-8">Authentication Error</h1>
-      <p className="text-xl mb-4">
-        {error || 'An unknown error occurred during authentication.'}
-      </p>
-      <p className="text-lg">Please try signing in again.</p>
+    <div className="flex items-center justify-center min-h-[400px]">
+      <Card className="w-full max-w-md">
+        <CardHeader>
+          <CardTitle className="text-2xl text-center text-destructive">
+            Authentication Error
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <p className="text-center text-muted-foreground">
+            {getErrorMessage(error)}
+          </p>
+          <div className="flex justify-center space-x-4">
+            <Button asChild>
+              <Link href="/auth/signin">Try Again</Link>
+            </Button>
+            <Button asChild variant="outline">
+              <Link href="/">Go Home</Link>
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
     </div>
   )
 }
-
