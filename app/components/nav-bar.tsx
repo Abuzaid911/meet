@@ -134,7 +134,7 @@ export function NavBar() {
                   </AvatarFallback>
                 </Avatar>
                 <span className="max-w-[150px] truncate">
-                  {session.user?.email}
+                  {session.user?.name}
                 </span>
               </Button>
             </DropdownMenuTrigger>
