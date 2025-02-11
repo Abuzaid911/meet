@@ -1,6 +1,4 @@
-// components/add-friend-modal.tsx
 'use client'
-
 import { useState } from 'react'
 import { Button } from '../components/ui/button'
 import { Input } from '../components/ui/input'
@@ -24,35 +22,55 @@ interface AddFriendModalProps {
 export function AddFriendModal({ isOpen, onClose, onFriendRequestSent }: AddFriendModalProps) {
   const [username, setUsername] = useState('')
   const [isSubmitting, setIsSubmitting] = useState(false)
-  const { addToast } = useToast()
+  const { addToast: toast } = useToast()
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!username.trim()) {
-      addToast('Username is required', 'error')
+      toast({
+        title: 'Error',
+        description: 'Username is required',
+        variant: 'destructive',
+      })
       return
     }
-
+  
     setIsSubmitting(true)
     try {
-      const response = await fetch('/api/friends', {
+      const response = await fetch('/api/friends/request', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ username: username.trim() }),
       })
-
+  
       const data = await response.json()
-
+  
       if (!response.ok) {
-        throw new Error(data.error || 'Failed to send friend request')
+        toast({
+          title: 'Failed to Send Request',
+          description: data.error || 'Something went wrong.',
+          variant: 'destructive',
+        })
+        return
       }
-
-      addToast('Friend request sent successfully!', 'success')
-      onFriendRequestSent()
-      handleClose()
+  
+      toast({
+        title: 'Success',
+        description: 'Friend request sent successfully!',
+        variant: 'success',
+      })
+  
+      setTimeout(() => {
+        onFriendRequestSent()
+        handleClose()
+      }, 1000)
     } catch (error) {
-      const message = error instanceof Error ? error.message : 'Failed to send request'
-      addToast(message, 'error')
+      console.error(error)
+      toast({
+        title: 'Network Error',
+        description: 'Please check your internet connection and try again.',
+        variant: 'destructive',
+      })
     } finally {
       setIsSubmitting(false)
     }
@@ -92,7 +110,7 @@ export function AddFriendModal({ isOpen, onClose, onFriendRequestSent }: AddFrie
             >
               Cancel
             </Button>
-            <Button type="submit" disabled={isSubmitting}>
+            <Button type="submit" disabled={isSubmitting || !username.trim()}>
               {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               Send Request
             </Button>

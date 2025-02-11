@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 import { getServerSession } from "next-auth/next"
-import { authOptions } from "../auth/[...nextauth]/route"
+import { authOptions } from "@/lib/auth";
 import { PrismaClient } from '@prisma/client'
 
 const prisma = new PrismaClient()
@@ -9,7 +9,7 @@ function generateUsername(name: string): string {
   return name.toLowerCase().replace(/\s+/g, '') + Math.floor(Math.random() * 1000).toString()
 }
 
-export async function GET(request: Request) {
+export async function GET() {
   try {
     const session = await getServerSession(authOptions)
 

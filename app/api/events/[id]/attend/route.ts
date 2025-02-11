@@ -1,120 +1,130 @@
-import { NextResponse } from 'next/server'
-import { getServerSession } from "next-auth/next"
-import { authOptions } from '@/app/api/auth/[...nextauth]/route'
-import { PrismaClient } from '@prisma/client'
+import { NextResponse } from "next/server";
+import { getServerSession } from "next-auth/next";
+import { authOptions } from "@/lib/auth";
+import { prisma } from "@/lib/prisma";
+import { z } from "zod";
 
-const prisma = new PrismaClient()
+// ✅ RSVP validation schema
+const rsvpSchema = z.object({
+  rsvp: z.enum(["yes", "no", "maybe"]),
+});
 
-export async function GET(
-  request: Request,
-  { params }: { params: { id: string } }
-) {
+/**
+ * ✅ GET: Check if the user is attending an event
+ */
+export async function GET(request: Request, { params }: { params: Promise<{ id: string }> }) {
+  const { id: eventId } = await params; // ✅ Awaiting params correctly
+  console.log("Event ID:", eventId);
+
   try {
-    const event = await prisma.event.findUnique({
-      where: { id: params.id },
-      include: {
-        host: {
-          select: {
-            id: true,
-            name: true,
-            image: true,
-          },
-        },
-        attendees: {
-          include: {
-            user: {
-              select: {
-                id: true,
-                name: true,
-                image: true,
-              },
-            },
-          },
+    const session = await getServerSession(authOptions);
+
+    if (!session?.user?.id) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    const attendance = await prisma.attendee.findUnique({
+      where: {
+        userId_eventId: {
+          userId: session.user.id,
+          eventId,
         },
       },
-    })
+    });
 
-    if (!event) {
-      return NextResponse.json({ error: 'Event not found' }, { status: 404 })
-    }
-
-    return NextResponse.json(event)
+    return NextResponse.json({
+      isAttending: !!attendance,
+      rsvp: attendance?.rsvp ?? "not attending",
+    });
   } catch (error) {
-    console.error('Error fetching event:', error)
-    return NextResponse.json({ error: 'Error fetching event' }, { status: 500 })
+    console.error("Error checking attendance:", error);
+    return NextResponse.json({ error: "Error checking attendance" }, { status: 500 });
   }
 }
 
-export async function PUT(
-  request: Request,
-  { params }: { params: { id: string } }
-) {
+/**
+ * ✅ POST: RSVP to an event
+ */
+export async function POST(request: Request, { params }: { params: Promise<{ id: string }> }) {
+  const { id: eventId } = await params; // ✅ Awaiting params correctly
+
   try {
-    const session = await getServerSession(authOptions)
+    const session = await getServerSession(authOptions);
 
-    if (!session) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    if (!session?.user?.id) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const event = await prisma.event.findUnique({
-      where: { id: params.id },
-      select: { hostId: true },
-    })
+    const body = await request.json();
+    const validatedData = rsvpSchema.safeParse(body);
 
+    if (!validatedData.success) {
+      return NextResponse.json({ error: "Invalid RSVP status", details: validatedData.error.format() }, { status: 400 });
+    }
+
+    // Ensure event exists before allowing RSVP
+    const event = await prisma.event.findUnique({ where: { id: eventId } });
     if (!event) {
-      return NextResponse.json({ error: 'Event not found' }, { status: 404 })
+      return NextResponse.json({ error: "Event not found" }, { status: 404 });
     }
 
-    if (event.hostId !== session.user.id) {
-      return NextResponse.json({ error: 'Unauthorized to edit this event' }, { status: 403 })
-    }
+    const attendance = await prisma.attendee.upsert({
+      where: {
+        userId_eventId: {
+          userId: session.user.id,
+          eventId,
+        },
+      },
+      update: { rsvp: validatedData.data.rsvp },
+      create: { userId: session.user.id, eventId, rsvp: validatedData.data.rsvp },
+    });
 
-    const { name, date, time, location, description } = await request.json()
-
-    const updatedEvent = await prisma.event.update({
-      where: { id: params.id },
-      data: { name, date, time, location, description },
-    })
-
-    return NextResponse.json(updatedEvent)
+    return NextResponse.json(attendance);
   } catch (error) {
-    console.error('Error updating event:', error)
-    return NextResponse.json({ error: 'Error updating event' }, { status: 500 })
+    console.error("Error updating attendance:", error);
+    return NextResponse.json({ error: "Error updating attendance" }, { status: 500 });
   }
 }
 
-export async function DELETE(
-  request: Request,
-  { params }: { params: { id: string } }
-) {
+/**
+ * ✅ DELETE: Remove RSVP (Unattend event)
+ */
+export async function DELETE(request: Request, { params }: { params: Promise<{ id: string }> }) {
+  const { id: eventId } = await params; // ✅ Awaiting params correctly
+
   try {
-    const session = await getServerSession(authOptions)
+    const session = await getServerSession(authOptions);
 
-    if (!session) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    if (!session?.user?.id) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const event = await prisma.event.findUnique({
-      where: { id: params.id },
-      select: { hostId: true },
-    })
+    // Check if RSVP exists before deleting
+    const existingRSVP = await prisma.attendee.findUnique({
+      where: {
+        userId_eventId: {
+          userId: session.user.id,
+          eventId,
+        },
+      },
+    });
 
-    if (!event) {
-      return NextResponse.json({ error: 'Event not found' }, { status: 404 })
+    if (!existingRSVP) {
+      return NextResponse.json({ error: "RSVP not found" }, { status: 404 });
     }
 
-    if (event.hostId !== session.user.id) {
-      return NextResponse.json({ error: 'Unauthorized to delete this event' }, { status: 403 })
-    }
+    await prisma.attendee.delete({
+      where: {
+        userId_eventId: {
+          userId: session.user.id,
+          eventId,
+        },
+      },
+    });
 
-    await prisma.event.delete({
-      where: { id: params.id },
-    })
-
-    return NextResponse.json({ message: 'Event deleted successfully' })
+    return NextResponse.json({ message: "Successfully removed attendance" });
   } catch (error) {
-    console.error('Error deleting event:', error)
-    return NextResponse.json({ error: 'Error deleting event' }, { status: 500 })
+    console.error("Error removing attendance:", error);
+    return NextResponse.json({ error: "Error removing attendance" }, { status: 500 });
   }
 }
-

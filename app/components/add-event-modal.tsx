@@ -1,42 +1,43 @@
-'use client'
+"use client"
 
-import { useState } from 'react'
-import { Button } from '../components/ui/button'
-import { Input } from '../components/ui/input'
-import { Textarea } from '../components/ui/textarea'
-import { Label } from '../components/ui/label'
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogFooter,
-} from '../components/ui/dialog'
-import { useToast } from '../components/ui/use-toast'
+import { useState, useEffect } from "react"
+import { Button } from "../components/ui/button"
+import { Input } from "../components/ui/input"
+import { Textarea } from "../components/ui/textarea"
+import { Label } from "../components/ui/label"
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "../components/ui/dialog"
+import { useToast } from "../components/ui/use-toast"
 
 interface AddEventModalProps {
   isOpen: boolean
   onClose: () => void
   onEventAdded: () => void
+  initialDate?: Date
 }
 
-export function AddEventModal({ isOpen, onClose, onEventAdded }: AddEventModalProps) {
-  const [eventName, setEventName] = useState('')
-  const [eventDate, setEventDate] = useState('')
-  const [eventTime, setEventTime] = useState('')
-  const [eventLocation, setEventLocation] = useState('')
-  const [eventDescription, setEventDescription] = useState('')
+export function AddEventModal({ isOpen, onClose, onEventAdded, initialDate }: AddEventModalProps) {
+  const [eventName, setEventName] = useState("")
+  const [eventDate, setEventDate] = useState("")
+  const [eventTime, setEventTime] = useState("")
+  const [eventLocation, setEventLocation] = useState("")
+  const [eventDescription, setEventDescription] = useState("")
   const [isSubmitting, setIsSubmitting] = useState(false)
   const { addToast } = useToast()
+
+  useEffect(() => {
+    if (initialDate) {
+      setEventDate(initialDate.toISOString().split("T")[0])
+    }
+  }, [initialDate])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setIsSubmitting(true)
     try {
-      const response = await fetch('/api/events', {
-        method: 'POST',
+      const response = await fetch("/api/events", {
+        method: "POST",
         headers: {
-          'Content-Type': 'application/json',
+          "Content-Type": "application/json",
         },
         body: JSON.stringify({
           name: eventName,
@@ -49,15 +50,22 @@ export function AddEventModal({ isOpen, onClose, onEventAdded }: AddEventModalPr
 
       if (!response.ok) {
         const errorData = await response.json()
-        throw new Error(errorData.error || 'Failed to create event')
+        throw new Error(errorData.error || "Failed to create event")
       }
 
-      addToast('Event created successfully!', 'success')
+      addToast({
+        title: "Success",
+        description: "Event created successfully!",
+      })
       onEventAdded()
       onClose()
     } catch (error) {
-      console.error('Error creating event:', error)
-      addToast(error instanceof Error ? error.message : 'Failed to create event', 'error')
+      console.error("Error creating event:", error)
+      addToast({
+        title: "Error",
+        description: error instanceof Error ? error.message : "Failed to create event",
+        variant: "destructive",
+      })
     } finally {
       setIsSubmitting(false)
     }
@@ -73,12 +81,7 @@ export function AddEventModal({ isOpen, onClose, onEventAdded }: AddEventModalPr
           <div className="space-y-4">
             <div>
               <Label htmlFor="eventName">Event Name</Label>
-              <Input
-                id="eventName"
-                value={eventName}
-                onChange={(e) => setEventName(e.target.value)}
-                required
-              />
+              <Input id="eventName" value={eventName} onChange={(e) => setEventName(e.target.value)} required />
             </div>
             <div>
               <Label htmlFor="eventDate">Date</Label>
@@ -120,7 +123,7 @@ export function AddEventModal({ isOpen, onClose, onEventAdded }: AddEventModalPr
           </div>
           <DialogFooter className="mt-4">
             <Button type="submit" disabled={isSubmitting}>
-              {isSubmitting ? 'Creating...' : 'Add Event'}
+              {isSubmitting ? "Creating..." : "Add Event"}
             </Button>
           </DialogFooter>
         </form>

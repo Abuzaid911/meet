@@ -1,46 +1,57 @@
-import { NextResponse } from 'next/server'
-import { getServerSession } from "next-auth/next"
-import { authOptions } from "../../../auth/[...nextauth]/route"
-import { PrismaClient } from '@prisma/client'
+import { NextResponse } from "next/server";
+import { getServerSession } from "next-auth/next";
+import { authOptions } from "@/lib/auth";
+import { prisma } from "@/lib/prisma";
+import { z } from "zod";
 
-const prisma = new PrismaClient()
+// ✅ RSVP validation schema
+const rsvpSchema = z.object({
+  rsvp: z.enum(["Yes", "No", "Maybe"]),
+});
 
+/**
+ * ✅ POST: Update RSVP status for an event
+ */
 export async function POST(
   request: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> } // ✅ `params` as a Promise
 ) {
   try {
-    const session = await getServerSession(authOptions)
+    const session = await getServerSession(authOptions);
+    const { id: eventId } = await params; // ✅ Awaiting params correctly
 
-    if (!session) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    if (!session?.user?.id) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const { rsvp } = await request.json()
+    const body = await request.json();
+    const validatedData = rsvpSchema.safeParse(body);
 
-    if (!['Yes', 'No', 'Maybe'].includes(rsvp)) {
-      return NextResponse.json({ error: 'Invalid RSVP status' }, { status: 400 })
+    if (!validatedData.success) {
+      return NextResponse.json({
+        error: "Invalid RSVP status",
+        details: validatedData.error.format(),
+      }, { status: 400 });
     }
 
     const updatedAttendee = await prisma.attendee.upsert({
       where: {
         userId_eventId: {
           userId: session.user.id,
-          eventId: params.id,
+          eventId,
         },
       },
-      update: { rsvp },
+      update: { rsvp: validatedData.data.rsvp },
       create: {
         userId: session.user.id,
-        eventId: params.id,
-        rsvp,
+        eventId,
+        rsvp: validatedData.data.rsvp,
       },
-    })
+    });
 
-    return NextResponse.json(updatedAttendee)
+    return NextResponse.json(updatedAttendee);
   } catch (error) {
-    console.error('Error updating RSVP:', error)
-    return NextResponse.json({ error: 'Error updating RSVP' }, { status: 500 })
+    console.error("Error updating RSVP:", error);
+    return NextResponse.json({ error: "Error updating RSVP" }, { status: 500 });
   }
 }
-

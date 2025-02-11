@@ -1,32 +1,32 @@
-'use client'
+"use client"
 
-import { useState, useEffect } from 'react'
-import { useParams, useRouter } from 'next/navigation'
-import { useSession } from 'next-auth/react'
-import { Button } from '../../components/ui/button'
-import { Avatar, AvatarFallback, AvatarImage } from '../../components/ui/avatar'
-import { Textarea } from '../../components/ui/textarea'
-import { CommentList } from '../../components/comment-list'
-import { useToast } from '../../components/ui/use-toast'
-import { EditEventModal } from '../../components/edit-event-modal'
-import { AddAttendeeModal } from '../../components/add-attendee-modal'
-// import { 
-//   AlertDialog,
-//   AlertDialogAction,
-//   AlertDialogCancel,
-//   AlertDialogContent,
-//   AlertDialogDescription,
-//   AlertDialogFooter,
-//   AlertDialogHeader,
-//   AlertDialogTitle,
-// } from "../../components/ui/alert-dialog"
-import { CalendarIcon, MapPinIcon, ClockIcon, UsersIcon, Edit2Icon, TrashIcon, PlusCircleIcon } from 'lucide-react'
+import { useState, useEffect, useCallback } from "react"
+import { useParams, useRouter } from "next/navigation"
+import { useSession } from "next-auth/react"
+import { Button } from "../../components/ui/button"
+import { Avatar, AvatarFallback, AvatarImage } from "../../components/ui/avatar"
+import { Textarea } from "../../components/ui/textarea"
+import { CommentList } from "../../components/comment-list"
+import { useToast } from "../../components/ui/use-toast"
+import { EditEventModal } from "../../components/edit-event-modal"
+import { AddAttendeeModal } from "../../components/add-attendee-modal"
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "../../components/ui/alert-dialog"
+import { CalendarIcon, MapPinIcon, ClockIcon, UsersIcon, Edit2Icon, TrashIcon, PlusCircleIcon } from "lucide-react"
 
 interface Attendee {
   id: string
   name: string
   image: string | null
-  rsvp: 'Yes' | 'No' | 'Maybe'
+  rsvp: "Yes" | "No" | "Maybe"
 }
 
 interface Event {
@@ -47,7 +47,7 @@ interface Event {
 export default function EventPage() {
   const { id } = useParams()
   const [event, setEvent] = useState<Event | null>(null)
-  const [comment, setComment] = useState('')
+  const [comment, setComment] = useState("")
   const [isLoading, setIsLoading] = useState(true)
   const [isEditModalOpen, setIsEditModalOpen] = useState(false)
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false)
@@ -56,86 +56,86 @@ export default function EventPage() {
   const { addToast } = useToast()
   const router = useRouter()
 
-  useEffect(() => {
-    fetchEvent()
-  }, [id])
-
-  const fetchEvent = async () => {
+  const fetchEvent = useCallback(async () => {
     try {
       const response = await fetch(`/api/events/${id}`)
       if (!response.ok) {
-        throw new Error('Failed to fetch event')
+        throw new Error("Failed to fetch event")
       }
       const data = await response.json()
       setEvent(data)
     } catch (error) {
-      console.error('Error fetching event:', error)
-      // addToast({
-      //   title: 'Error',
-      //   description: 'Failed to load event',
-      //   variant: 'destructive',
-      // })
+      console.error("Error fetching event:", error)
+      addToast({
+        title: "Error",
+        description: "Failed to load event",
+        variant: "destructive",
+      })
     } finally {
       setIsLoading(false)
     }
-  }
+  }, [id, addToast])
+
+  useEffect(() => {
+    fetchEvent()
+  }, [fetchEvent]) //Corrected useEffect dependency
 
   const handleCommentSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     try {
       const response = await fetch(`/api/events/${id}/comments`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ text: comment }),
       })
       if (!response.ok) {
-        throw new Error('Failed to submit comment')
+        throw new Error("Failed to submit comment")
       }
-      setComment('')
+      setComment("")
       fetchEvent() // Refresh event data to include new comment
       addToast({
-        title: 'Success',
-        description: 'Comment added successfully',
+        title: "Success",
+        description: "Comment added successfully",
       })
     } catch (error) {
-      console.error('Error submitting comment:', error)
+      console.error("Error submitting comment:", error)
       addToast({
-        title: 'Error',
-        description: 'Failed to add comment',
-        variant: 'destructive',
+        title: "Error",
+        description: "Failed to add comment",
+        variant: "destructive",
       })
     }
   }
 
-  const handleRSVP = async (rsvp: 'Yes' | 'No' | 'Maybe') => {
+  const handleRSVP = async (rsvp: "Yes" | "No" | "Maybe") => {
     if (!session) {
       addToast({
-        title: 'Error',
-        description: 'Please sign in to RSVP',
-        variant: 'destructive',
+        title: "Error",
+        description: "Please sign in to RSVP",
+        variant: "destructive",
       })
       return
     }
     try {
       const response = await fetch(`/api/events/${id}/rsvp`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ rsvp }),
       })
       if (!response.ok) {
-        throw new Error('Failed to update RSVP')
+        throw new Error("Failed to update RSVP")
       }
       fetchEvent() // Refresh event data
       addToast({
-        title: 'Success',
+        title: "Success",
         description: `Successfully RSVP'd as ${rsvp}`,
       })
     } catch (error) {
-      console.error('Error updating RSVP:', error)
+      console.error("Error updating RSVP:", error)
       addToast({
-        title: 'Error',
-        description: 'Failed to update RSVP',
-        variant: 'destructive',
+        title: "Error",
+        description: "Failed to update RSVP",
+        variant: "destructive",
       })
     }
   }
@@ -143,22 +143,22 @@ export default function EventPage() {
   const handleDeleteEvent = async () => {
     try {
       const response = await fetch(`/api/events/${id}`, {
-        method: 'DELETE',
+        method: "DELETE",
       })
       if (!response.ok) {
-        throw new Error('Failed to delete event')
+        throw new Error("Failed to delete event")
       }
       addToast({
-        title: 'Success',
-        description: 'Event deleted successfully',
+        title: "Success",
+        description: "Event deleted successfully",
       })
-      router.push('/') // Redirect to home page after deletion
+      router.push("/") // Redirect to home page after deletion
     } catch (error) {
-      console.error('Error deleting event:', error)
+      console.error("Error deleting event:", error)
       addToast({
-        title: 'Error',
-        description: 'Failed to delete event',
-        variant: 'destructive',
+        title: "Error",
+        description: "Failed to delete event",
+        variant: "destructive",
       })
     }
   }
@@ -172,7 +172,7 @@ export default function EventPage() {
   }
 
   const isHost = event.host.id === session?.user.id
-  const userRSVP = event.attendees.find(attendee => attendee.id === session?.user.id)?.rsvp
+  const userRSVP = event.attendees.find((attendee) => attendee.id === session?.user.id)?.rsvp
 
   return (
     <div className="space-y-8">
@@ -228,9 +228,15 @@ export default function EventPage() {
             <div className="space-y-2">
               <h3 className="text-xl font-semibold">RSVP</h3>
               <div className="space-x-2">
-                <Button onClick={() => handleRSVP('Yes')} variant={userRSVP === 'Yes' ? 'default' : 'outline'}>Yes</Button>
-                <Button onClick={() => handleRSVP('Maybe')} variant={userRSVP === 'Maybe' ? 'default' : 'outline'}>Maybe</Button>
-                <Button onClick={() => handleRSVP('No')} variant={userRSVP === 'No' ? 'default' : 'outline'}>No</Button>
+                <Button onClick={() => handleRSVP("Yes")} variant={userRSVP === "Yes" ? "default" : "outline"}>
+                  Yes
+                </Button>
+                <Button onClick={() => handleRSVP("Maybe")} variant={userRSVP === "Maybe" ? "default" : "outline"}>
+                  Maybe
+                </Button>
+                <Button onClick={() => handleRSVP("No")} variant={userRSVP === "No" ? "default" : "outline"}>
+                  No
+                </Button>
               </div>
             </div>
           )}
@@ -242,11 +248,7 @@ export default function EventPage() {
         <div className="space-y-4">
           <h3 className="text-xl font-semibold">Comments</h3>
           <form onSubmit={handleCommentSubmit} className="space-y-2">
-            <Textarea
-              placeholder="Add a comment..."
-              value={comment}
-              onChange={(e) => setComment(e.target.value)}
-            />
+            <Textarea placeholder="Add a comment..." value={comment} onChange={(e) => setComment(e.target.value)} />
             <Button type="submit">Post Comment</Button>
           </form>
           <CommentList eventId={id as string} />
@@ -260,7 +262,7 @@ export default function EventPage() {
           onEventUpdated={fetchEvent}
         />
       )}
-      {/* <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
+      <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Are you sure you want to delete this event?</AlertDialogTitle>
@@ -273,7 +275,7 @@ export default function EventPage() {
             <AlertDialogAction onClick={handleDeleteEvent}>Delete</AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
-      </AlertDialog> */}
+      </AlertDialog>
       <AddAttendeeModal
         isOpen={isAddAttendeeModalOpen}
         onClose={() => setIsAddAttendeeModalOpen(false)}
@@ -283,3 +285,4 @@ export default function EventPage() {
     </div>
   )
 }
+

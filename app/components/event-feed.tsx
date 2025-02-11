@@ -33,12 +33,13 @@ interface Event {
 export function EventFeed() {
   const [events, setEvents] = useState<Event[]>([])
   const [isLoading, setIsLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
+  // Remove this line
+  // const [error, setError] = useState<string | null>(null)
 
   const fetchEvents = useCallback(async () => {
     try {
       setIsLoading(true)
-      setError(null)
+      //setError(null)
       const response = await fetch('/api/events/public')
       if (!response.ok) {
         throw new Error('Failed to fetch events')
@@ -47,7 +48,7 @@ export function EventFeed() {
       setEvents(data)
     } catch (err) {
       console.error('Error fetching events:', err)
-      setError('Failed to fetch events')
+      //setError('Failed to fetch events')
     } finally {
       setIsLoading(false)
     }

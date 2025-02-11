@@ -1,10 +1,18 @@
 import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth/next";
 import { authOptions } from "@/lib/auth";
-import { PrismaClient } from "@prisma/client";
+import { prisma } from "@/lib/prisma";
+import { z } from "zod";
 
-const prisma = new PrismaClient();
+// ✅ Schema validation for attendee RSVP
+const addAttendeeSchema = z.object({
+  email: z.string().email(),
+  rsvp: z.enum(["Yes", "No", "Maybe"]),
+});
 
+/**
+ * ✅ POST: Add an attendee to an event
+ */
 export async function POST(
   request: Request,
   { params }: { params: Promise<{ id: string }> } // ✅ `params` as a Promise
@@ -13,16 +21,18 @@ export async function POST(
     const session = await getServerSession(authOptions);
     const { id: eventId } = await params; // ✅ Awaiting params correctly
 
-    if (!session) {
+    if (!session?.user?.id) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const { email, rsvp } = await request.json();
+    const body = await request.json();
+    const validatedData = addAttendeeSchema.safeParse(body);
 
-    if (!email || !["Yes", "No", "Maybe"].includes(rsvp)) {
-      return NextResponse.json({ error: "Invalid input" }, { status: 400 });
+    if (!validatedData.success) {
+      return NextResponse.json({ error: "Invalid input", details: validatedData.error.format() }, { status: 400 });
     }
 
+    const { email, rsvp } = validatedData.data;
     const user = await prisma.user.findUnique({ where: { email } });
 
     if (!user) {

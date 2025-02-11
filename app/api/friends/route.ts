@@ -1,41 +1,26 @@
 import { NextResponse } from 'next/server'
 import { getServerSession } from "next-auth/next"
-import { authOptions } from "../auth/[...nextauth]/route"
-import { prisma } from '@/lib/prisma'
+import { authOptions } from "@/lib/auth";
+import { PrismaClient } from '@prisma/client'
 
-export async function GET(request: Request) {
+const prisma = new PrismaClient()
+
+
+export async function GET() {
   try {
     const session = await getServerSession(authOptions)
 
-    if (!session?.user) {
+    if (!session || !session.user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
     const currentUser = await prisma.user.findUnique({
-      where: { email: session.user.email! },
+      where: { id: session.user.id },
       include: {
-        friends: {
-          select: {
-            id: true,
-            name: true,
-            email: true,
-            image: true,
-            username: true,
-          }
-        },
+        friends: true,
         receivedFriendRequests: {
           where: { status: 'pending' },
-          include: {
-            sender: {
-              select: {
-                id: true,
-                name: true,
-                email: true,
-                image: true,
-                username: true,
-              }
-            }
-          }
+          include: { sender: true }
         }
       }
     })
@@ -50,25 +35,23 @@ export async function GET(request: Request) {
     })
   } catch (error) {
     console.error('Error fetching friends and requests:', error)
-    return NextResponse.json(
-      { error: 'Error fetching friends and requests' }, 
-      { status: 500 }
-    )
+    return NextResponse.json({ error: 'Error fetching friends and requests' }, { status: 500 })
   }
 }
 
-export async function POST(request: Request) {
+export async function POST(request:Request) {
+
   try {
     const session = await getServerSession(authOptions)
 
-    if (!session?.user) {
+    if (!session || !session.user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
     const { username } = await request.json()
 
     if (!username) {
-      return NextResponse.json({ error: 'Username is required' }, { status: 400 })
+      return NextResponse.json({ error: 'Friend username is required' }, { status: 400 })
     }
 
     const currentUser = await prisma.user.findUnique({
@@ -77,7 +60,7 @@ export async function POST(request: Request) {
     })
 
     const friendUser = await prisma.user.findUnique({
-      where: { username: username.toLowerCase() },
+      where: { username: username },
     })
 
     if (!currentUser) {
@@ -85,7 +68,7 @@ export async function POST(request: Request) {
     }
 
     if (!friendUser) {
-      return NextResponse.json({ error: 'User not found' }, { status: 404 })
+      return NextResponse.json({ error: 'Friend not found' }, { status: 404 })
     }
 
     if (currentUser.id === friendUser.id) {
@@ -117,7 +100,7 @@ export async function POST(request: Request) {
       }
     }
 
-    // Create new friend request
+    // Create a new friend request
     await prisma.friendRequest.create({
       data: {
         senderId: currentUser.id,
@@ -133,51 +116,53 @@ export async function POST(request: Request) {
   }
 }
 
+
 export async function DELETE(request: Request) {
-    try {
-      const session = await getServerSession(authOptions)
-  
-      if (!session?.user) {
-        return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-      }
-  
-      const { friendId } = await request.json()
-  
-      if (!friendId) {
-        return NextResponse.json({ error: 'Friend ID is required' }, { status: 400 })
-      }
-  
-      const currentUser = await prisma.user.findUnique({
-        where: { email: session.user.email! },
-      })
-  
-      if (!currentUser) {
-        return NextResponse.json({ error: 'Current user not found' }, { status: 404 })
-      }
-  
-      // Remove the friend connection in both directions
-      await prisma.$transaction([
-        prisma.user.update({
-          where: { id: currentUser.id },
-          data: {
-            friends: {
-              disconnect: { id: friendId }
-            }
-          }
-        }),
-        prisma.user.update({
-          where: { id: friendId },
-          data: {
-            friends: {
-              disconnect: { id: currentUser.id }
-            }
-          }
-        })
-      ])
-  
-      return NextResponse.json({ message: 'Friend removed successfully' })
-    } catch (error) {
-      console.error('Error removing friend:', error)
-      return NextResponse.json({ error: 'Error removing friend' }, { status: 500 })
+  try {
+    const session = await getServerSession(authOptions)
+
+    if (!session || !session.user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
+
+    const { friendId } = await request.json()
+
+    if (!friendId) {
+      return NextResponse.json({ error: 'Friend ID is required' }, { status: 400 })
+    }
+
+    const currentUser = await prisma.user.findUnique({
+      where: { email: session.user.email! },
+      include: { friends: true }
+    })
+
+    if (!currentUser) {
+      return NextResponse.json({ error: 'Current user not found' }, { status: 404 })
+    }
+
+    // Remove the friend connection
+    await prisma.user.update({
+      where: { id: currentUser.id },
+      data: {
+        friends: {
+          disconnect: { id: friendId }
+        }
+      }
+    })
+
+    await prisma.user.update({
+      where: { id: friendId },
+      data: {
+        friends: {
+          disconnect: { id: currentUser.id }
+        }
+      }
+    })
+
+    return NextResponse.json({ message: 'Friend removed successfully' })
+  } catch (error) {
+    console.error('Error removing friend:', error)
+    return NextResponse.json({ error: 'Error removing friend' }, { status: 500 })
   }
+}
+
