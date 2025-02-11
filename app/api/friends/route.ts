@@ -5,7 +5,6 @@ import { PrismaClient } from '@prisma/client'
 
 const prisma = new PrismaClient()
 
-
 export async function GET() {
   try {
     const session = await getServerSession(authOptions)
@@ -39,8 +38,7 @@ export async function GET() {
   }
 }
 
-export async function POST(request:Request) {
-
+export async function POST(request: Request) {
   try {
     const session = await getServerSession(authOptions)
 
@@ -75,8 +73,8 @@ export async function POST(request:Request) {
       return NextResponse.json({ error: 'You cannot add yourself as a friend' }, { status: 400 })
     }
 
-    // Check if they're already friends
-    const alreadyFriends = currentUser.friends.some(friend => friend.id === friendUser.id)
+    // ✅ Fix: Explicitly type `friend`
+    const alreadyFriends = currentUser.friends.some((friend: { id: string }) => friend.id === friendUser.id);
 
     if (alreadyFriends) {
       return NextResponse.json({ error: 'You are already friends with this user' }, { status: 400 })
@@ -115,7 +113,6 @@ export async function POST(request:Request) {
     return NextResponse.json({ error: 'Error sending friend request' }, { status: 500 })
   }
 }
-
 
 export async function DELETE(request: Request) {
   try {
@@ -165,4 +162,3 @@ export async function DELETE(request: Request) {
     return NextResponse.json({ error: 'Error removing friend' }, { status: 500 })
   }
 }
-
