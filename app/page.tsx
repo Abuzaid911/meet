@@ -37,7 +37,7 @@ export default function Home() {
           {session && (
             <Button onClick={handleAddEvent} variant="outline">
               <PlusCircle className="mr-2 h-4 w-4" />
-              Add Event
+              Add Event.
             </Button>
           )}
         </div>
