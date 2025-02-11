@@ -23,12 +23,7 @@ export default function RootLayout({
         <Providers>
           <ToastProvider>
             <div className="flex flex-col min-h-screen">
-              <header className="bg-primary text-primary-foreground p-4">
-                <div className="container mx-auto flex justify-between items-center">
-                  <Link href="/" className="text-2xl font-bold">Social Scheduler</Link>
-                  <NavBar />
-                </div>
-              </header>
+              <NavBar />
               <main className="flex-grow container mx-auto p-4">
                 {children}
               </main>
