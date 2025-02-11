@@ -1,6 +1,5 @@
 import './globals.css'
 import { Inter } from 'next/font/google'
-import Link from 'next/link'
 import { Providers } from './providers'
 import { NavBar } from './components/nav-bar'
 import { ToastProvider } from './components/ui/use-toast'
@@ -27,9 +26,6 @@ export default function RootLayout({
               <main className="flex-grow container mx-auto p-4">
                 {children}
               </main>
-              <footer className="bg-muted p-4 text-center">
-                <p>&copy; 2023 Social Scheduler</p>
-              </footer>
             </div>
           </ToastProvider>
         </Providers>
