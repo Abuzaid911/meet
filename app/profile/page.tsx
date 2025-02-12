@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useEffect, useState } from "react"
 import { useSession } from 'next-auth/react'
 import { Avatar, AvatarFallback, AvatarImage } from "../components/ui/avatar"
 import { Button } from "../components/ui/button"
@@ -26,21 +26,17 @@ export default function ProfilePage() {
   const { addToast } = useToast()
 
   useEffect(() => {
-    if (status === 'authenticated') {
+    if (status === 'authenticated' && session?.user) {
       fetchProfile()
     }
-  }, [status]) // ✅ Fixed: Added dependencies
-
-  useEffect(() => {
-    if (status === 'authenticated' && session?.user) {
-      fetchProfile();
-    }
-  }, [status, session]);  // ✅ Added session as a dependency
+  }, [status, session]) // ✅ Ensures profile fetches only when necessary
 
   const fetchProfile = async () => {
     try {
+      setIsLoading(true)
       const response = await fetch('/api/user')
       if (!response.ok) throw new Error('Failed to fetch profile')
+
       const data = await response.json()
       setProfile(data)
     } catch (error) {
@@ -58,16 +54,22 @@ export default function ProfilePage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setIsLoading(true)
+
     try {
       const response = await fetch('/api/user', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name: profile?.name, bio: profile?.bio }),
+        body: JSON.stringify({
+          name: profile?.name,
+          bio: profile?.bio
+        }),
       })
+
       if (!response.ok) throw new Error('Failed to update profile')
       const updatedProfile = await response.json()
       setProfile(updatedProfile)
       setIsEditing(false)
+
       addToast({
         title: "Success",
         description: "Profile updated successfully!",
@@ -94,16 +96,18 @@ export default function ProfilePage() {
   }
 
   return (
-    <div className="container mx-auto px-4 py-8 space-y-10 pt-18">
+    <div className="container mx-auto px-4 py-10 space-y-12 pt-24">
       {/* ✅ Profile Header */}
-      <h2 className="text-3xl font-bold text-gray-800 text-center md:text-left">.</h2>
+      <h2 className="text-4xl font-extrabold text-center md:text-left text-gray-800">
+        My Profile
+      </h2>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-10">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-12">
         {/* ✅ Left Section - Profile Info */}
         <div className="bg-white shadow-md rounded-lg p-6 space-y-6">
-          <div className="flex items-center space-x-4">
+          <div className="flex items-center space-x-6">
             {/* ✅ Avatar */}
-            <Avatar className="w-24 h-24">
+            <Avatar className="w-24 h-24 border-2 border-gray-300">
               <AvatarImage src={profile?.image || undefined} alt={profile?.name || 'User'} />
               <AvatarFallback>{profile?.name?.[0] || 'U'}</AvatarFallback>
             </Avatar>
