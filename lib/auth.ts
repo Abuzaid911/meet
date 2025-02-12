@@ -3,7 +3,9 @@ import GoogleProvider from "next-auth/providers/google"
 import type { NextAuthOptions } from "next-auth"
 import { prisma } from "@/lib/prisma"
 
-// Extend the built-in Session type to include user.id
+/**
+ * Extending NextAuth's Session type to include user.id
+ */
 declare module "next-auth" {
   interface Session {
     user: {
@@ -11,6 +13,7 @@ declare module "next-auth" {
       name?: string | null
       email?: string | null
       image?: string | null
+      username?: string | null
     }
   }
 }
@@ -20,7 +23,6 @@ declare module "next-auth" {
  * and adding a random number
  */
 function generateUsername(name: string): string {
-  // Remove any special characters and spaces, convert to lowercase
   const baseName = name
     .toLowerCase()
     .replace(/[^a-z0-9]/g, "")
@@ -34,6 +36,7 @@ function generateUsername(name: string): string {
   return `${baseName}${randomNum}`
 }
 
+// Ensure required env variables are set
 if (!process.env.GOOGLE_CLIENT_ID || !process.env.GOOGLE_CLIENT_SECRET) {
   throw new Error("Missing Google OAuth credentials")
 }
@@ -54,6 +57,9 @@ export const authOptions: NextAuthOptions = {
     }),
   ],
   callbacks: {
+    /**
+     * Handles the sign-in process
+     */
     async signIn({ user, account }) {
       try {
         if (account?.provider === "google" && user.email) {
@@ -62,20 +68,60 @@ export const authOptions: NextAuthOptions = {
             return false
           }
 
-          await prisma.user.upsert({
+          // Check if the user already exists in the database
+          const existingUser = await prisma.user.findUnique({
             where: { email: user.email },
-            update: {
-              // Update name and image if they've changed in Google profile
-              name: user.name,
-              image: user.image,
-            },
-            create: {
-              name: user.name,
-              email: user.email,
-              image: user.image,
-              username: generateUsername(user.name),
-            },
+            include: { accounts: true },
           })
+
+          if (existingUser) {
+            // If the user exists but doesn't have a Google account, create it
+            const existingGoogleAccount = existingUser.accounts.some(
+              (acc) => acc.provider === "google"
+            )
+
+            if (!existingGoogleAccount) {
+              await prisma.account.create({
+                data: {
+                  userId: existingUser.id,
+                  provider: "google",
+                  providerAccountId: account.providerAccountId,
+                  type: "oauth",
+                  access_token: account.access_token,
+                  refresh_token: account.refresh_token,
+                  expires_at: account.expires_at,
+                  token_type: account.token_type,
+                  scope: account.scope,
+                  id_token: account.id_token,
+                  session_state: account.session_state,
+                },
+              })
+            }
+          } else {
+            // If the user doesn't exist, create a new one with a Google account
+            await prisma.user.create({
+              data: {
+                name: user.name,
+                email: user.email,
+                image: user.image,
+                username: generateUsername(user.name),
+                accounts: {
+                  create: {
+                    provider: "google",
+                    providerAccountId: account.providerAccountId,
+                    type: "oauth",
+                    access_token: account.access_token,
+                    refresh_token: account.refresh_token,
+                    expires_at: account.expires_at,
+                    token_type: account.token_type,
+                    scope: account.scope,
+                    id_token: account.id_token,
+                    session_state: account.session_state,
+                  },
+                },
+              },
+            })
+          }
         }
         return true
       } catch (error) {
@@ -83,37 +129,52 @@ export const authOptions: NextAuthOptions = {
         return false
       }
     },
-    async session({ session, token }) {
-      if (session.user && token.sub) {
-        session.user.id = token.sub
 
-        // Ensure username is always available in session
-        const dbUser = await prisma.user.findUnique({
-          where: { id: token.sub },
-          select: { username: true },
-        })
-
-        if (dbUser) {
-          session.user.name = dbUser.username
-        }
-      }
-      return session
-    },
+    /**
+     * Manages JWT token behavior
+     */
     async jwt({ token, user }) {
       if (user) {
         token.sub = user.id
       }
       return token
     },
+
+    /**
+     * Handles session updates
+     */
+    async session({ session, token }) {
+      if (session.user && token.sub) {
+        session.user.id = token.sub
+
+        // Ensure username is always available in the session
+        const dbUser = await prisma.user.findUnique({
+          where: { id: token.sub },
+          select: { username: true },
+        })
+
+        if (dbUser) {
+          session.user.username = dbUser.username
+        }
+      }
+      return session
+    },
   },
+
+  /**
+   * Custom authentication pages
+   */
   pages: {
     signIn: "/auth/signin",
     error: "/auth/error",
   },
+
+  /**
+   * Debugging & Session Strategy
+   */
   debug: process.env.NODE_ENV === "development",
   session: {
     strategy: "jwt",
   },
   secret: process.env.NEXTAUTH_SECRET,
 }
-

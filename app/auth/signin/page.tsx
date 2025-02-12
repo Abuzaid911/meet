@@ -5,6 +5,7 @@ import { getProviders, signIn, useSession } from "next-auth/react"
 import { useRouter } from "next/navigation"
 import { Button } from "../../components/ui/button"
 import { useToast } from "../../components/ui/use-toast"
+import { Loader2 } from "lucide-react"
 
 type Provider = {
   id: string
@@ -13,7 +14,7 @@ type Provider = {
 
 export default function SignIn() {
   const [providers, setProviders] = useState<Record<string, Provider> | null>(null)
-  const { addToast } = useToast()
+  const { addToast } = useToast() // ✅ FIX: Correct function name
   const router = useRouter()
   const { data: session, status } = useSession()
   const [signInAttempted, setSignInAttempted] = useState(false)
@@ -56,17 +57,17 @@ export default function SignIn() {
       if (result?.error) {
         console.error("Sign-in error:", result.error)
         addToast({
-          title: "Error",
-          description: `Failed to sign in: ${result.error}`,
+          title: "Sign-In Failed",
+          description: "Could not sign in. Please try again.",
           variant: "destructive",
         })
       } else if (result?.url) {
         console.log("Redirecting to:", result.url)
         router.push(result.url)
       } else {
-        console.log("No error or URL in result. Full result:", result)
+        console.log("Unexpected result. Full response:", result)
         addToast({
-          title: "Info",
+          title: "Processing...",
           description: "Sign-in process started. Please wait...",
         })
       }
@@ -80,29 +81,44 @@ export default function SignIn() {
     }
   }
 
-  if (status === "loading" || !providers) {
-    return <div>Loading...</div>
+  if (status === "loading") {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-screen">
+        <Loader2 className="animate-spin w-10 h-10 text-gray-500" />
+        <p className="text-gray-500 mt-3">Loading sign-in options...</p>
+      </div>
+    )
   }
 
   return (
-    <div className="flex flex-col items-center justify-center min-h-screen py-2">
-      <h1 className="text-4xl font-bold mb-8">Sign In</h1>
-      {Object.values(providers).map((provider: Provider) => (
-        <div key={provider.name} className="mb-4">
-          <Button onClick={() => handleSignIn(provider.id)}>Sign in with {provider.name}</Button>
-        </div>
-      ))}
-      <div className="mt-4 text-sm text-gray-500">
-        <p>If you&apos;re having trouble signing in, please try the following:</p>
-        <ul className="list-disc list-inside mt-2">
-          <li>Ensure you&apos;ve allowed pop-ups for this site</li>
-          <li>Disable any ad-blockers or privacy extensions</li>
-          <li>Clear your browser cache and cookies</li>
-          <li>Try using a different browser</li>
-          <li>Ensure you&apos;re not blocking third-party cookies</li>
+    <div className="flex flex-col items-center justify-center min-h-screen px-4">
+      <h1 className="text-4xl font-bold mb-8 text-center">Sign In</h1>
+
+      {providers ? (
+        Object.values(providers).map((provider: Provider) => (
+          <div key={provider.name} className="mb-4 w-full max-w-xs">
+            <Button
+              onClick={() => handleSignIn(provider.id)}
+              className="w-full text-lg flex justify-center"
+            >
+              Sign in with {provider.name}
+            </Button>
+          </div>
+        ))
+      ) : (
+        <p className="text-gray-500">No sign-in providers available</p>
+      )}
+
+      <div className="mt-6 text-sm text-gray-600 text-center max-w-sm">
+        <p>If you&apos;re having trouble signing in, try these steps:</p>
+        <ul className="list-disc list-inside text-gray-500 mt-2 text-left">
+          <li>Ensure pop-ups are allowed for this site.</li>
+          <li>Disable ad-blockers or privacy extensions.</li>
+          <li>Clear your browser cache and cookies.</li>
+          <li>Try using a different browser.</li>
+          <li>Ensure third-party cookies are enabled.</li>
         </ul>
       </div>
     </div>
   )
 }
-
