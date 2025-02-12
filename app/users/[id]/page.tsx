@@ -41,6 +41,7 @@ export default function UserProfilePage() {
 
   const fetchProfile = async () => {
     try {
+      setIsLoading(true) // ✅ Show loading state while fetching
       const response = await fetch(`/api/users/${params.id}`)
       if (!response.ok) throw new Error('Failed to fetch profile')
       const data = await response.json()
@@ -53,7 +54,7 @@ export default function UserProfilePage() {
         variant: "destructive"
       })
     } finally {
-      setIsLoading(false)
+      setIsLoading(false) // ✅ Hide loading state
     }
   }
 
@@ -75,7 +76,7 @@ export default function UserProfilePage() {
   }
 
   return (
-    <div className="container mx-auto px-4 py-8 space-y-8">
+    <div className="container mx-auto px-4 py-10 space-y-12 pt-24">
       {/* ✅ Back Button */}
       <Button 
         variant="ghost" 
@@ -89,11 +90,14 @@ export default function UserProfilePage() {
       {/* ✅ Profile Card */}
       <Card className="bg-white shadow-lg rounded-lg p-6">
         <CardHeader>
-          <div className="flex items-center space-x-4">
-            <Avatar className="w-24 h-24">
+          <div className="flex items-center space-x-6">
+            {/* ✅ Avatar */}
+            <Avatar className="w-24 h-24 border-2 border-gray-300">
               <AvatarImage src={profile.image || undefined} alt={profile.name || 'User'} />
               <AvatarFallback>{profile.name?.[0] || 'U'}</AvatarFallback>
             </Avatar>
+
+            {/* ✅ Profile Info */}
             <div>
               <CardTitle className="text-2xl font-semibold text-gray-800">{profile.name}</CardTitle>
               <p className="text-gray-600">@{profile.username}</p>
