@@ -38,9 +38,6 @@ export default function Home() {
           <Button asChild variant="default">
             <Link href="/calendar">View Calendar</Link>
           </Button>
-          <Button asChild variant="outline">
-            <Link href="/profile">My Profile</Link>
-          </Button>
 
           {session && (
             <motion.button
