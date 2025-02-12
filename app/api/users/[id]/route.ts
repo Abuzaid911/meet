@@ -6,25 +6,25 @@ import { PrismaClient } from "@prisma/client";
 const prisma = new PrismaClient();
 
 /**
- * ✅ GET: Fetch a user profile along with upcoming events
+ * ✅ GET: Fetch a user profile along with username and upcoming events
  */
 export async function GET(
   request: Request,
-  { params }: { params: Promise<{ id: string }> } // ✅ `params` as a Promise
+  { params }: { params: { id: string } } // ✅ Removed `Promise`
 ) {
   try {
     const session = await getServerSession(authOptions);
-    const { id: userId } = await params; // ✅ Awaiting params correctly
 
     if (!session) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
     const user = await prisma.user.findUnique({
-      where: { id: userId },
+      where: { id: params.id }, // ✅ Using `params.id` directly
       select: {
         id: true,
         name: true,
+        username: true, // ✅ Added username
         image: true,
         bio: true,
         events: {
