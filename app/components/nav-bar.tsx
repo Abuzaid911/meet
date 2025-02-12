@@ -10,8 +10,7 @@ import { FiChevronDown } from "react-icons/fi"
 
 const navItems = [
   { href: "/", label: "Home" },
-  { href: "/new", label: "New Post" },
-  { href: "/about", label: "About" }
+  { href: "/profile", label: "Profile" }
 ]
 
 const menuVariants = {
