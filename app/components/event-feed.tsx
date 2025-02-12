@@ -1,4 +1,4 @@
-'use client'
+"use client"
 
 import { useEffect, useState, useCallback } from 'react'
 import Link from 'next/link'
@@ -21,7 +21,7 @@ interface Event {
   date: string
   time: string
   location: string
-  description?: string
+  description?: string // ✅ Added event description
   host: {
     id: string
     name: string
@@ -33,22 +33,16 @@ interface Event {
 export function EventFeed() {
   const [events, setEvents] = useState<Event[]>([])
   const [isLoading, setIsLoading] = useState(true)
-  // Remove this line
-  // const [error, setError] = useState<string | null>(null)
 
   const fetchEvents = useCallback(async () => {
     try {
       setIsLoading(true)
-      //setError(null)
       const response = await fetch('/api/events/public')
-      if (!response.ok) {
-        throw new Error('Failed to fetch events')
-      }
+      if (!response.ok) throw new Error('Failed to fetch events')
       const data = await response.json()
       setEvents(data)
     } catch (err) {
       console.error('Error fetching events:', err)
-      //setError('Failed to fetch events')
     } finally {
       setIsLoading(false)
     }
@@ -114,12 +108,21 @@ export function EventFeed() {
                     </Avatar>
                     <span className="text-sm">Hosted by {event.host.name}</span>
                   </div>
+                  
                   {event.attendees.length > 0 && (
                     <div className="flex items-center gap-2 text-sm text-muted-foreground">
                       <Users className="h-4 w-4" />
                       <span>{event.attendees.length} attending</span>
                     </div>
                   )}
+
+                  {/* ✅ Added Event Description */}
+                  {event.description && (
+                    <p className="text-sm text-gray-700 line-clamp-3">
+                      {event.description}
+                    </p>
+                  )}
+
                   <Link
                     href={`/events/${event.id}`}
                     className="inline-block text-primary hover:underline text-sm"
@@ -135,4 +138,3 @@ export function EventFeed() {
     </div>
   )
 }
-
