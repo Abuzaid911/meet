@@ -31,6 +31,12 @@ export default function ProfilePage() {
     }
   }, [status]) // ✅ Fixed: Added dependencies
 
+  useEffect(() => {
+    if (status === 'authenticated' && session?.user) {
+      fetchProfile();
+    }
+  }, [status, session]);  // ✅ Added session as a dependency
+
   const fetchProfile = async () => {
     try {
       const response = await fetch('/api/user')
