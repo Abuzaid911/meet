@@ -2,9 +2,7 @@
 
 import { useState } from "react"
 import { EventFeed } from "./components/event-feed"
-import { Button } from "./components/ui/button"
 import { AddEventModal } from "./components/add-event-modal"
-import Link from "next/link"
 import { useSession } from "next-auth/react"
 import { PlusCircle } from "lucide-react"
 import { motion } from "framer-motion"
@@ -35,10 +33,6 @@ export default function Home() {
 
         {/* ✅ Action Buttons */}
         <div className="flex flex-wrap justify-center gap-4">
-          <Button asChild variant="default">
-            <Link href="/calendar">View Calendar</Link>
-          </Button>
-
           {session && (
             <motion.button
               onClick={handleAddEvent}

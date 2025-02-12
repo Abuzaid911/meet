@@ -1,111 +1,108 @@
 "use client"
 
-import { useState, useEffect, useCallback } from "react"
-import Link from "next/link"
-import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "../components/ui/card"
+import { useState, useEffect } from "react"
 import { useSession } from "next-auth/react"
-import { useToast } from "../components/ui/use-toast"
-import { Button } from "../components/ui/button"
-import { AddEventModal } from "./add-event-modal"
+import { Button } from "./ui/button"
+import { useToast } from "./ui/use-toast"
 
 interface Event {
   id: string
   name: string
-  date: string
+  date: Date
   time: string
   location: string
+  description?: string
   hostId: string
 }
 
-interface EventListProps {
-  date?: Date
-}
-
-export function EventList({ date }: EventListProps) {
+export function EventList() {
+  const { data: session } = useSession()
   const [events, setEvents] = useState<Event[]>([])
   const [isLoading, setIsLoading] = useState(true)
-  const { data: session } = useSession()
   const { addToast } = useToast()
-  const [isAddEventModalOpen, setIsAddEventModalOpen] = useState(false)
 
-  const fetchEvents = useCallback(async () => {
-    if (!session?.user?.id) return
+  useEffect(() => {
+    fetchEvents()
+  }, [])
 
+  const fetchEvents = async () => {
     try {
-      const queryParams = new URLSearchParams({
-        userId: session.user.id,
-        ...(date && { date: date.toISOString().split("T")[0] }),
-      })
-      const response = await fetch(`/api/events?${queryParams}`)
-      if (!response.ok) {
-        throw new Error("Failed to fetch events")
-      }
+      setIsLoading(true)
+      const response = await fetch("/api/events")
+      if (!response.ok) throw new Error("Failed to fetch events")
       const data = await response.json()
       setEvents(data)
     } catch (error) {
       console.error("Error fetching events:", error)
       addToast({
         title: "Error",
-        description: "Failed to load events",
+        description: "Failed to load events.",
         variant: "destructive",
       })
     } finally {
       setIsLoading(false)
     }
-  }, [session, addToast, date])
-
-  useEffect(() => {
-    fetchEvents()
-  }, [fetchEvents])
-
-  const handleAddEvent = () => {
-    setIsAddEventModalOpen(true)
   }
 
-  const handleEventAdded = () => {
-    fetchEvents()
+  const handleDeleteEvent = async (eventId: string) => {
+    if (!confirm("Are you sure you want to delete this event?")) return
+
+    try {
+      const response = await fetch(`/api/events/${eventId}`, {
+        method: "DELETE",
+      })
+
+      if (!response.ok) throw new Error("Failed to delete event")
+
+      addToast({
+        title: "Success",
+        description: "Event deleted successfully",
+        variant: "success",
+      })
+
+      // Refresh the event list after deletion
+      setEvents((prev) => prev.filter((event) => event.id !== eventId))
+    } catch (error) {
+      console.error("Error deleting event:", error)
+      addToast({
+        title: "Error",
+        description: "Failed to delete event.",
+        variant: "destructive",
+      })
+    }
   }
 
-  if (isLoading) {
-    return <div>Loading events...</div>
-  }
+  if (isLoading) return <p>Loading events...</p>
 
   return (
-    <div className="space-y-4 w-full">
-      <div className="flex justify-between items-center">
-        <h3 className="text-xl font-semibold">{date ? `Events on ${date.toLocaleDateString()}` : "My Events"}</h3>
-        <Button onClick={handleAddEvent}>Add Event</Button>
-      </div>
+    <div className="space-y-4">
+      <h2 className="text-2xl font-bold">Your Events</h2>
       {events.length === 0 ? (
-        <p>No events found for this date.</p>
+        <p>No events found</p>
       ) : (
-        events.map((event) => (
-          <Card key={event.id}>
-            <CardHeader>
-              <CardTitle>{event.name}</CardTitle>
-              <CardDescription>
-                {new Date(event.date).toLocaleDateString()} at {event.time}
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <p>{event.location}</p>
-              <p className="text-sm text-muted-foreground mt-2">
-                {event.hostId === session?.user?.id ? "You are hosting this event" : "You are attending this event"}
+        <ul className="space-y-4">
+          {events.map((event) => (
+            <li key={event.id} className="border p-4 rounded-lg shadow-md">
+              <h3 className="text-lg font-semibold">{event.name}</h3>
+              <p className="text-sm text-gray-600">
+                {event.date.toString()} at {event.time} - {event.location}
               </p>
-              <Link href={`/events/${event.id}`} className="text-primary hover:underline">
-                View Details
-              </Link>
-            </CardContent>
-          </Card>
-        ))
+              <p className="text-sm text-gray-600">{event.description}</p>
+
+              {/* Show delete button only if the user is the host */}
+              {session?.user?.id === event.hostId && (
+                <Button
+                  variant="destructive"
+                  className="mt-2"
+                  onClick={() => handleDeleteEvent(event.id)}
+                >
+                  Delete Event
+                </Button>
+              )}
+            </li>
+          ))}
+        </ul>
       )}
-      <AddEventModal
-        isOpen={isAddEventModalOpen}
-        onClose={() => setIsAddEventModalOpen(false)}
-        onEventAdded={handleEventAdded}
-        initialDate={date}
-      />
     </div>
   )
 }
-
