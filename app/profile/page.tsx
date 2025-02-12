@@ -13,6 +13,7 @@ import { EventList } from '../components/event-list'
 interface UserProfile {
   id: string
   name: string | null
+  username: string | null
   email: string | null
   image: string | null
   bio: string | null
@@ -29,7 +30,7 @@ export default function ProfilePage() {
     if (status === 'authenticated' && session?.user) {
       fetchProfile()
     }
-  }, [status, session]) // ✅ Ensures profile fetches only when necessary
+  }, [status, session])
 
   const fetchProfile = async () => {
     try {
@@ -61,6 +62,7 @@ export default function ProfilePage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           name: profile?.name,
+          username: profile?.username,
           bio: profile?.bio
         }),
       })
@@ -118,7 +120,12 @@ export default function ProfilePage() {
                 <Input
                   value={profile?.name || ''}
                   onChange={(e) => setProfile((prev) => prev ? { ...prev, name: e.target.value } : prev)}
-                  placeholder="Name"
+                  placeholder="Full Name"
+                />
+                <Input
+                  value={profile?.username || ''}
+                  onChange={(e) => setProfile((prev) => prev ? { ...prev, username: e.target.value } : prev)}
+                  placeholder="Username"
                 />
                 <Input
                   value={profile?.email || ''}
@@ -139,6 +146,7 @@ export default function ProfilePage() {
             ) : (
               <div>
                 <h3 className="text-xl font-semibold text-gray-800">{profile?.name}</h3>
+                <p className="text-gray-600">@{profile?.username}</p>
                 <p className="text-gray-600">{profile?.email}</p>
                 <p className="mt-2 text-gray-700">{profile?.bio}</p>
                 <Button onClick={() => setIsEditing(true)} className="mt-2">Edit Profile</Button>
