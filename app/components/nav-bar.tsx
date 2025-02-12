@@ -5,7 +5,7 @@ import { useSession, signIn, signOut } from "next-auth/react"
 import { useState, useEffect, useRef } from "react"
 import { usePathname } from "next/navigation"
 import { motion, AnimatePresence } from "framer-motion"
-import { FaBars, FaTimes, FaUserCircle, FaSignOutAlt, FaPen } from "react-icons/fa"
+import { FaBars, FaTimes, FaSignOutAlt, FaPen } from "react-icons/fa"
 import { FiChevronDown } from "react-icons/fi"
 
 const navItems = [
