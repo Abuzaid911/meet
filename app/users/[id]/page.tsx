@@ -28,86 +28,40 @@ interface UserProfile {
 
 export default function UserProfilePage() {
   const params = useParams()
-  const router = useRouter()
   const [profile, setProfile] = useState<UserProfile | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const { addToast } = useToast()
 
-  const fetchProfile = useCallback(async () => {
-    console.log('Fetching profile for ID:', params.id) // Debug log
+  useEffect(() => {
+    fetchProfile()
+  }, [params.id])
 
-    if (!params.id) {
-      console.log('No ID provided') // Debug log
-      setIsLoading(false)
-      addToast({
-        title: 'Error',
-        description: 'Invalid user ID',
-        variant: 'destructive',
-      })
-      return
-    }
-
+  const fetchProfile = async () => {
     try {
-      console.log('Making fetch request') // Debug log
       const response = await fetch(`/api/users/${params.id}`)
-      console.log('Response received:', response.status) // Debug log
-
       if (!response.ok) {
         throw new Error('Failed to fetch profile')
       }
-
       const data = await response.json()
-      console.log('Data received:', data) // Debug log
       setProfile(data)
     } catch (error) {
       console.error('Error fetching profile:', error)
-      addToast({
-        title: 'Error',
-        description: 'Failed to load profile',
-        variant: 'destructive',
-      })
+      addToast('Failed to load profile', 'error')
     } finally {
       setIsLoading(false)
     }
-  }, [params.id, addToast])
-
-  useEffect(() => {
-    if (params.id) {
-      fetchProfile()
-    } else {
-      setIsLoading(false)
-    }
-  }, [params.id, fetchProfile])
+  }
 
   if (isLoading) {
-    return (
-      <div className="flex items-center justify-center min-h-[200px]">
-        <Loader2 className="h-6 w-6 animate-spin" />
-      </div>
-    )
+    return <div className="text-center">Loading...</div>
   }
 
   if (!profile) {
-    return (
-      <div className="text-center py-8">
-        <h2 className="text-2xl font-semibold">User not found</h2>
-        <Button asChild className="mt-4">
-          <Link href="/">Return Home</Link>
-        </Button>
-      </div>
-    )
+    return <div className="text-center">User not found</div>
   }
 
   return (
     <div className="space-y-8">
-      <Button 
-        variant="ghost" 
-        onClick={() => router.back()} 
-        className="mb-4"
-      >
-        <ArrowLeft className="mr-2 h-4 w-4" /> Back
-      </Button>
-
       <Card>
         <CardHeader>
           <div className="flex items-center space-x-4">
@@ -118,9 +72,7 @@ export default function UserProfilePage() {
             <div>
               <CardTitle className="text-2xl">{profile.name}</CardTitle>
               <p className="text-muted-foreground">@{profile.username}</p>
-              {profile.bio && (
-                <p className="text-muted-foreground mt-2">{profile.bio}</p>
-              )}
+              {profile.bio && <p className="text-muted-foreground mt-2">{profile.bio}</p>}
             </div>
           </div>
         </CardHeader>
@@ -144,12 +96,6 @@ export default function UserProfilePage() {
                       {new Date(event.date).toLocaleDateString()} at {event.time}
                     </p>
                     <p className="text-sm text-muted-foreground">{event.location}</p>
-                    <Link 
-                      href={`/events/${event.id}`}
-                      className="text-sm text-primary hover:underline mt-1 inline-block"
-                    >
-                      View Details
-                    </Link>
                   </div>
                 </div>
               ))}
