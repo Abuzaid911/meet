@@ -1,164 +1,200 @@
 'use client'
 
-import Link from 'next/link'
+import Link from "next/link"
 import { useSession, signIn, signOut } from "next-auth/react"
-import { useState } from 'react'
-import { useRouter, usePathname } from 'next/navigation'
-import { Button } from "../components/ui/button"
-import { useToast } from "../components/ui/use-toast"
-import { 
-  User, 
-  LogOut, 
-  LogIn, 
-  Loader2, 
-  Home,
-  Calendar,
-  UserCircle
-} from 'lucide-react'
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-  DropdownMenuSeparator,
-} from "../components/ui/dropdown-menu"
-import { Avatar, AvatarFallback, AvatarImage } from "../components/ui/avatar"
+import { useState, useEffect, useRef } from "react"
+import { usePathname } from "next/navigation"
+import { motion, AnimatePresence } from "framer-motion"
+import { FaBars, FaTimes, FaUserCircle, FaSignOutAlt, FaPen } from "react-icons/fa"
+import { FiChevronDown } from "react-icons/fi"
 
-interface NavItem {
-  href: string
-  label: string
-  icon: React.ReactNode
-}
-
-const navItems: NavItem[] = [
-  { href: '/', label: 'Home', icon: <Home className="h-4 w-4" /> },
-  { href: '/calendar', label: 'Calendar', icon: <Calendar className="h-4 w-4" /> },
-  { href: '/profile', label: 'Profile', icon: <UserCircle className="h-4 w-4" /> },
+const navItems = [
+  { href: "/", label: "Home" },
+  { href: "/new", label: "New Post" },
+  { href: "/about", label: "About" }
 ]
+
+const menuVariants = {
+  open: {
+    opacity: 1,
+    y: 0,
+    transition: { type: "spring", stiffness: 300, damping: 24 }
+  },
+  closed: {
+    opacity: 0,
+    y: -20,
+    transition: { duration: 0.2 }
+  }
+}
 
 export function NavBar() {
   const { data: session, status } = useSession()
-  const { addToast } = useToast()
-  const router = useRouter()
   const pathname = usePathname()
-  const [isSigningOut, setIsSigningOut] = useState(false)
+  const [menuOpen, setMenuOpen] = useState(false)
+  const [isScrolled, setIsScrolled] = useState(false)
+  const mobileMenuRef = useRef<HTMLDivElement>(null)
 
-  const handleSignIn = async () => {
-    try {
-      const result = await signIn('google', { 
-        callbackUrl: '/', 
-        redirect: false 
-      })
+  useEffect(() => {
+    const handleScroll = () => setIsScrolled(window.scrollY > 20)
+    window.addEventListener("scroll", handleScroll)
+    return () => window.removeEventListener("scroll", handleScroll)
+  }, [])
 
-      if (result?.error) {
-        console.error('Sign-in error:', result.error)
-        addToast({
-          title: "Sign-in Failed",
-          description: "Failed to sign in. Please try again.",
-          variant: "destructive"
-        })
-      } else if (result?.url) {
-        router.push(result.url)
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (mobileMenuRef.current && !mobileMenuRef.current.contains(event.target as Node)) {
+        setMenuOpen(false)
       }
-    } catch (error) {
-      console.error('Unexpected sign-in error:', error)
-      addToast({
-        title: "Unexpected Error",
-        description: "An unexpected error occurred. Please try again.",
-        variant: "destructive"
-      })
     }
-  }
-
-  const handleSignOut = async () => {
-    try {
-      setIsSigningOut(true)
-      await signOut({ callbackUrl: '/' })
-    } catch (error) {
-      console.error('Sign-out error:', error)
-      addToast({
-        title: "Sign-out Failed",
-        description: "Failed to sign out. Please try again.",
-        variant: "destructive"
-      })
-    } finally {
-      setIsSigningOut(false)
-    }
-  }
+    document.addEventListener("mousedown", handleClickOutside)
+    return () => document.removeEventListener("mousedown", handleClickOutside)
+  }, [])
 
   return (
-    <nav className="relative" role="navigation" aria-label="Main navigation">
-      <div className="hidden md:flex items-center justify-between w-full">
-        <ul className="flex items-center space-x-4">
-          {navItems.map((item) => (
-            <li key={item.href}>
-              <Link
-                href={item.href}
-                className={`
-                  flex items-center gap-2 px-3 py-2 rounded-md transition-colors
-                  hover:bg-accent hover:text-accent-foreground
-                  ${pathname === item.href ? 'bg-accent text-accent-foreground' : ''}
-                `}
-              >
-                {item.icon}
-                <span>{item.label}</span>
-              </Link>
-            </li>
-          ))}
-        </ul>
+    <nav
+      className={`w-full fixed top-0 left-0 z-50 transition-all duration-300 ${
+        isScrolled 
+          ? "bg-white/95 backdrop-blur-sm shadow-md border-b border-gray-200" 
+          : "bg-transparent"
+      }`}
+    >
+      <div className="container mx-auto flex justify-between items-center py-4 px-6 relative">
+        {/* Logo with hover effect */}
+        <Link 
+          href="/" 
+          className="text-3xl font-bold tracking-wide group"
+        >
+          <span className="text-5xl font-mono bg-gradient-to-r from-teal-400 to-blue-500 bg-clip-text text-transparent pb-2">
+            OMW
+          </span>
+        </Link>
 
-        {status === "loading" ? (
-          <Button variant="ghost" disabled>
-            <Loader2 className="h-4 w-4 animate-spin" />
-            <span className="ml-2">Loading...</span>
-          </Button>
-        ) : session ? (
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button 
-                variant="ghost" 
-                className="flex items-center space-x-2"
-                aria-label="User menu"
+        {/* Desktop Navigation */}
+        <div className="hidden md:flex space-x-8">
+          {navItems.map((item) => (
+            <Link
+              key={item.href}
+              href={item.href}
+              className="relative group text-gray-700 hover:text-teal-400 transition-colors"
+            >
+              {item.label}
+              {pathname === item.href && (
+                <motion.span
+                  className="absolute left-0 -bottom-1 w-full h-0.5 bg-teal-400"
+                  layoutId="activeNav"
+                  transition={{ type: "spring", bounce: 0.25, duration: 0.5 }}
+                />
+              )}
+            </Link>
+          ))}
+        </div>
+
+        {/* Authentication Section */}
+        <div className="flex items-center gap-4">
+          {status === "loading" && (
+            <div className="h-8 w-8 rounded-full bg-gray-100 animate-pulse" />
+          )}
+
+          {status === "unauthenticated" && (
+            <motion.button
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
+              onClick={() => signIn("google")}
+              className="hidden md:flex items-center px-4 py-2 bg-gradient-to-r from-teal-400 to-teal-500 text-white rounded-full shadow-lg hover:shadow-teal-200 transition-all"
+            >
+              <FaPen className="mr-2" />
+              Get Started
+            </motion.button>
+          )}
+
+          {status === "authenticated" && (
+            <motion.div className="relative" whileHover={{ scale: 1.05 }}>
+              <button
+                onClick={() => setMenuOpen(!menuOpen)}
+                className="flex items-center gap-2"
               >
-                <Avatar className="h-8 w-8">
-                  <AvatarImage 
-                    src={session.user?.image || undefined} 
-                    alt={session.user?.name || 'User avatar'} 
-                  />
-                  <AvatarFallback>
-                    {session.user?.name?.[0] || 'U'}
-                  </AvatarFallback>
-                </Avatar>
-                <span className="max-w-[150px] truncate">
-                  {session.user?.name}
-                </span>
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-56">
-              <DropdownMenuItem asChild>
-                <Link href="/profile">
-                  <User className="mr-2 h-4 w-4" />
-                  Profile
-                </Link>
-              </DropdownMenuItem>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem
-                onClick={handleSignOut}
-                disabled={isSigningOut}
-                className="text-destructive"
-              >
-                <LogOut className="mr-2 h-4 w-4" />
-                Sign out
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
-        ) : (
-          <Button onClick={handleSignIn}>
-            <LogIn className="mr-2 h-4 w-4" />
-            Sign in
-          </Button>
-        )}
+                <img
+                  src={session.user?.image || ''}
+                  alt="Profile"
+                  className="w-8 h-8 rounded-full border-2 border-teal-400 object-cover"
+                />
+                <FiChevronDown className={`text-gray-600 transition-transform ${menuOpen ? 'rotate-180' : ''}`} />
+              </button>
+
+              <AnimatePresence>
+                {menuOpen && (
+                  <motion.div
+                    initial="closed"
+                    animate="open"
+                    exit="closed"
+                    variants={menuVariants}
+                    className="absolute right-0 mt-3 w-48 bg-white rounded-xl shadow-xl overflow-hidden"
+                  >
+                    <div className="p-4 border-b border-gray-100">
+                      <p className="font-medium text-gray-800 truncate">{session.user?.name}</p>
+                      <p className="text-sm text-gray-500 truncate">{session.user?.email}</p>
+                    </div>
+                    <button
+                      onClick={() => signOut()}
+                      className="w-full p-3 flex items-center text-red-500 hover:bg-gray-50 transition-colors"
+                    >
+                      <FaSignOutAlt className="mr-2" />
+                      Sign Out
+                    </button>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </motion.div>
+          )}
+
+          {/* Mobile Menu Toggle */}
+          <button
+            onClick={() => setMenuOpen(!menuOpen)}
+            className="md:hidden p-2 rounded-lg text-gray-600 hover:bg-gray-100 transition-colors"
+          >
+            {menuOpen ? <FaTimes className="text-xl" /> : <FaBars className="text-xl" />}
+          </button>
+        </div>
       </div>
+
+      {/* Mobile Menu */}
+      <AnimatePresence>
+        {menuOpen && (
+          <motion.div
+            initial={{ opacity: 0, y: -20 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -20 }}
+            ref={mobileMenuRef}
+            className="md:hidden absolute w-full bg-white shadow-xl border-t border-gray-100"
+          >
+            <div className="p-4 space-y-2">
+              {navItems.map((item) => (
+                <Link
+                  key={item.href}
+                  href={item.href}
+                  onClick={() => setMenuOpen(false)}
+                  className={`block p-3 rounded-lg transition-colors ${
+                    pathname === item.href 
+                      ? 'bg-teal-50 text-teal-600' 
+                      : 'text-gray-700 hover:bg-gray-50'
+                  }`}
+                >
+                  {item.label}
+                </Link>
+              ))}
+
+              {status === "unauthenticated" && (
+                <button
+                  onClick={() => signIn("google")}
+                  className="w-full p-3 text-left rounded-lg bg-teal-500 text-white hover:bg-teal-600 transition-colors"
+                >
+                  Get Started
+                </button>
+              )}
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </nav>
   )
 }

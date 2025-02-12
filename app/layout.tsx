@@ -11,18 +11,14 @@ export const metadata = {
   description: 'Schedule meetings and events with your friends',
 }
 
-export default function RootLayout({
-  children,
-}: {
-  children: React.ReactNode
-}) {
+export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en">
       <body className={inter.className}>
         <Providers>
+          <NavBar />
           <ToastProvider>
             <div className="flex flex-col min-h-screen">
-              <NavBar />
               <main className="flex-grow container mx-auto p-4">
                 {children}
               </main>
@@ -33,4 +29,3 @@ export default function RootLayout({
     </html>
   )
 }
-
