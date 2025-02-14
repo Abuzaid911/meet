@@ -14,11 +14,9 @@ const rsvpSchema = z.object({
  */
 export async function GET(request: Request, { params }: { params: Promise<{ id: string }> }) {
   const { id: eventId } = await params; // ✅ Awaiting params correctly
-  console.log("Event ID:", eventId);
 
   try {
     const session = await getServerSession(authOptions);
-
     if (!session?.user?.id) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
@@ -50,7 +48,6 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
 
   try {
     const session = await getServerSession(authOptions);
-
     if (!session?.user?.id) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
@@ -94,7 +91,6 @@ export async function DELETE(request: Request, { params }: { params: Promise<{ i
 
   try {
     const session = await getServerSession(authOptions);
-
     if (!session?.user?.id) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }

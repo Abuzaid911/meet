@@ -10,14 +10,14 @@ import { motion } from "framer-motion"
 export default function Home() {
   const { data: session } = useSession()
   const [isAddEventModalOpen, setIsAddEventModalOpen] = useState(false)
+  const [refreshKey, setRefreshKey] = useState(0) // ✅ Add refresh key state
 
   const handleAddEvent = () => setIsAddEventModalOpen(true)
   const handleCloseEventModal = () => setIsAddEventModalOpen(false)
 
   const handleEventAdded = () => {
-    // Refresh the EventFeed when a new event is added
-    // This could be implemented by adding a key to EventFeed and changing it here
-    // or by implementing a refresh method in EventFeed
+    setRefreshKey((prev) => prev + 1) // ✅ Increment key to refresh EventFeed
+    setIsAddEventModalOpen(false)
   }
 
   return (
@@ -47,14 +47,14 @@ export default function Home() {
         </div>
       </div>
 
-      {/* ✅ Event Feed */}
-      <EventFeed />
+      {/* ✅ Event Feed with refreshKey */}
+      <EventFeed key={refreshKey} />
 
       {/* ✅ Add Event Modal */}
       <AddEventModal
         isOpen={isAddEventModalOpen}
         onClose={handleCloseEventModal}
-        onEventAdded={handleEventAdded}
+        onEventAdded={handleEventAdded} // ✅ Refresh EventFeed
       />
     </div>
   )

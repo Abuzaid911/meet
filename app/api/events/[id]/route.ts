@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth/next";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
@@ -9,6 +9,37 @@ const addAttendeeSchema = z.object({
   email: z.string().email(),
   rsvp: z.enum(["Yes", "No", "Maybe"]),
 });
+
+
+export async function GET(
+  request: NextRequest,
+  context: { params: Promise<{ id: string }> }
+): Promise<NextResponse> {
+  try {
+    // Await the params to extract the 'id'
+    const { id } = await context.params;
+
+    // Fetch the event by ID
+    const event = await prisma.event.findUnique({
+      where: { id },
+      include: {
+        attendees: { include: { user: true } },
+      },
+    });
+
+    if (!event) {
+      return NextResponse.json({ error: 'Event not found' }, { status: 404 });
+    }
+
+    return NextResponse.json(event);
+  } catch (error) {
+    console.error('Error fetching event:', error);
+    return NextResponse.json(
+      { error: 'Error fetching event' },
+      { status: 500 }
+    );
+  }
+}
 
 /**
  * ✅ POST: Add an attendee to an event
