@@ -4,6 +4,7 @@ import { authOptions } from "@/lib/auth"
 import { prisma } from "@/lib/prisma"
 import { z } from "zod"
 
+// ✅ Schema validation for event creation
 const createEventSchema = z.object({
   name: z.string().min(1, "Event name is required"),
   date: z.string().refine((date) => !isNaN(Date.parse(date)), {
@@ -12,8 +13,12 @@ const createEventSchema = z.object({
   time: z.string().regex(/^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/, "Invalid time format"),
   location: z.string().min(1, "Location is required"),
   description: z.string().optional(),
+  duration: z.number().min(1, "Duration must be at least 1 minute"), // ✅ Ensure duration is present
 })
 
+/**
+ * ✅ GET: Fetch upcoming events
+ */
 export async function GET(request: Request) {
   try {
     const session = await getServerSession(authOptions)
@@ -67,6 +72,9 @@ export async function GET(request: Request) {
   }
 }
 
+/**
+ * ✅ POST: Create a new event
+ */
 export async function POST(request: Request) {
   try {
     const session = await getServerSession(authOptions)
@@ -82,7 +90,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Invalid event data", details: validatedData.error.format() }, { status: 400 })
     }
 
-    const { name, date, time, location, description } = validatedData.data
+    const { name, date, time, location, description, duration } = validatedData.data
 
     const eventDate = new Date(date)
     if (eventDate < new Date()) {
@@ -96,6 +104,7 @@ export async function POST(request: Request) {
         time,
         location,
         description,
+        duration, // ✅ Store duration in the database
         hostId: session.user.id,
       },
       include: {
@@ -137,4 +146,3 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Failed to create event. Please try again later." }, { status: 500 })
   }
 }
-

@@ -21,6 +21,7 @@ export function AddEventModal({ isOpen, onClose, onEventAdded, initialDate }: Ad
   const [eventTime, setEventTime] = useState("")
   const [eventLocation, setEventLocation] = useState("")
   const [eventDescription, setEventDescription] = useState("")
+  const [eventDuration, setEventDuration] = useState(30) // ✅ Default duration: 30 minutes
   const [isSubmitting, setIsSubmitting] = useState(false)
   const { addToast } = useToast()
 
@@ -33,6 +34,7 @@ export function AddEventModal({ isOpen, onClose, onEventAdded, initialDate }: Ad
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setIsSubmitting(true)
+
     try {
       const response = await fetch("/api/events", {
         method: "POST",
@@ -45,6 +47,7 @@ export function AddEventModal({ isOpen, onClose, onEventAdded, initialDate }: Ad
           time: eventTime,
           location: eventLocation,
           description: eventDescription,
+          duration: eventDuration, // ✅ Send duration to the API
         }),
       })
 
@@ -57,6 +60,7 @@ export function AddEventModal({ isOpen, onClose, onEventAdded, initialDate }: Ad
         title: "Success",
         description: "Event created successfully!",
       })
+
       onEventAdded()
       onClose()
     } catch (error) {
@@ -104,6 +108,17 @@ export function AddEventModal({ isOpen, onClose, onEventAdded, initialDate }: Ad
               />
             </div>
             <div>
+              <Label htmlFor="eventDuration">Duration (minutes)</Label>
+              <Input
+                id="eventDuration"
+                type="number"
+                value={eventDuration}
+                min={1} // ✅ Ensure the duration is at least 1 minute
+                onChange={(e) => setEventDuration(Number(e.target.value))}
+                required
+              />
+            </div>
+            <div>
               <Label htmlFor="eventLocation">Location</Label>
               <Input
                 id="eventLocation"
@@ -131,4 +146,3 @@ export function AddEventModal({ isOpen, onClose, onEventAdded, initialDate }: Ad
     </Dialog>
   )
 }
-

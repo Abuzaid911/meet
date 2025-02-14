@@ -8,10 +8,11 @@ import { useToast } from "./ui/use-toast"
 interface Event {
   id: string
   name: string
-  date: Date
+  date: string // ✅ Store as string to avoid serialization issues
   time: string
   location: string
   description?: string
+  duration: number // ✅ Added duration
   hostId: string
 }
 
@@ -72,22 +73,26 @@ export function EventList() {
     }
   }
 
-  if (isLoading) return <p>Loading events...</p>
+  if (isLoading) return <p className="text-center text-gray-500">Loading events...</p>
 
   return (
     <div className="space-y-4">
       <h2 className="text-2xl font-bold">Your Events</h2>
       {events.length === 0 ? (
-        <p>No events found</p>
+        <p className="text-gray-500">No events found</p>
       ) : (
         <ul className="space-y-4">
           {events.map((event) => (
             <li key={event.id} className="border p-4 rounded-lg shadow-md">
               <h3 className="text-lg font-semibold">{event.name}</h3>
               <p className="text-sm text-gray-600">
-                {event.date.toString()} at {event.time} - {event.location}
+                📅 {new Date(event.date).toLocaleDateString()} 🕒 {event.time}
               </p>
-              <p className="text-sm text-gray-600">{event.description}</p>
+              <p className="text-sm text-gray-600">📍 {event.location}</p>
+              <p className="text-sm text-gray-700">{event.description || "No description available."}</p>
+              <p className="text-sm font-semibold text-gray-800">
+                ⏳ Duration: {event.duration} minutes
+              </p>
 
               {/* Show delete button only if the user is the host */}
               {session?.user?.id === event.hostId && (

@@ -4,7 +4,7 @@ import { useEffect, useState, useCallback } from 'react'
 import Link from 'next/link'
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '../components/ui/card'
 import { Avatar, AvatarFallback, AvatarImage } from '../components/ui/avatar'
-import { CalendarIcon, MapPin, Users } from 'lucide-react'
+import { CalendarIcon, MapPin, Users, Clock } from 'lucide-react' // ✅ Added Clock icon for duration
 import { format } from 'date-fns'
 
 interface Attendee {
@@ -21,7 +21,8 @@ interface Event {
   date: string
   time: string
   location: string
-  description?: string // ✅ Added event description
+  description?: string
+  duration: number // ✅ Added event duration
   host: {
     id: string
     name: string
@@ -101,6 +102,13 @@ export function EventFeed() {
                     <MapPin className="h-4 w-4" />
                     <span>{event.location}</span>
                   </div>
+
+                  {/* ✅ Event Duration */}
+                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                    <Clock className="h-4 w-4" />
+                    <span>{event.duration} min</span>
+                  </div>
+
                   <div className="flex items-center gap-2">
                     <Avatar className="h-6 w-6">
                       <AvatarImage src={event.host.image || undefined} />

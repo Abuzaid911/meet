@@ -165,7 +165,7 @@ export default function ProfilePage() {
 
           {/* ✅ Events Section */}
           <div className="bg-white shadow-md rounded-lg p-6">
-            <h3 className="text-xl font-semibold text-gray-800 mb-4">Upcoming Events</h3>
+            <h3 className="text-xl font-semibold text-gray-800 mb-4">My events</h3>
             <EventList />
           </div>
         </div>
