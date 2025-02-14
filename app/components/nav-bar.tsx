@@ -1,68 +1,65 @@
-'use client'
+'use client';
 
-import Link from "next/link"
-import { useSession, signIn, signOut } from "next-auth/react"
-import { useState, useEffect, useRef } from "react"
-import { usePathname } from "next/navigation"
-import { motion, AnimatePresence } from "framer-motion"
-import { FaBars, FaTimes, FaSignOutAlt, FaPen } from "react-icons/fa"
-import { FiChevronDown } from "react-icons/fi"
+import Link from 'next/link';
+import { useSession, signIn, signOut } from 'next-auth/react';
+import { useState, useEffect, useRef } from 'react';
+import { usePathname } from 'next/navigation';
+import { motion, AnimatePresence } from 'framer-motion';
+import { FaBars, FaTimes, FaSignOutAlt, FaPen } from 'react-icons/fa';
+import { FiChevronDown } from 'react-icons/fi';
 
-const navItems = [
-  { href: "/", label: "Home" },
-  { href: "/profile", label: "Profile" }
-]
+// Define navigation items
+const navItems = [{ href: '/', label: 'Home' }];
 
 const menuVariants = {
   open: {
     opacity: 1,
     y: 0,
-    transition: { type: "spring", stiffness: 300, damping: 24 }
+    transition: { type: 'spring', stiffness: 300, damping: 24 },
   },
   closed: {
     opacity: 0,
     y: -20,
-    transition: { duration: 0.2 }
-  }
-}
+    transition: { duration: 0.2 },
+  },
+};
 
 export function NavBar() {
-  const { data: session, status } = useSession()
-  const pathname = usePathname()
-  const [menuOpen, setMenuOpen] = useState(false)
-  const [isScrolled, setIsScrolled] = useState(false)
-  const mobileMenuRef = useRef<HTMLDivElement>(null)
+  const { data: session, status } = useSession();
+  const pathname = usePathname();
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [isScrolled, setIsScrolled] = useState(false);
+  const mobileMenuRef = useRef<HTMLDivElement>(null);
 
+  // Detect scroll and apply styling
   useEffect(() => {
-    const handleScroll = () => setIsScrolled(window.scrollY > 20)
-    window.addEventListener("scroll", handleScroll)
-    return () => window.removeEventListener("scroll", handleScroll)
-  }, [])
+    const handleScroll = () => setIsScrolled(window.scrollY > 20);
+    window.addEventListener('scroll', handleScroll);
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, []);
 
+  // Close menu when clicking outside
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (mobileMenuRef.current && !mobileMenuRef.current.contains(event.target as Node)) {
-        setMenuOpen(false)
+        setMenuOpen(false);
       }
-    }
-    document.addEventListener("mousedown", handleClickOutside)
-    return () => document.removeEventListener("mousedown", handleClickOutside)
-  }, [])
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
 
   return (
     <nav
       className={`w-full fixed top-0 left-0 z-50 transition-all duration-300 ${
-        isScrolled 
-          ? "bg-white/95 backdrop-blur-sm shadow-md border-b border-gray-200" 
-          : "bg-transparent"
+        isScrolled
+          ? 'bg-white/95 backdrop-blur-sm shadow-md border-b border-gray-200'
+          : 'bg-transparent'
       }`}
     >
       <div className="container mx-auto flex justify-between items-center py-4 px-6 relative">
-        {/* Logo with hover effect */}
-        <Link 
-          href="/" 
-          className="text-3xl font-bold tracking-wide group"
-        >
+        {/* Logo */}
+        <Link href="/" className="text-3xl font-bold tracking-wide group">
           <span className="text-5xl font-mono bg-gradient-to-r from-teal-400 to-blue-500 bg-clip-text text-transparent pb-2">
             OMW
           </span>
@@ -81,24 +78,40 @@ export function NavBar() {
                 <motion.span
                   className="absolute left-0 -bottom-1 w-full h-0.5 bg-teal-400"
                   layoutId="activeNav"
-                  transition={{ type: "spring", bounce: 0.25, duration: 0.5 }}
+                  transition={{ type: 'spring', bounce: 0.25, duration: 0.5 }}
                 />
               )}
             </Link>
           ))}
+          {/* Conditionally render the Profile link only if the user is signed in */}
+          {status === 'authenticated' && (
+            <Link
+              href="/profile"
+              className="relative group text-gray-700 hover:text-teal-400 transition-colors"
+            >
+              Profile
+              {pathname === '/profile' && (
+                <motion.span
+                  className="absolute left-0 -bottom-1 w-full h-0.5 bg-teal-400"
+                  layoutId="activeNav"
+                  transition={{ type: 'spring', bounce: 0.25, duration: 0.5 }}
+                />
+              )}
+            </Link>
+          )}
         </div>
 
         {/* Authentication Section */}
         <div className="flex items-center gap-4">
-          {status === "loading" && (
+          {status === 'loading' && (
             <div className="h-8 w-8 rounded-full bg-gray-100 animate-pulse" />
           )}
 
-          {status === "unauthenticated" && (
+          {status === 'unauthenticated' && (
             <motion.button
               whileHover={{ scale: 1.05 }}
               whileTap={{ scale: 0.95 }}
-              onClick={() => signIn("google")}
+              onClick={() => signIn('google')}
               className="hidden md:flex items-center px-4 py-2 bg-gradient-to-r from-teal-400 to-teal-500 text-white rounded-full shadow-lg hover:shadow-teal-200 transition-all"
             >
               <FaPen className="mr-2" />
@@ -106,7 +119,7 @@ export function NavBar() {
             </motion.button>
           )}
 
-          {status === "authenticated" && (
+          {status === 'authenticated' && (
             <motion.div className="relative" whileHover={{ scale: 1.05 }}>
               <button
                 onClick={() => setMenuOpen(!menuOpen)}
@@ -117,7 +130,11 @@ export function NavBar() {
                   alt="Profile"
                   className="w-8 h-8 rounded-full border-2 border-teal-400 object-cover"
                 />
-                <FiChevronDown className={`text-gray-600 transition-transform ${menuOpen ? 'rotate-180' : ''}`} />
+                <FiChevronDown
+                  className={`text-gray-600 transition-transform ${
+                    menuOpen ? 'rotate-180' : ''
+                  }`}
+                />
               </button>
 
               <AnimatePresence>
@@ -130,8 +147,12 @@ export function NavBar() {
                     className="absolute right-0 mt-3 w-48 bg-white rounded-xl shadow-xl overflow-hidden"
                   >
                     <div className="p-4 border-b border-gray-100">
-                      <p className="font-medium text-gray-800 truncate">{session.user?.name}</p>
-                      <p className="text-sm text-gray-500 truncate">{session.user?.email}</p>
+                      <p className="font-medium text-gray-800 truncate">
+                        {session.user?.name}
+                      </p>
+                      <p className="text-sm text-gray-500 truncate">
+                        {session.user?.email}
+                      </p>
                     </div>
                     <button
                       onClick={() => signOut()}
@@ -173,8 +194,8 @@ export function NavBar() {
                   href={item.href}
                   onClick={() => setMenuOpen(false)}
                   className={`block p-3 rounded-lg transition-colors ${
-                    pathname === item.href 
-                      ? 'bg-teal-50 text-teal-600' 
+                    pathname === item.href
+                      ? 'bg-teal-50 text-teal-600'
                       : 'text-gray-700 hover:bg-gray-50'
                   }`}
                 >
@@ -182,9 +203,19 @@ export function NavBar() {
                 </Link>
               ))}
 
-              {status === "unauthenticated" && (
+              {status === 'authenticated' && (
+                <Link
+                  href="/profile"
+                  className="block p-3 rounded-lg transition-colors text-gray-700 hover:bg-gray-50"
+                  onClick={() => setMenuOpen(false)}
+                >
+                  Profile
+                </Link>
+              )}
+
+              {status === 'unauthenticated' && (
                 <button
-                  onClick={() => signIn("google")}
+                  onClick={() => signIn('google')}
                   className="w-full p-3 text-left rounded-lg bg-teal-500 text-white hover:bg-teal-600 transition-colors"
                 >
                   Get Started
@@ -195,5 +226,5 @@ export function NavBar() {
         )}
       </AnimatePresence>
     </nav>
-  )
+  );
 }
