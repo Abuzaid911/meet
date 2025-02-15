@@ -30,7 +30,7 @@ interface Event {
 }
 
 export default function EventPage() {
-  const { id } = useParams(); // Access the dynamic route parameter
+  const { id } = useParams(); // Get the event ID from the URL
   const [event, setEvent] = useState<Event | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isDeleting, setIsDeleting] = useState(false);

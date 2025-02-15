@@ -1,11 +1,11 @@
-"use client";
+'use client';
 
-import { useState } from "react";
-import { Button } from "../components/ui/button";
-import { Input } from "../components/ui/input";
-import { Label } from "../components/ui/label";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "../components/ui/dialog";
-import { useToast } from "../components/ui/use-toast";
+import { useState } from 'react';
+import { Button } from '../components/ui/button';
+import { Input } from '../components/ui/input';
+import { Label } from '../components/ui/label';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '../components/ui/dialog';
+import { useToast } from '../components/ui/use-toast';
 
 interface AddAttendeeModalProps {
   isOpen: boolean;
@@ -15,7 +15,7 @@ interface AddAttendeeModalProps {
 }
 
 export function AddAttendeeModal({ isOpen, onClose, eventId, onAttendeeAdded }: AddAttendeeModalProps) {
-  const [username, setUsername] = useState("");
+  const [username, setUsername] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const { addToast } = useToast();
 
@@ -24,25 +24,25 @@ export function AddAttendeeModal({ isOpen, onClose, eventId, onAttendeeAdded }: 
     setIsSubmitting(true);
     try {
       const response = await fetch(`/api/events/${eventId}/invite`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ username }),
       });
 
       if (!response.ok) {
         const errorData = await response.json();
-        throw new Error(errorData.error || "Failed to invite user");
+        throw new Error(errorData.error || 'Failed to invite user');
       }
 
-      addToast({ title: "Success", description: "Invitation sent!" });
+      addToast({ title: 'Success', description: 'Invitation sent!' });
       onAttendeeAdded();
       onClose();
     } catch (error) {
-      console.error("Error inviting user:", error);
+      console.error('Error inviting user:', error);
       addToast({
-        title: "Error",
-        description: error instanceof Error ? error.message : "Failed to invite user",
-        variant: "destructive",
+        title: 'Error',
+        description: error instanceof Error ? error.message : 'Failed to invite user',
+        variant: 'destructive',
       });
     } finally {
       setIsSubmitting(false);
@@ -58,7 +58,7 @@ export function AddAttendeeModal({ isOpen, onClose, eventId, onAttendeeAdded }: 
         <form onSubmit={handleInvite}>
           <div className="space-y-4">
             <div>
-              <Label htmlFor="username">Friend&apos;s Username</Label>
+              <Label htmlFor="username">Friend's Username</Label>
               <Input
                 id="username"
                 value={username}
@@ -69,7 +69,7 @@ export function AddAttendeeModal({ isOpen, onClose, eventId, onAttendeeAdded }: 
           </div>
           <DialogFooter className="mt-4">
             <Button type="submit" disabled={isSubmitting}>
-              {isSubmitting ? "Inviting..." : "Send Invite"}
+              {isSubmitting ? 'Inviting...' : 'Send Invite'}
             </Button>
           </DialogFooter>
         </form>
