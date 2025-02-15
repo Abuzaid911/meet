@@ -1,9 +1,14 @@
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma'; // Adjust the import based on your project structure
 
-export async function POST(request: Request, { params }: { params: { id: string } }) {
+export async function POST(
+  request: NextRequest,
+  context: { params: Promise<{ id: string }> }
+) {
   try {
-    const eventId = params.id;
+    // Await the params promise to extract the 'id'
+    const { id } = await context.params;
+
     const { username } = await request.json();
 
     if (!username) {
@@ -21,7 +26,7 @@ export async function POST(request: Request, { params }: { params: { id: string 
     const attendee = await prisma.attendee.create({
       data: {
         userId: user.id,
-        eventId: eventId,
+        eventId: id,
         rsvp: 'Pending', // Default RSVP status
       },
     });
