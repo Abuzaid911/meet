@@ -58,7 +58,7 @@ export function AddAttendeeModal({ isOpen, onClose, eventId, onAttendeeAdded }: 
         <form onSubmit={handleInvite}>
           <div className="space-y-4">
             <div>
-              <Label htmlFor="username">Friend's Username</Label>
+              <Label htmlFor="username">Friend&apos;s Username</Label>
               <Input
                 id="username"
                 value={username}
