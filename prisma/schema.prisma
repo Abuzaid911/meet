@@ -60,6 +60,8 @@ model Event {
   location    String
   description String?
   duration    Int
+  capacity    Int?       // New field for event capacity
+  rsvpDeadline DateTime? // New field for RSVP deadline
   createdAt   DateTime   @default(now())
   updatedAt   DateTime   @updatedAt
   host        User       @relation(fields: [hostId], references: [id])
