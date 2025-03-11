@@ -6,7 +6,7 @@ import { z } from "zod";
 
 // ✅ RSVP validation schema
 const rsvpSchema = z.object({
-  rsvp: z.enum(["yes", "no", "maybe"]),
+  rsvp: z.enum(["YES", "NO", "MAYBE"]),
 });
 
 /**

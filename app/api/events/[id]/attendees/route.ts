@@ -6,7 +6,7 @@ import { z } from 'zod';
 
 // Define possible RSVP values
 const rsvpSchema = z.object({
-  rsvp: z.enum(['Yes', 'No', 'Maybe']),
+  rsvp: z.enum(['YES', 'NO', 'MAYBE']),
 });
 
 /**
@@ -52,7 +52,7 @@ export async function POST(
       create: {
         userId: user.id,
         eventId: id,
-        rsvp: 'Pending', // Default value for RSVP
+        rsvp: 'PENDING', // Default value for RSVP
       },
     });
 

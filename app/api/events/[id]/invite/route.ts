@@ -27,7 +27,7 @@ export async function POST(
       data: {
         userId: user.id,
         eventId: id,
-        rsvp: 'Pending', // Default RSVP status
+        rsvp: 'PENDING', // Default RSVP status
       },
     });
 
