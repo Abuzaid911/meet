@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Button } from '../components/ui/button';
 import { useToast } from '../components/ui/use-toast';
 import { Avatar, AvatarFallback, AvatarImage } from '../components/ui/avatar';
@@ -26,17 +26,13 @@ export function AttendeeList({ eventId, isHost }: AttendeeListProps) {
   const [isLoading, setIsLoading] = useState(true);
   const { addToast } = useToast();
 
-  useEffect(() => {
-    fetchAttendees();
-  }, []);
-
-  const fetchAttendees = async () => {
+  const fetchAttendees = useCallback(async () => {
     try {
       setIsLoading(true);
       const response = await fetch(`/api/events/${eventId}/attendees`);
       if (!response.ok) throw new Error('Failed to fetch attendees');
       const data = await response.json();
-      console.log(data); // Inspect the structure of 'data'
+      console.log(data);
       if (Array.isArray(data)) {
         setAttendees(data);
       } else if (Array.isArray(data.attendees)) {
@@ -48,13 +44,17 @@ export function AttendeeList({ eventId, isHost }: AttendeeListProps) {
       console.error('Error fetching attendees:', error);
       addToast({
         title: 'Error',
-        description: 'Failed to load attendees',
+        description: 'Failed to load attendees.',
         variant: 'destructive',
       });
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [eventId, addToast]);
+
+  useEffect(() => {
+    fetchAttendees();
+  }, [fetchAttendees]);
 
   const handleRemoveAttendee = async (email: string) => {
     if (!confirm(`Are you sure you want to remove ${email} from the event?`)) return;

@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useCallback } from "react"
 import { useSession } from "next-auth/react"
 import { Button } from "./ui/button"
 import { useToast } from "./ui/use-toast"
@@ -22,11 +22,7 @@ export function EventList() {
   const [isLoading, setIsLoading] = useState(true)
   const { addToast } = useToast()
 
-  useEffect(() => {
-    fetchEvents()
-  }, [])
-
-  const fetchEvents = async () => {
+  const fetchEvents = useCallback(async () => {
     try {
       setIsLoading(true)
       const response = await fetch("/api/events")
@@ -43,7 +39,11 @@ export function EventList() {
     } finally {
       setIsLoading(false)
     }
-  }
+  }, [addToast])
+
+  useEffect(() => {
+    fetchEvents()
+  }, [fetchEvents])
 
   const handleDeleteEvent = async (eventId: string) => {
     if (!confirm("Are you sure you want to delete this event?")) return

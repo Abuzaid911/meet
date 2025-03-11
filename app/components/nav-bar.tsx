@@ -5,8 +5,7 @@ import { useSession, signIn, signOut } from 'next-auth/react';
 import { useState, useEffect, useRef } from 'react';
 import { usePathname } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
-import { FaBars, FaTimes, FaSignOutAlt, FaPen } from 'react-icons/fa';
-import { FiChevronDown } from 'react-icons/fi';
+import { FaBars, FaTimes, FaSignOutAlt } from 'react-icons/fa';
 
 const navItems = [{ href: '/', label: 'Home' }, { href: '/events', label: 'Events' }];
 
@@ -24,7 +23,7 @@ const menuVariants = {
 };
 
 export function NavBar() {
-  const { data: session, status } = useSession();
+  const { status } = useSession();
   const pathname = usePathname();
   const [menuOpen, setMenuOpen] = useState(false);
   const [isScrolled, setIsScrolled] = useState(false);

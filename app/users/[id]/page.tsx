@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import Link from 'next/link'
 import { useParams, useRouter } from 'next/navigation'
 import { Button } from '../../components/ui/button'
@@ -33,15 +33,9 @@ export default function UserProfilePage() {
   const [isLoading, setIsLoading] = useState(true)
   const { addToast } = useToast()
 
-  useEffect(() => {
-    if (params.id) {
-      fetchProfile()
-    }
-  }, [params.id]) // ✅ Fixed dependencies
-
-  const fetchProfile = async () => {
+  const fetchProfile = useCallback(async () => {
     try {
-      setIsLoading(true) // ✅ Show loading state while fetching
+      setIsLoading(true)
       const response = await fetch(`/api/users/${params.id}`)
       if (!response.ok) throw new Error('Failed to fetch profile')
       const data = await response.json()
@@ -49,14 +43,20 @@ export default function UserProfilePage() {
     } catch (error) {
       console.error('Error fetching profile:', error)
       addToast({
-        title: "Error",
-        description: "Failed to load profile.",
-        variant: "destructive"
+        title: 'Error',
+        description: 'Failed to fetch profile.',
+        variant: 'destructive'
       })
     } finally {
-      setIsLoading(false) // ✅ Hide loading state
+      setIsLoading(false)
     }
-  }
+  }, [params.id, addToast])
+
+  useEffect(() => {
+    if (params.id) {
+      fetchProfile()
+    }
+  }, [params.id, fetchProfile])
 
   if (isLoading) {
     return (

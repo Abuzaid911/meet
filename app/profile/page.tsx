@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useEffect, useState, useCallback } from "react"
 import { useSession } from 'next-auth/react'
 import { Avatar, AvatarFallback, AvatarImage } from "../components/ui/avatar"
 import { Button } from "../components/ui/button"
@@ -26,13 +26,7 @@ export default function ProfilePage() {
   const [isLoading, setIsLoading] = useState(true)
   const { addToast } = useToast()
 
-  useEffect(() => {
-    if (status === 'authenticated' && session?.user) {
-      fetchProfile()
-    }
-  }, [status, session])
-
-  const fetchProfile = async () => {
+  const fetchProfile = useCallback(async () => {
     try {
       setIsLoading(true)
       const response = await fetch('/api/user')
@@ -50,7 +44,13 @@ export default function ProfilePage() {
     } finally {
       setIsLoading(false)
     }
-  }
+  }, [addToast])
+
+  useEffect(() => {
+    if (status === 'authenticated' && session?.user) {
+      fetchProfile()
+    }
+  }, [status, session, fetchProfile])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
