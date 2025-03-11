@@ -15,7 +15,7 @@ const createEventSchema = z.object({
   location: z.string().min(1, "Location is required"),
   description: z.string().optional(),
   duration: z.number().min(1, "Duration must be at least 1 minute"),
-  capacity: z.number().min(1).optional(),
+
   rsvpDeadline: z.string().refine((date) => !isNaN(Date.parse(date)), {
     message: "Invalid RSVP deadline format",
   }).optional(),
@@ -75,7 +75,7 @@ export async function POST(request: Request) {
         location,
         description,
         duration,
-        capacity: capacity || null,
+      
         rsvpDeadline: rsvpDeadline ? new Date(rsvpDeadline) : null,
         hostId: session.user.id,
       },

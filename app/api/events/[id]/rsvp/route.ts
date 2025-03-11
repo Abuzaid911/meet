@@ -31,13 +31,7 @@ export async function GET(
       select: { 
         id: true, 
         name: true,
-        capacity: true,
-        rsvpDeadline: true,
-        hostId: true,
-        attendees: {
-          where: { rsvp: 'YES' },
-          select: { id: true }
-        }
+        hostId: true
       }
     });
 
@@ -55,27 +49,11 @@ export async function GET(
       },
     });
 
-    // Check if event has passed RSVP deadline
-    const now = new Date();
-    const hasDeadlinePassed = event.rsvpDeadline && new Date(event.rsvpDeadline) < now;
-    
-    // Check if event is at capacity
-    const isAtCapacity = event.capacity && event.attendees.length >= event.capacity;
-    const isWaitlisted = attendance?.rsvp === 'MAYBE' && isAtCapacity;
-    
     return NextResponse.json({
       isAttending: !!attendance,
       rsvp: attendance?.rsvp || null,
       eventName: event.name,
-      isHost: event.hostId === session.user.id,
-      eventDetails: {
-        capacity: event.capacity,
-        currentAttendees: event.attendees.length,
-        isAtCapacity,
-        rsvpDeadline: event.rsvpDeadline,
-        hasDeadlinePassed,
-        isWaitlisted
-      }
+      isHost: event.hostId === session.user.id
     });
   } catch (error) {
     console.error('Error checking RSVP status:', error);
@@ -108,59 +86,16 @@ export async function POST(
       );
     }
 
-    // Get event details to check capacity and deadline
+    // Get event details to check if it exists
     const event = await prisma.event.findUnique({
-      where: { id: eventId },
-      select: { 
-        capacity: true, 
-        rsvpDeadline: true,
-        attendees: {
-          where: { rsvp: 'YES' },
-          select: { id: true }
-        }
-      }
+      where: { id: eventId }
     });
 
     if (!event) {
       return NextResponse.json({ error: 'Event not found' }, { status: 404 });
     }
 
-    // Check if RSVP deadline has passed
-    if (event.rsvpDeadline && new Date(event.rsvpDeadline) < new Date()) {
-      return NextResponse.json({ 
-        error: 'RSVP deadline has passed',
-        rsvpDeadline: event.rsvpDeadline
-      }, { status: 400 });
-    }
 
-    // Check if event is at capacity and handle waitlist logic
-    if (
-      validatedData.data.rsvp === 'YES' && 
-      event.capacity && 
-      event.attendees.length >= event.capacity
-    ) {
-      // If the event is at capacity, add to waitlist instead
-      const updatedAttendee = await prisma.attendee.upsert({
-        where: {
-          userId_eventId: {
-            userId: session.user.id,
-            eventId,
-          },
-        },
-        update: { rsvp: 'MAYBE' }, // Use MAYBE for waitlist
-        create: {
-          userId: session.user.id,
-          eventId,
-          rsvp: 'MAYBE', // Use MAYBE for waitlist
-        },
-      });
-
-      return NextResponse.json({
-        ...updatedAttendee,
-        waitlisted: true,
-        message: 'Event is at capacity. You have been added to the waitlist.'
-      });
-    }
 
     // Normal RSVP processing
     const updatedAttendee = await prisma.attendee.upsert({
@@ -214,17 +149,13 @@ export async function DELETE(
       return NextResponse.json({ error: 'RSVP not found' }, { status: 404 });
     }
 
-    // Get event to check for RSVP deadline
+    // Get event to check if it exists
     const event = await prisma.event.findUnique({
-      where: { id: eventId },
-      select: { rsvpDeadline: true }
+      where: { id: eventId }
     });
 
-    if (event?.rsvpDeadline && new Date(event.rsvpDeadline) < new Date()) {
-      return NextResponse.json({ 
-        error: 'Cannot cancel RSVP after deadline',
-        rsvpDeadline: event.rsvpDeadline
-      }, { status: 400 });
+    if (!event) {
+      return NextResponse.json({ error: 'Event not found' }, { status: 404 });
     }
 
     // Delete the RSVP
@@ -237,48 +168,7 @@ export async function DELETE(
       },
     });
 
-    // If capacity exists and someone cancels a YES RSVP, promote from waitlist
-    if (existingRSVP.rsvp === 'YES') {
-      const event = await prisma.event.findUnique({
-        where: { id: eventId },
-        select: { capacity: true }
-      });
-
-      if (event?.capacity) {
-        // Find first waitlisted person (MAYBE status)
-        const waitlistedAttendee = await prisma.attendee.findFirst({
-          where: {
-            eventId,
-            rsvp: 'MAYBE'
-          },
-          orderBy: {
-            createdAt: 'asc' // First come, first served
-          }
-        });
-
-        if (waitlistedAttendee) {
-          // Promote from waitlist
-          await prisma.attendee.update({
-            where: {
-              id: waitlistedAttendee.id
-            },
-            data: {
-              rsvp: 'YES'
-            }
-          });
-
-          // Create notification for promoted user
-          await prisma.notification.create({
-            data: {
-              message: `You've been promoted from the waitlist for an event: ${eventId}`,
-              sourceType: 'ATTENDEE',
-              attendeeId: waitlistedAttendee.id,
-              targetUserId: waitlistedAttendee.userId
-            }
-          });
-        }
-      }
-    }
+    // Since capacity is not implemented, we'll just delete the RSVP
 
     return NextResponse.json({ 
       message: 'Successfully removed attendance'

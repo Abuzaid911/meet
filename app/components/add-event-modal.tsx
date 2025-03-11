@@ -23,8 +23,7 @@ export function AddEventModal({ isOpen, onClose, onEventAdded, initialDate }: Ad
   const [eventLocation, setEventLocation] = useState("")
   const [eventDescription, setEventDescription] = useState("")
   const [eventDuration, setEventDuration] = useState(30)
-  const [eventCapacity, setEventCapacity] = useState(10)
-  const [rsvpDeadline, setRsvpDeadline] = useState("")
+  
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [errors, setErrors] = useState<Record<string, string>>({})
   const { addToast } = useToast()
@@ -42,11 +41,7 @@ export function AddEventModal({ isOpen, onClose, onEventAdded, initialDate }: Ad
     if (!eventTime) newErrors.time = "Time is required"
     if (!eventLocation.trim()) newErrors.location = "Location is required"
     if (eventDuration < 1) newErrors.duration = "Duration must be at least 1 minute"
-    if (eventCapacity < 1) newErrors.capacity = "Capacity must be at least 1 person"
-    if (!rsvpDeadline) newErrors.rsvpDeadline = "RSVP deadline is required"
-    if (rsvpDeadline && new Date(rsvpDeadline) > new Date(eventDate)) {
-      newErrors.rsvpDeadline = "RSVP deadline must be before event date"
-    }
+    
     setErrors(newErrors)
     return Object.keys(newErrors).length === 0
   }
@@ -69,8 +64,7 @@ export function AddEventModal({ isOpen, onClose, onEventAdded, initialDate }: Ad
           location: eventLocation,
           description: eventDescription,
           duration: eventDuration,
-          capacity: eventCapacity,
-          rsvpDeadline: rsvpDeadline
+          
         }),
       })
 
@@ -177,32 +171,6 @@ export function AddEventModal({ isOpen, onClose, onEventAdded, initialDate }: Ad
               placeholder="Enter event description"
               disabled={isSubmitting}
             />
-          </div>
-          <div className="space-y-2">
-            <Label htmlFor="eventCapacity">Capacity (persons)</Label>
-            <Input
-              id="eventCapacity"
-              type="number"
-              value={eventCapacity}
-              onChange={(e) => setEventCapacity(parseInt(e.target.value))}
-              className={errors.capacity ? "border-red-500" : ""}
-              min="1"
-              disabled={isSubmitting}
-            />
-            {errors.capacity && <p className="text-sm text-red-500">{errors.capacity}</p>}
-          </div>
-          <div className="space-y-2">
-            <Label htmlFor="rsvpDeadline">RSVP Deadline</Label>
-            <Input
-              id="rsvpDeadline"
-              type="date"
-              value={rsvpDeadline}
-              onChange={(e) => setRsvpDeadline(e.target.value)}
-              className={errors.rsvpDeadline ? "border-red-500" : ""}
-              max={eventDate}
-              disabled={isSubmitting}
-            />
-            {errors.rsvpDeadline && <p className="text-sm text-red-500">{errors.rsvpDeadline}</p>}
           </div>
           <DialogFooter>
             <Button

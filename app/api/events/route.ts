@@ -13,7 +13,11 @@ const createEventSchema = z.object({
   time: z.string().regex(/^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/, "Invalid time format"),
   location: z.string().min(1, "Location is required"),
   description: z.string().optional(),
-  duration: z.number().min(1, "Duration must be at least 1 minute"), // ✅ Ensure duration is present
+  duration: z.number().min(1, "Duration must be at least 1 minute"),
+  capacity: z.number().optional(),
+  rsvpDeadline: z.string().refine((date) => !isNaN(Date.parse(date)), {
+    message: "Invalid RSVP deadline format",
+  }).optional()
 })
 
 /**
@@ -90,11 +94,20 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Invalid event data", details: validatedData.error.format() }, { status: 400 })
     }
 
-    const { name, date, time, location, description, duration } = validatedData.data
+    const { name, date, time, location, description, duration, capacity, rsvpDeadline } = validatedData.data
 
     const eventDate = new Date(date)
+
     if (eventDate < new Date()) {
       return NextResponse.json({ error: "Event date must be in the future" }, { status: 400 })
+    }
+
+    // Validate RSVP deadline is before event date
+    if (rsvpDeadline) {
+      const deadlineDate = new Date(rsvpDeadline)
+      if (deadlineDate > eventDate) {
+        return NextResponse.json({ error: "RSVP deadline must be before event date" }, { status: 400 })
+      }
     }
 
     const event = await prisma.event.create({
@@ -104,7 +117,9 @@ export async function POST(request: Request) {
         time,
         location,
         description,
-        duration, // ✅ Store duration in the database
+        duration,
+        capacity,
+        rsvpDeadline: rsvpDeadline ? new Date(rsvpDeadline) : null,
         hostId: session.user.id,
       },
       include: {
