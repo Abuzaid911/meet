@@ -14,10 +14,18 @@ type Provider = {
 
 export default function SignIn() {
   const [providers, setProviders] = useState<Record<string, Provider> | null>(null)
-  const { addToast } = useToast() // ✅ FIX: Correct function name
+  const { addToast } = useToast()
   const router = useRouter()
   const { data: session, status } = useSession()
   const [signInAttempted, setSignInAttempted] = useState(false)
+
+  // Redirect to home if already authenticated
+  useEffect(() => {
+    if (status === "authenticated" && session) {
+      router.push("/")
+      return
+    }
+  }, [status, session, router])
 
   useEffect(() => {
     const fetchProviders = async () => {
