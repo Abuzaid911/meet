@@ -4,8 +4,9 @@ import { useEffect, useState, useCallback } from 'react'
 import Link from 'next/link'
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '../components/ui/card'
 import { Avatar, AvatarFallback, AvatarImage } from '../components/ui/avatar'
-import { CalendarIcon, MapPin, Users, Clock } from 'lucide-react' // ✅ Added Clock icon for duration
+import { CalendarIcon, MapPin, Users, Clock } from 'lucide-react'
 import { format } from 'date-fns'
+import { motion } from 'framer-motion'
 
 interface Attendee {
   user: {
@@ -22,7 +23,7 @@ interface Event {
   time: string
   location: string
   description?: string
-  duration: number // ✅ Added event duration
+  duration: number
   host: {
     id: string
     name: string
@@ -76,70 +77,66 @@ export function EventFeed() {
 
   return (
     <div className="space-y-4">
-      <h2 className="text-2xl font-bold">Upcoming Events</h2>
+      <h2 className="text-2xl font-bold bg-gradient-to-r from-teal-400 to-blue-500 bg-clip-text text-transparent">Upcoming Events</h2>
       {events.length === 0 ? (
         <Card>
           <CardContent className="pt-6">
-            <p className="text-muted-foreground">No upcoming events scheduled</p>
+            <p className="text-muted-foreground text-center">No upcoming events scheduled</p>
           </CardContent>
         </Card>
       ) : (
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-          {events.map((event) => (
-            <Card key={event.id}>
-              <CardHeader>
-                <CardTitle className="line-clamp-1">{event.name}</CardTitle>
-                <CardDescription className="flex items-center gap-2">
-                  <CalendarIcon className="h-4 w-4" />
-                  <time dateTime={event.date}>
-                    {format(new Date(event.date), 'PPP')} at {event.time}
-                  </time>
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-4">
-                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                    <MapPin className="h-4 w-4" />
-                    <span>{event.location}</span>
-                  </div>
-
-                  {/* ✅ Event Duration */}
-                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                    <Clock className="h-4 w-4" />
-                    <span>{event.duration} min</span>
-                  </div>
-
-                  <div className="flex items-center gap-2">
-                    <Avatar className="h-6 w-6">
-                      <AvatarImage src={event.host.image || undefined} />
-                      <AvatarFallback>{event.host.name[0]}</AvatarFallback>
-                    </Avatar>
-                    <span className="text-sm">Hosted by {event.host.name}</span>
-                  </div>
-                  
-                  {event.attendees.length > 0 && (
-                    <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                      <Users className="h-4 w-4" />
-                      <span>{event.attendees.length} attending</span>
+          {events.map((event, index) => (
+            <motion.div
+              key={event.id}
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.3, delay: index * 0.1 }}
+            >
+              <Link href={`/events/${event.id}`}>
+                <Card className="h-full transition-transform hover:scale-[1.02] hover:shadow-lg">
+                  <CardHeader>
+                    <CardTitle className="line-clamp-1 text-lg font-semibold">{event.name}</CardTitle>
+                    <CardDescription className="space-y-2">
+                      <div className="flex items-center gap-2 text-sm">
+                        <CalendarIcon className="h-4 w-4 text-teal-500" />
+                        <time dateTime={event.date} className="text-muted-foreground">
+                          {format(new Date(event.date), 'PPP')} at {event.time}
+                        </time>
+                      </div>
+                      <div className="flex items-center gap-2 text-sm">
+                        <Clock className="h-4 w-4 text-blue-500" />
+                        <span className="text-muted-foreground">{event.duration} minutes</span>
+                      </div>
+                      <div className="flex items-center gap-2 text-sm">
+                        <MapPin className="h-4 w-4 text-rose-500" />
+                        <span className="text-muted-foreground">{event.location}</span>
+                      </div>
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="space-y-4">
+                      {event.description && (
+                        <p className="text-sm text-muted-foreground line-clamp-2">{event.description}</p>
+                      )}
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <Avatar className="h-6 w-6">
+                            <AvatarImage src={event.host.image || undefined} />
+                            <AvatarFallback>{event.host.name[0]}</AvatarFallback>
+                          </Avatar>
+                          <span className="text-sm text-muted-foreground">{event.host.name}</span>
+                        </div>
+                        <div className="flex items-center gap-1">
+                          <Users className="h-4 w-4 text-violet-500" />
+                          <span className="text-sm text-muted-foreground">{event.attendees.length}</span>
+                        </div>
+                      </div>
                     </div>
-                  )}
-
-                  {/* ✅ Added Event Description */}
-                  {event.description && (
-                    <p className="text-sm text-gray-700 line-clamp-3">
-                      {event.description}
-                    </p>
-                  )}
-
-                  <Link
-                    href={`/events/${event.id}`}
-                    className="inline-block text-primary hover:underline text-sm"
-                  >
-                    View Details →
-                  </Link>
-                </div>
-              </CardContent>
-            </Card>
+                  </CardContent>
+                </Card>
+              </Link>
+            </motion.div>
           ))}
         </div>
       )}
