@@ -15,9 +15,11 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "../../components/ui/alert-dialog";
-import { Loader2, Trash2 } from "lucide-react";
+import { Loader2, Trash2, Calendar, Clock, MapPin, Users } from "lucide-react";
 import { AttendeeList } from "../../components/attendee-list";
 import { AddAttendeeModal } from "../../components/add-attendee-modal";
+import { EventAttendance } from "../../components/enhanced-event-attendance";
+import { format } from "date-fns";
 
 interface Event {
   id: string;
@@ -26,7 +28,22 @@ interface Event {
   time: string;
   location: string;
   description: string;
+  duration: number;
   hostId: string;
+  host: {
+    id: string;
+    name: string;
+    image: string | null;
+  };
+  attendees: {
+    id: string;
+    rsvp: string;
+    user: {
+      id: string;
+      name: string;
+      image: string | null;
+    };
+  }[];
 }
 
 export default function EventPage() {
@@ -78,6 +95,7 @@ export default function EventPage() {
       addToast({
         title: "Success",
         description: "Event deleted successfully",
+        variant: "success",
       });
       router.push("/events");
     } catch (error) {
@@ -93,68 +111,154 @@ export default function EventPage() {
     }
   };
 
+  const handleAttendeeAdded = () => {
+    // Refresh the event data to show the new attendee
+    const fetchEvent = async () => {
+      try {
+        const response = await fetch(`/api/events/${id}`);
+        if (!response.ok) {
+          throw new Error("Failed to fetch event");
+        }
+        const data = await response.json();
+        setEvent(data);
+      } catch (error) {
+        console.error("Error fetching event:", error);
+      }
+    };
+
+    fetchEvent();
+  };
+
   if (isLoading) {
     return (
       <div className="flex justify-center items-center h-screen">
-        Loading...
+        <Loader2 className="h-8 w-8 animate-spin text-gray-500" />
+        <span className="ml-2 text-gray-500">Loading event details...</span>
       </div>
     );
   }
 
   if (!event) {
     return (
-      <div className="flex justify-center items-center h-screen">
-        Event not found
+      <div className="flex flex-col justify-center items-center h-screen">
+        <h2 className="text-2xl font-bold text-gray-700">Event not found</h2>
+        <p className="text-gray-500 mb-4">The event you&apos;re looking for doesn&apos;t exist or has been removed.</p>
+        <Button onClick={() => router.push("/events")}>
+          Back to Events
+        </Button>
       </div>
     );
   }
 
   const isHost = session?.user?.id === event.hostId;
+  const eventDate = new Date(event.date);
 
   return (
-    <div className="container mx-auto px-4 py-8">
-      <h1 className="text-3xl font-bold mb-4">{event.name}</h1>
-      <p className="text-gray-600 mb-2">
-        Date: {new Date(event.date).toLocaleDateString()}
-      </p>
-      <p className="text-gray-600 mb-2">Time: {event.time}</p>
-      <p className="text-gray-600 mb-2">Location: {event.location}</p>
-      <p className="text-gray-800 mt-4">{event.description}</p>
-
-      {isHost && (
-        <div className="mt-8 flex gap-4">
-          <Button
-            variant="secondary"
-            onClick={() => setShowAddAttendeeModal(true)}
-          >
-            Invite Friends
-          </Button>
-          <Button
-            variant="destructive"
-            onClick={() => setShowDeleteDialog(true)}
-            disabled={isDeleting}
-          >
-            {isDeleting ? (
-              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-            ) : (
-              <Trash2 className="mr-2 h-4 w-4" />
-            )}
-            Delete Event
-          </Button>
+    <div className="container mx-auto px-4 py-8 pt-24">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+        {/* Main Event Information */}
+        <div className="lg:col-span-2">
+          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md overflow-hidden">
+            <div className="bg-gradient-to-r from-teal-400 to-blue-500 p-6">
+              <h1 className="text-3xl font-bold text-white mb-2">{event.name}</h1>
+              <p className="text-white opacity-90">
+                Hosted by {event.host?.name || "Unknown"}
+              </p>
+            </div>
+            
+            <div className="p-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+                <div className="flex items-center">
+                  <Calendar className="h-5 w-5 mr-3 text-teal-500" />
+                  <div>
+                    <p className="text-sm text-gray-500">Date</p>
+                    <p className="font-medium">{format(eventDate, 'EEEE, MMMM d, yyyy')}</p>
+                  </div>
+                </div>
+                
+                <div className="flex items-center">
+                  <Clock className="h-5 w-5 mr-3 text-teal-500" />
+                  <div>
+                    <p className="text-sm text-gray-500">Time & Duration</p>
+                    <p className="font-medium">{event.time} ({event.duration} minutes)</p>
+                  </div>
+                </div>
+                
+                <div className="flex items-center">
+                  <MapPin className="h-5 w-5 mr-3 text-teal-500" />
+                  <div>
+                    <p className="text-sm text-gray-500">Location</p>
+                    <p className="font-medium">{event.location}</p>
+                  </div>
+                </div>
+                
+                <div className="flex items-center">
+                  <Users className="h-5 w-5 mr-3 text-teal-500" />
+                  <div>
+                    <p className="text-sm text-gray-500">Attendees</p>
+                    <p className="font-medium">
+                      {event.attendees.filter(a => a.rsvp === "YES").length} going
+                    </p>
+                  </div>
+                </div>
+              </div>
+              
+              {event.description && (
+                <div className="border-t pt-6">
+                  <h2 className="text-xl font-semibold mb-3">About this event</h2>
+                  <p className="text-gray-700 dark:text-gray-300 whitespace-pre-line">{event.description}</p>
+                </div>
+              )}
+              
+              {isHost && (
+                <div className="mt-8 border-t pt-6">
+                  <div className="flex flex-wrap gap-4">
+                    <Button
+                      variant="secondary"
+                      onClick={() => setShowAddAttendeeModal(true)}
+                    >
+                      <Users className="mr-2 h-4 w-4" />
+                      Invite Friends
+                    </Button>
+                    <Button
+                      variant="destructive"
+                      onClick={() => setShowDeleteDialog(true)}
+                      disabled={isDeleting}
+                    >
+                      {isDeleting ? (
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      ) : (
+                        <Trash2 className="mr-2 h-4 w-4" />
+                      )}
+                      Delete Event
+                    </Button>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+          
+          {/* Attendee List Section */}
+          <div className="mt-8">
+            <AttendeeList eventId={event.id} isHost={isHost} />
+          </div>
         </div>
-      )}
+        
+        {/* RSVP Section */}
+        <div>
+          <EventAttendance eventId={event.id} />
+        </div>
+      </div>
 
       {/* Invite Attendees Modal */}
       <AddAttendeeModal
         isOpen={showAddAttendeeModal}
         onClose={() => setShowAddAttendeeModal(false)}
         eventId={event.id}
-        onAttendeeAdded={() => {}}
+        onAttendeeAdded={handleAttendeeAdded}
       />
 
-      {/* Attendee List */}
-      <AttendeeList eventId={event.id} isHost={isHost} />
-
+      {/* Delete Confirmation Dialog */}
       <AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
         <AlertDialogContent>
           <AlertDialogHeader>

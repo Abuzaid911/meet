@@ -31,7 +31,11 @@ export async function GET(
       select: { 
         id: true, 
         name: true,
-        hostId: true
+        hostId: true,
+        attendees: {
+          where: { rsvp: 'YES' },
+          select: { id: true }
+        }
       }
     });
 
@@ -53,7 +57,10 @@ export async function GET(
       isAttending: !!attendance,
       rsvp: attendance?.rsvp || null,
       eventName: event.name,
-      isHost: event.hostId === session.user.id
+      isHost: event.hostId === session.user.id,
+      eventDetails: {
+        currentAttendees: event.attendees.length,
+      }
     });
   } catch (error) {
     console.error('Error checking RSVP status:', error);
@@ -95,8 +102,6 @@ export async function POST(
       return NextResponse.json({ error: 'Event not found' }, { status: 404 });
     }
 
-
-
     // Normal RSVP processing
     const updatedAttendee = await prisma.attendee.upsert({
       where: {
@@ -112,6 +117,18 @@ export async function POST(
         rsvp: validatedData.data.rsvp,
       },
     });
+
+    // Create notification for event host
+    if (validatedData.data.rsvp !== 'PENDING' && event.hostId !== session.user.id) {
+      await prisma.notification.create({
+        data: {
+          message: `A user has responded to your event: ${event.name}`,
+          link: `/events/${eventId}`,
+          sourceType: 'ATTENDEE',
+          targetUserId: event.hostId
+        }
+      });
+    }
 
     return NextResponse.json(updatedAttendee);
   } catch (error) {
@@ -168,7 +185,17 @@ export async function DELETE(
       },
     });
 
-    // Since capacity is not implemented, we'll just delete the RSVP
+    // Create notification for the event host if the canceller is not the host
+    if (event.hostId !== session.user.id) {
+      await prisma.notification.create({
+        data: {
+          message: `A user has canceled their RSVP for: ${event.name}`,
+          link: `/events/${eventId}`,
+          sourceType: 'ATTENDEE',
+          targetUserId: event.hostId
+        }
+      });
+    }
 
     return NextResponse.json({ 
       message: 'Successfully removed attendance'

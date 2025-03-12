@@ -1,10 +1,11 @@
+// app/api/events/route.ts
 import { NextResponse } from "next/server"
 import { getServerSession } from "next-auth/next"
 import { authOptions } from "@/lib/auth"
 import { prisma } from "@/lib/prisma"
 import { z } from "zod"
 
-// ✅ Schema validation for event creation
+// Enhanced schema validation for event creation
 const createEventSchema = z.object({
   name: z.string().min(1, "Event name is required"),
   date: z.string().refine((date) => !isNaN(Date.parse(date)), {
@@ -14,14 +15,15 @@ const createEventSchema = z.object({
   location: z.string().min(1, "Location is required"),
   description: z.string().optional(),
   duration: z.number().min(1, "Duration must be at least 1 minute"),
-  capacity: z.number().optional(),
+  // For now, keep validating rsvpDeadline in the schema but don't store it
   rsvpDeadline: z.string().refine((date) => !isNaN(Date.parse(date)), {
     message: "Invalid RSVP deadline format",
-  }).optional()
+  }).optional(),
+  inviteFriends: z.array(z.string()).optional()
 })
 
 /**
- * ✅ GET: Fetch upcoming events
+ * GET: Fetch upcoming events
  */
 export async function GET(request: Request) {
   try {
@@ -77,7 +79,7 @@ export async function GET(request: Request) {
 }
 
 /**
- * ✅ POST: Create a new event
+ * POST: Create a new event
  */
 export async function POST(request: Request) {
   try {
@@ -94,15 +96,23 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Invalid event data", details: validatedData.error.format() }, { status: 400 })
     }
 
-    const { name, date, time, location, description, duration, capacity, rsvpDeadline } = validatedData.data
+    const { 
+      name, 
+      date, 
+      time, 
+      location, 
+      description, 
+      duration, 
+      rsvpDeadline, 
+      inviteFriends = []
+    } = validatedData.data
 
     const eventDate = new Date(date)
-
     if (eventDate < new Date()) {
       return NextResponse.json({ error: "Event date must be in the future" }, { status: 400 })
     }
 
-    // Validate RSVP deadline is before event date
+    // Validate RSVP deadline is before event date if provided
     if (rsvpDeadline) {
       const deadlineDate = new Date(rsvpDeadline)
       if (deadlineDate > eventDate) {
@@ -110,6 +120,7 @@ export async function POST(request: Request) {
       }
     }
 
+    // Create the event with only the fields that exist in the schema
     const event = await prisma.event.create({
       data: {
         name,
@@ -118,8 +129,6 @@ export async function POST(request: Request) {
         location,
         description,
         duration,
-        capacity,
-        rsvpDeadline: rsvpDeadline ? new Date(rsvpDeadline) : null,
         hostId: session.user.id,
       },
       include: {
@@ -130,34 +139,49 @@ export async function POST(request: Request) {
             image: true,
           },
         },
-        attendees: {
-          include: {
-            user: {
-              select: {
-                id: true,
-                name: true,
-                image: true,
-              },
-            },
-          },
-        },
       },
     })
+
+    // Automatically add the host as an attendee with "YES" RSVP
+    await prisma.attendee.create({
+      data: {
+        userId: session.user.id,
+        eventId: event.id,
+        rsvp: "YES",
+      },
+    })
+
+    // Process friend invitations if any
+    if (inviteFriends.length > 0) {
+      // Verify these are actually friends
+      const friendships = await prisma.user.findUnique({
+        where: { id: session.user.id },
+        select: {
+          friends: {
+            where: { id: { in: inviteFriends } },
+          },
+        },
+      })
+
+      if (friendships?.friends) {
+        // Create attendee records for each friend with PENDING status
+        await Promise.all(
+          friendships.friends.map((friend) =>
+            prisma.attendee.create({
+              data: {
+                userId: friend.id,
+                eventId: event.id,
+                rsvp: "PENDING",
+              },
+            })
+          )
+        )
+      }
+    }
 
     return NextResponse.json(event)
   } catch (error) {
     console.error("Error creating event:", error)
-
-    if (error instanceof Error) {
-      if (error.message.includes("Unique constraint")) {
-        return NextResponse.json({ error: "An event with these details already exists" }, { status: 409 })
-      }
-
-      if (error.message.includes("Foreign key constraint")) {
-        return NextResponse.json({ error: "Invalid user or reference data provided" }, { status: 400 })
-      }
-    }
-
-    return NextResponse.json({ error: "Failed to create event. Please try again later." }, { status: 500 })
+    return NextResponse.json({ error: "Failed to create event" }, { status: 500 })
   }
 }

@@ -90,9 +90,9 @@ export function EventAttendance({ eventId }: EventAttendanceProps) {
       setAttendance(updatedData);
       
       const responseMessages = {
-        YES: "You&apos;re attending this event!",
-        NO: "You&apos;ve declined this event.",
-        MAYBE: "You&apos;ve marked yourself as maybe attending."
+        YES: "You're attending this event!",
+        NO: "You've declined this event.",
+        MAYBE: "You've marked yourself as maybe attending."
       };
       
       addToast({

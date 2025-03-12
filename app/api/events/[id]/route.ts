@@ -1,143 +1,202 @@
-// Updated schema validation in app/api/events/route.ts
-import { NextResponse } from "next/server"
-import { getServerSession } from "next-auth/next"
-import { authOptions } from "@/lib/auth"
-import { prisma } from "@/lib/prisma"
-import { z } from "zod"
+import { NextRequest, NextResponse } from "next/server";
+import { getServerSession } from "next-auth/next";
+import { authOptions } from "@/lib/auth";
+import { prisma } from "@/lib/prisma";
+import { z } from "zod";
 
-// Enhanced schema validation for event creation
-const createEventSchema = z.object({
-  name: z.string().min(1, "Event name is required"),
-  date: z.string().refine((date) => !isNaN(Date.parse(date)), {
-    message: "Invalid date format",
-  }),
-  time: z.string().regex(/^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/, "Invalid time format"),
-  location: z.string().min(1, "Location is required"),
-  description: z.string().optional(),
-  duration: z.number().min(1, "Duration must be at least 1 minute"),
-
-  rsvpDeadline: z.string().refine((date) => !isNaN(Date.parse(date)), {
-    message: "Invalid RSVP deadline format",
-  }).optional(),
-  timeZone: z.string().optional(), // Add time zone support
-  inviteFriends: z.array(z.string()).optional(), // Optional array of friend IDs to invite
-})
+// Schema validation for attendee RSVP
+const addAttendeeSchema = z.object({
+  email: z.string().email(),
+  rsvp: z.enum(["YES", "NO", "MAYBE"]),
+});
 
 /**
- * POST: Create a new event
+ * GET: Fetch event details by ID
  */
-export async function POST(request: Request) {
+export async function GET(
+  request: NextRequest,
+  context: { params: Promise<{ id: string }> }
+): Promise<NextResponse> {
   try {
-    const session = await getServerSession(authOptions)
+    // Await the params to extract the 'id'
+    const { id } = await context.params;
+
+    // Fetch the event by ID
+    const event = await prisma.event.findUnique({
+      where: { id },
+      include: {
+        attendees: { include: { user: true } },
+        host: {
+          select: {
+            id: true,
+            name: true,
+            image: true,
+          },
+        },
+      },
+    });
+
+    if (!event) {
+      return NextResponse.json({ error: 'Event not found' }, { status: 404 });
+    }
+
+    return NextResponse.json(event);
+  } catch (error) {
+    console.error('Error fetching event:', error);
+    return NextResponse.json(
+      { error: 'Error fetching event' },
+      { status: 500 }
+    );
+  }
+}
+
+/**
+ * POST: Add an attendee to an event
+ */
+export async function POST(
+  request: Request,
+  context: { params: Promise<{ id: string }> }
+) {
+  try {
+    const session = await getServerSession(authOptions);
+    const { id: eventId } = await context.params;
 
     if (!session?.user?.id) {
-      return NextResponse.json({ error: "You must be signed in to create events" }, { status: 401 })
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const body = await request.json()
-    const validatedData = createEventSchema.safeParse(body)
+    const body = await request.json();
+    const validatedData = addAttendeeSchema.safeParse(body);
 
     if (!validatedData.success) {
-      return NextResponse.json({ error: "Invalid event data", details: validatedData.error.format() }, { status: 400 })
+      return NextResponse.json({ error: "Invalid input", details: validatedData.error.format() }, { status: 400 });
     }
 
-    const { 
-      name, 
-      date, 
-      time, 
-      location, 
-      description, 
-      duration, 
-      capacity, 
-      rsvpDeadline,
-      inviteFriends = []
-    } = validatedData.data
+    const { email, rsvp } = validatedData.data;
+    const user = await prisma.user.findUnique({ where: { email } });
 
-    const eventDate = new Date(date)
-    if (eventDate < new Date()) {
-      return NextResponse.json({ error: "Event date must be in the future" }, { status: 400 })
+    if (!user) {
+      return NextResponse.json({ error: "User not found" }, { status: 404 });
     }
 
-    // Validate RSVP deadline is before event date
-    if (rsvpDeadline) {
-      const deadlineDate = new Date(rsvpDeadline)
-      if (deadlineDate > eventDate) {
-        return NextResponse.json({ error: "RSVP deadline must be before event date" }, { status: 400 })
-      }
-    }
-
-    // Create the event with new fields
-    const event = await prisma.event.create({
-      data: {
-        name,
-        date: eventDate,
-        time,
-        location,
-        description,
-        duration,
-      
-        rsvpDeadline: rsvpDeadline ? new Date(rsvpDeadline) : null,
-        hostId: session.user.id,
+    const attendee = await prisma.attendee.upsert({
+      where: {
+        userId_eventId: {
+          userId: user.id,
+          eventId,
+        },
       },
-    })
-
-    // Automatically add the host as an attendee with "YES" RSVP
-    await prisma.attendee.create({
-      data: {
-        userId: session.user.id,
-        eventId: event.id,
-        rsvp: "YES",
+      update: { rsvp },
+      create: {
+        userId: user.id,
+        eventId,
+        rsvp,
       },
-    })
+    });
 
-    // Process friend invitations if any
-    if (inviteFriends.length > 0) {
-      // Verify these are actually friends
-      const friendships = await prisma.user.findUnique({
-        where: { id: session.user.id },
-        select: {
-          friends: {
-            where: { id: { in: inviteFriends } },
-            select: { id: true }
-          }
-        }
-      })
-
-      const validFriendIds = friendships?.friends.map(f => f.id) || []
-
-      // Create pending RSVP for each valid friend
-      if (validFriendIds.length > 0) {
-        await Promise.all(
-          validFriendIds.map(friendId =>
-            prisma.attendee.create({
-              data: {
-                userId: friendId,
-                eventId: event.id,
-                rsvp: "PENDING",
-              }
-            })
-          )
-        )
-
-        // Create notifications for invited friends
-        await Promise.all(
-          validFriendIds.map(friendId =>
-            prisma.notification.create({
-              data: {
-                message: `You've been invited to an event: ${name}`,
-                link: `/events/${event.id}`,
-                sourceType: "ATTENDEE",
-                targetUserId: friendId
-              }
-            })
-          )
-        )
-      }
-    }
-
-    return NextResponse.json(event)
+    return NextResponse.json(attendee);
   } catch (error) {
-    console.error("Error creating event:", error)
-    return NextResponse.json({ error: "Failed to create event" }, { status: 500 })
+    console.error("Error adding attendee:", error);
+    return NextResponse.json({ error: "Error adding attendee" }, { status: 500 });
+  }
+}
+
+/**
+ * DELETE: Delete an event
+ */
+export async function DELETE(
+  request: Request,
+  context: { params: Promise<{ id: string }> }
+) {
+  try {
+    const session = await getServerSession(authOptions);
+
+    if (!session || !session.user) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    const { id: eventId } = await context.params;
+    const userId = session.user.id;
+
+    const event = await prisma.event.findUnique({
+      where: { id: eventId },
+      select: { hostId: true },
+    });
+
+    if (!event) {
+      return NextResponse.json({ error: "Event not found" }, { status: 404 });
+    }
+
+    if (event.hostId !== userId) {
+      return NextResponse.json(
+        { error: "You are not authorized to delete this event" },
+        { status: 403 }
+      );
+    }
+
+    await prisma.event.delete({
+      where: { id: eventId },
+    });
+
+    return NextResponse.json({ message: "Event deleted successfully" });
+  } catch (error) {
+    console.error("Error deleting event:", error);
+    return NextResponse.json(
+      { error: "Internal Server Error" },
+      { status: 500 }
+    );
+  }
+}
+
+/**
+ * PUT: Update an event
+ */
+export async function PUT(
+  request: Request,
+  context: { params: Promise<{ id: string }> }
+) {
+  try {
+    const session = await getServerSession(authOptions);
+    if (!session?.user?.id) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    const { id: eventId } = await context.params;
+    const body = await request.json();
+    
+    // First check if the user is the event host
+    const event = await prisma.event.findUnique({
+      where: { id: eventId },
+      select: { hostId: true },
+    });
+
+    if (!event) {
+      return NextResponse.json({ error: "Event not found" }, { status: 404 });
+    }
+
+    if (event.hostId !== session.user.id) {
+      return NextResponse.json(
+        { error: "You are not authorized to update this event" },
+        { status: 403 }
+      );
+    }
+
+    // Update the event
+    const updatedEvent = await prisma.event.update({
+      where: { id: eventId },
+      data: {
+        name: body.name,
+        date: body.date ? new Date(body.date) : undefined,
+        time: body.time,
+        location: body.location,
+        description: body.description,
+        duration: body.duration,
+      },
+    });
+
+    return NextResponse.json(updatedEvent);
+  } catch (error) {
+    console.error("Error updating event:", error);
+    return NextResponse.json({ error: "Error updating event" }, { status: 500 });
   }
 }
