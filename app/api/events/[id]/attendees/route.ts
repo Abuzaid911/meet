@@ -142,3 +142,66 @@ export async function GET(
     );
   }
 }
+
+export async function DELETE(
+  request: Request,
+  context: { params: Promise<{ id: string }> }
+) {
+  try {
+    const session = await getServerSession(authOptions);
+    if (!session?.user?.id) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    const { id: eventId } = await context.params;
+    
+    // Parse the request body to get the attendee email to remove
+    const { email } = await request.json();
+    
+    if (!email) {
+      return NextResponse.json({ error: 'Email is required' }, { status: 400 });
+    }
+
+    // Get the event to verify that the current user is the host
+    const event = await prisma.event.findUnique({
+      where: { id: eventId },
+      select: { hostId: true }
+    });
+
+    if (!event) {
+      return NextResponse.json({ error: 'Event not found' }, { status: 404 });
+    }
+
+    // Verify that the current user is the host
+    if (event.hostId !== session.user.id) {
+      return NextResponse.json({ error: 'Only the event host can remove attendees' }, { status: 403 });
+    }
+
+    // Find the user by email
+    const userToRemove = await prisma.user.findUnique({
+      where: { email }
+    });
+
+    if (!userToRemove) {
+      return NextResponse.json({ error: 'User not found' }, { status: 404 });
+    }
+
+    // Delete the attendee record
+    await prisma.attendee.delete({
+      where: {
+        userId_eventId: {
+          userId: userToRemove.id,
+          eventId
+        }
+      }
+    });
+
+    return NextResponse.json({ message: 'Attendee removed successfully' });
+  } catch (error) {
+    console.error('Error removing attendee:', error);
+    return NextResponse.json(
+      { error: 'Error removing attendee' },
+      { status: 500 }
+    );
+  }
+}
