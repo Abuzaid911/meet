@@ -15,10 +15,11 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "../../components/ui/alert-dialog";
-import { Loader2, Trash2, Calendar, Clock, MapPin, Users } from "lucide-react";
+import { Loader2, Trash2, Calendar, Clock, MapPin, Users, Share2 } from "lucide-react";
 import { AttendeeList } from "../../components/attendee-list";
 import { AddAttendeeModal } from "../../components/add-attendee-modal";
 import { EventAttendance } from "../../components/enhanced-event-attendance";
+import { ShareEventButton } from "../../components/share-event-button";
 import { format } from "date-fns";
 
 interface Event {
@@ -142,7 +143,7 @@ export default function EventPage() {
     return (
       <div className="flex flex-col justify-center items-center h-screen">
         <h2 className="text-2xl font-bold text-gray-700">Event not found</h2>
-        <p className="text-gray-500 mb-4">The event you&apos;re looking for doesn&apos;t exist or has been removed.</p>
+        <p className="text-gray-500 mb-4">The event you're looking for doesn't exist or has been removed.</p>
         <Button onClick={() => router.push("/events")}>
           Back to Events
         </Button>
@@ -159,11 +160,20 @@ export default function EventPage() {
         {/* Main Event Information */}
         <div className="lg:col-span-2">
           <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md overflow-hidden">
-            <div className="bg-gradient-to-r from-teal-400 to-blue-500 p-6">
-              <h1 className="text-3xl font-bold text-white mb-2">{event.name}</h1>
-              <p className="text-white opacity-90">
-                Hosted by {event.host?.name || "Unknown"}
-              </p>
+            <div className="bg-gradient-to-r from-teal-400 to-blue-500 p-6 flex justify-between items-start">
+              <div>
+                <h1 className="text-3xl font-bold text-white mb-2">{event.name}</h1>
+                <p className="text-white opacity-90">
+                  Hosted by {event.host?.name || "Unknown"}
+                </p>
+              </div>
+              
+              {/* Share Button in Header */}
+              <ShareEventButton 
+                eventId={event.id.toString()} 
+                eventName={event.name} 
+                className="bg-white/20 hover:bg-white/30 text-white border-none"
+              />
             </div>
             
             <div className="p-6">
@@ -210,31 +220,41 @@ export default function EventPage() {
                 </div>
               )}
               
-              {isHost && (
-                <div className="mt-8 border-t pt-6">
-                  <div className="flex flex-wrap gap-4">
-                    <Button
-                      variant="secondary"
-                      onClick={() => setShowAddAttendeeModal(true)}
-                    >
-                      <Users className="mr-2 h-4 w-4" />
-                      Invite Friends
-                    </Button>
-                    <Button
-                      variant="destructive"
-                      onClick={() => setShowDeleteDialog(true)}
-                      disabled={isDeleting}
-                    >
-                      {isDeleting ? (
-                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                      ) : (
-                        <Trash2 className="mr-2 h-4 w-4" />
-                      )}
-                      Delete Event
-                    </Button>
-                  </div>
+              {/* Action Buttons */}
+              <div className="mt-8 border-t pt-6">
+                <div className="flex flex-wrap gap-4">
+                  {/* Share Button */}
+                  <ShareEventButton 
+                    eventId={event.id.toString()} 
+                    eventName={event.name} 
+                  />
+                  
+                  {/* Host-only buttons */}
+                  {isHost && (
+                    <>
+                      <Button
+                        variant="secondary"
+                        onClick={() => setShowAddAttendeeModal(true)}
+                      >
+                        <Users className="mr-2 h-4 w-4" />
+                        Invite Friends
+                      </Button>
+                      <Button
+                        variant="destructive"
+                        onClick={() => setShowDeleteDialog(true)}
+                        disabled={isDeleting}
+                      >
+                        {isDeleting ? (
+                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        ) : (
+                          <Trash2 className="mr-2 h-4 w-4" />
+                        )}
+                        Delete Event
+                      </Button>
+                    </>
+                  )}
                 </div>
-              )}
+              </div>
             </div>
           </div>
           
