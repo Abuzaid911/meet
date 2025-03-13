@@ -15,7 +15,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "../../components/ui/alert-dialog";
-import { Loader2, Trash2, Calendar, Clock, MapPin, Users, Share2 } from "lucide-react";
+import { Loader2, Trash2, Calendar, Clock, MapPin, Users } from "lucide-react";
 import { AttendeeList } from "../../components/attendee-list";
 import { AddAttendeeModal } from "../../components/add-attendee-modal";
 import { EventAttendance } from "../../components/enhanced-event-attendance";
@@ -143,7 +143,7 @@ export default function EventPage() {
     return (
       <div className="flex flex-col justify-center items-center h-screen">
         <h2 className="text-2xl font-bold text-gray-700">Event not found</h2>
-        <p className="text-gray-500 mb-4">The event you're looking for doesn't exist or has been removed.</p>
+        <p className="text-gray-500 mb-4">The event you are looking for does not exist or has been removed.</p>
         <Button onClick={() => router.push("/events")}>
           Back to Events
         </Button>

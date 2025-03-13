@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { Button } from "./ui/button";
-import { Share, Copy, Check, Link } from "lucide-react";
+import { Share, Check } from "lucide-react";
 import { useToast } from "./ui/use-toast";
 import {
   Tooltip,

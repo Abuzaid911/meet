@@ -10,9 +10,9 @@ import { useToast } from "../components/ui/use-toast"
 import { FriendList } from "./friend-list"
 import { EventList } from "../components/event-list"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "../components/ui/tabs"
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "../components/ui/card"
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../components/ui/card"
 import { Badge } from "../components/ui/badge"
-import { Calendar, Mail, User, Edit2, Save, X, Loader2, Camera, Upload, ImageIcon } from "lucide-react"
+import { Calendar, Mail, User, Edit2, Save, X, Loader2, Camera, Upload } from "lucide-react"
 import { motion } from "framer-motion"
 import { 
   DropdownMenu,
@@ -464,7 +464,7 @@ export default function ProfilePage() {
                     Upcoming Events
                   </CardTitle>
                   <CardDescription>
-                    Events you're hosting or attending
+                    Events you&apos;re hosting or attending
                   </CardDescription>
                 </CardHeader>
                 <CardContent>

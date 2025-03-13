@@ -80,12 +80,23 @@ export async function POST(request: Request) {
     }
 
     // Create a new friend request
-    await prisma.friendRequest.create({
+    const friendRequest = await prisma.friendRequest.create({
       data: {
         senderId: currentUser.id,
         receiverId: friendUser.id,
         status: 'pending',
       },
+    })
+
+    // Create a notification for the request recipient
+    await prisma.notification.create({
+      data: {
+        message: `${currentUser.name || currentUser.username} sent you a friend request`,
+        link: `/profile?tab=friends`,
+        sourceType: 'FRIEND_REQUEST',
+        targetUserId: friendUser.id,
+        friendRequestId: friendRequest.id
+      }
     })
 
     return NextResponse.json({ message: 'Friend request sent successfully!' })

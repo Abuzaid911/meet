@@ -80,7 +80,7 @@ export async function POST(request: NextRequest) {
 /**
  * Handler for removing a profile image
  */
-export async function DELETE(request: NextRequest) {
+export async function DELETE() {
   try {
     // Check authentication
     const session = await getServerSession(authOptions);
@@ -101,7 +101,7 @@ export async function DELETE(request: NextRequest) {
       },
     });
 
-    return NextResponse.json({ 
+    return NextResponse.json({
       message: 'Profile image removed successfully',
       user: updatedUser
     });

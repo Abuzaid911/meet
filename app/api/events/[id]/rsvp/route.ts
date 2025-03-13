@@ -118,14 +118,39 @@ export async function POST(
       },
     });
 
-    // Create notification for event host
+    // Create notification for event host if this is not a "PENDING" RSVP
+    // and the user is not the host
     if (validatedData.data.rsvp !== 'PENDING' && event.hostId !== session.user.id) {
+      // Get user's name for the notification message
+      const user = await prisma.user.findUnique({
+        where: { id: session.user.id },
+        select: { name: true, username: true }
+      });
+
+      const displayName = user?.name || user?.username || 'Someone';
+      
+      let message;
+      switch (validatedData.data.rsvp) {
+        case 'YES':
+          message = `${displayName} is going to your event: ${event.name}`;
+          break;
+        case 'MAYBE':
+          message = `${displayName} might attend your event: ${event.name}`;
+          break;
+        case 'NO':
+          message = `${displayName} can't attend your event: ${event.name}`;
+          break;
+        default:
+          message = `${displayName} responded to your event: ${event.name}`;
+      }
+
       await prisma.notification.create({
         data: {
-          message: `A user has responded to your event: ${event.name}`,
+          message,
           link: `/events/${eventId}`,
           sourceType: 'ATTENDEE',
-          targetUserId: event.hostId
+          targetUserId: event.hostId,
+          attendeeId: updatedAttendee.id
         }
       });
     }
