@@ -1,27 +1,24 @@
 // app/api/users/[id]/route.ts
-import { NextRequest, NextResponse } from "next/server";
+import { NextResponse, type NextRequest } from "next/server";
 import { getServerSession } from "next-auth/next";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 
-/**
- * GET: Fetch a user profile along with upcoming events and friendship status
- */
 export async function GET(
   request: NextRequest,
-  context: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { id: userId } = await params; // Awaiting the params Promise
     const session = await getServerSession(authOptions);
-    
+
     if (!session?.user?.id) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const userId = context.params.id;
     const currentUserId = session.user.id;
-    
-    // Check if the requested user exists
+
+    // Fetch user profile
     const user = await prisma.user.findUnique({
       where: { id: userId },
       select: {
@@ -31,14 +28,8 @@ export async function GET(
         image: true,
         bio: true,
         events: {
-          where: {
-            date: {
-              gte: new Date(),
-            },
-          },
-          orderBy: {
-            date: "asc",
-          },
+          where: { date: { gte: new Date() } },
+          orderBy: { date: "asc" },
           take: 5,
           select: {
             id: true,
@@ -46,7 +37,7 @@ export async function GET(
             date: true,
             time: true,
             location: true,
-          }
+          },
         },
       },
     });
@@ -55,49 +46,40 @@ export async function GET(
       return NextResponse.json({ error: "User not found" }, { status: 404 });
     }
 
-    // Check friendship status
-    let friendStatus: 'none' | 'pending' | 'friends' = 'none';
-    
-    // Check if users are friends
+    // Determine friendship status
+    let friendStatus: "none" | "pending" | "friends" = "none";
+
     const friendship = await prisma.user.findFirst({
       where: {
         id: currentUserId,
-        friends: {
-          some: {
-            id: userId
-          }
-        }
-      }
+        friends: { some: { id: userId } },
+      },
     });
-    
+
     if (friendship) {
-      friendStatus = 'friends';
+      friendStatus = "friends";
     } else {
-      // Check for pending friend requests
       const pendingRequest = await prisma.friendRequest.findFirst({
         where: {
           OR: [
             { senderId: currentUserId, receiverId: userId },
-            { senderId: userId, receiverId: currentUserId }
+            { senderId: userId, receiverId: currentUserId },
           ],
-          status: 'pending'
-        }
+          status: "pending",
+        },
       });
-      
+
       if (pendingRequest) {
-        friendStatus = 'pending';
+        friendStatus = "pending";
       }
     }
 
-    // Enhanced response with friendship status
-    const enhancedResponse = {
-      ...user,
-      friendStatus
-    };
-
-    return NextResponse.json(enhancedResponse);
+    return NextResponse.json({ ...user, friendStatus });
   } catch (error) {
     console.error("Error fetching user profile:", error);
-    return NextResponse.json({ error: "Error fetching user profile" }, { status: 500 });
+    return NextResponse.json(
+      { error: "Error fetching user profile" },
+      { status: 500 }
+    );
   }
 }
