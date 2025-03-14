@@ -1,53 +1,309 @@
 "use client"
 
-import * as React from "react"
+import { useState, useEffect } from "react"
 import Link from "next/link"
+import { usePathname } from "next/navigation"
+import { useSession } from "next-auth/react"
+import { 
+  Home, 
+  Calendar, 
+  User, 
+  Menu, 
+  X,  
+  LogIn, 
+  LogOut,
+  PlusCircle
+} from "lucide-react"
 import { Button } from "./ui/button"
 import { Sheet, SheetContent, SheetTrigger } from "./ui/sheet"
+import { NotificationBell } from "./notification-bell"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "./ui/dropdown-menu"
+import { Avatar, AvatarFallback, AvatarImage } from "./ui/avatar"
+
+// Nav item with icon, text, and active state
+interface NavItemProps {
+  href: string
+  icon: React.ReactNode
+  label: string
+  isActive: boolean
+  onClick?: () => void
+}
+
+function NavItem({ href, icon, label, isActive, onClick }: NavItemProps) {
+  return (
+    <Link
+      href={href}
+      onClick={onClick}
+      className={`flex items-center gap-2 px-3 py-2 rounded-md text-sm font-medium transition-colors ${
+        isActive 
+          ? "bg-primary/10 text-primary" 
+          : "text-muted-foreground hover:text-foreground hover:bg-accent"
+      }`}
+    >
+      {icon}
+      {label}
+    </Link>
+  )
+}
 
 export function NavBar() {
+  const [isScrolled, setIsScrolled] = useState(false)
+  const pathname = usePathname()
+  const { data: session, status } = useSession()
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
+  
+  // Track scroll position for navbar styling
+  useEffect(() => {
+    const handleScroll = () => {
+      setIsScrolled(window.scrollY > 10)
+    }
+    
+    window.addEventListener("scroll", handleScroll)
+    return () => window.removeEventListener("scroll", handleScroll)
+  }, [])
+
+  // Desktop navigation items
+  const navItems = [
+    { href: "/", icon: <Home className="h-4 w-4" />, label: "Home" },
+    { href: "/events", icon: <Calendar className="h-4 w-4" />, label: "Events" },
+    { href: "/profile", icon: <User className="h-4 w-4" />, label: "Profile" },
+  ]
+
   return (
-    <nav className="border-b">
-      <div className="flex h-16 items-center px-4">
-        <Link href="/" className="font-semibold">
-          Meet App
-        </Link>
-        <div className="ml-auto flex items-center space-x-4">
-          <Sheet>
-            <SheetTrigger asChild>
-              <Button variant="outline" size="icon">
-                <span className="sr-only">Open menu</span>
-                <svg
-                  xmlns="http://www.w3.org/2000/svg"
-                  width="24"
-                  height="24"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  className="h-5 w-5"
-                >
-                  <line x1="3" y1="6" x2="21" y2="6" />
-                  <line x1="3" y1="12" x2="21" y2="12" />
-                  <line x1="3" y1="18" x2="21" y2="18" />
-                </svg>
+    <header className={`sticky top-0 z-50 w-full transition-all duration-200 ${
+      isScrolled 
+        ? "bg-background/95 backdrop-blur-sm border-b shadow-sm" 
+        : "bg-background border-b"
+    }`}>
+      <div className="container mx-auto px-4">
+        <div className="flex h-16 items-center justify-between">
+          {/* Logo */}
+          <Link 
+            href="/" 
+            className="flex items-center gap-2 font-bold text-xl bg-gradient-to-r from-teal-500 to-blue-500 bg-clip-text text-transparent"
+          >
+            <Calendar className="h-6 w-6 text-teal-500" />
+            OMW
+          </Link>
+
+          {/* Desktop Navigation */}
+          <div className="hidden md:flex md:items-center md:gap-6">
+            {navItems.map((item) => (
+              <NavItem
+                key={item.href}
+                href={item.href}
+                icon={item.icon}
+                label={item.label}
+                isActive={pathname === item.href}
+              />
+            ))}
+          </div>
+
+          {/* Actions: Notifications, Create Event, Profile */}
+          <div className="flex items-center gap-2">
+            {/* Create Event Button (desktop only) */}
+            {session && (
+              <Button 
+                asChild
+                variant="default" 
+                size="sm"
+                className="hidden md:flex bg-gradient-to-r from-teal-500 to-blue-500 hover:from-teal-600 hover:to-blue-600"
+              >
+                <Link href="/events/new">
+                  <PlusCircle className="h-4 w-4 mr-2" />
+                  New Event
+                </Link>
               </Button>
-            </SheetTrigger>
-            <SheetContent>
-              <div className="grid gap-4 py-4">
-                <Link href="/events" className="text-sm font-medium">
-                  Events
+            )}
+            
+            {/* Notifications */}
+            {session && <NotificationBell />}
+            
+            {/* Auth Status / Profile */}
+            {status === 'loading' ? (
+              <div className="h-8 w-8 rounded-full bg-muted animate-pulse" />
+            ) : session ? (
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="ghost" className="relative h-8 w-8 rounded-full">
+                    <Avatar className="h-8 w-8">
+                      <AvatarImage src={session.user?.image || undefined} alt={session.user?.name || 'User'} />
+                      <AvatarFallback>
+                        {session.user?.name?.[0] || session.user?.email?.[0] || 'U'}
+                      </AvatarFallback>
+                    </Avatar>
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent className="w-56" align="end" forceMount>
+                  <DropdownMenuLabel className="font-normal">
+                    <div className="flex flex-col space-y-1">
+                      <p className="text-sm font-medium">{session.user?.name}</p>
+                      <p className="text-xs text-muted-foreground">{session.user?.email}</p>
+                    </div>
+                  </DropdownMenuLabel>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem asChild>
+                    <Link href="/profile">
+                      <User className="mr-2 h-4 w-4" />
+                      <span>Profile</span>
+                    </Link>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem asChild>
+                    <Link href="/events">
+                      <Calendar className="mr-2 h-4 w-4" />
+                      <span>My Events</span>
+                    </Link>
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem asChild>
+                    <button 
+                      className="w-full flex items-center justify-between px-2 py-1.5 text-sm rounded-sm cursor-default select-none group transition-colors hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-950 dark:hover:text-red-400 focus:bg-red-50 focus:text-red-600 dark:focus:bg-red-950 dark:focus:text-red-400"
+                      onClick={() => {
+                        const authButton = document.querySelector('[data-auth-button]');
+                        if (authButton instanceof HTMLElement) {
+                          authButton.click();
+                        }
+                      }}
+                    >
+                      <div className="flex items-center">
+                        <LogOut className="mr-2 h-4 w-4 group-hover:animate-pulse" />
+                        <span>Sign out</span>
+                      </div>
+                    </button>
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            ) : (
+              <Button asChild variant="default" size="sm">
+                <Link href="/auth/signin">
+                  <LogIn className="h-4 w-4 mr-2" />
+                  Sign In
                 </Link>
-                <Link href="/profile" className="text-sm font-medium">
-                  Profile
-                </Link>
-              </div>
-            </SheetContent>
-          </Sheet>
+              </Button>
+            )}
+            
+            {/* Mobile menu button */}
+            <Sheet open={isMobileMenuOpen} onOpenChange={setIsMobileMenuOpen}>
+              <SheetTrigger asChild>
+                <Button 
+                  variant="ghost" 
+                  size="icon" 
+                  className="md:hidden"
+                  aria-label="Toggle Menu"
+                >
+                  <Menu className="h-5 w-5" />
+                </Button>
+              </SheetTrigger>
+              <SheetContent side="right" className="w-[80vw] max-w-[300px]">
+                <div className="flex flex-col gap-6 pt-6">
+                  <div className="flex items-center justify-between">
+                    <Link 
+                      href="/" 
+                      onClick={() => setIsMobileMenuOpen(false)}
+                      className="flex items-center gap-2 font-bold text-xl"
+                    >
+                      <Calendar className="h-6 w-6 text-teal-500" />
+                      <span className="bg-gradient-to-r from-teal-500 to-blue-500 bg-clip-text text-transparent">
+                        OMW
+                      </span>
+                    </Link>
+                    <Button 
+                      variant="ghost" 
+                      size="icon" 
+                      onClick={() => setIsMobileMenuOpen(false)}
+                    >
+                      <X className="h-5 w-5" />
+                    </Button>
+                  </div>
+                  
+                  <nav className="flex flex-col gap-1">
+                    {navItems.map((item) => (
+                      <NavItem
+                        key={item.href}
+                        href={item.href}
+                        icon={item.icon}
+                        label={item.label}
+                        isActive={pathname === item.href}
+                        onClick={() => setIsMobileMenuOpen(false)}
+                      />
+                    ))}
+                    
+                    {/* Mobile-only Create Event Button */}
+                    {session && (
+                      <div className="mt-4">
+                        <Button 
+                          asChild
+                          className="w-full bg-gradient-to-r from-teal-500 to-blue-500 hover:from-teal-600 hover:to-blue-600"
+                        >
+                          <Link href="/events/new" onClick={() => setIsMobileMenuOpen(false)}>
+                            <PlusCircle className="h-4 w-4 mr-2" />
+                            Create New Event
+                          </Link>
+                        </Button>
+                      </div>
+                    )}
+                  </nav>
+                  
+                  {/* Mobile Auth Status */}
+                  <div className="mt-auto border-t pt-4">
+                    {session ? (
+                      <div className="flex flex-col gap-4">
+                        <div className="flex items-center gap-3">
+                          <Avatar className="h-10 w-10">
+                            <AvatarImage src={session.user?.image || undefined} alt={session.user?.name || 'User'} />
+                            <AvatarFallback>
+                              {session.user?.name?.[0] || session.user?.email?.[0] || 'U'}
+                            </AvatarFallback>
+                          </Avatar>
+                          <div className="flex flex-col">
+                            <p className="text-sm font-medium">{session.user?.name}</p>
+                            <p className="text-xs text-muted-foreground truncate max-w-[180px]">
+                              {session.user?.email}
+                            </p>
+                          </div>
+                        </div>
+                        <Button 
+                          variant="outline" 
+                          size="sm"
+                          className="w-full flex items-center justify-center group transition-colors hover:bg-red-50 hover:text-red-600 hover:border-red-200 dark:hover:bg-red-950 dark:hover:text-red-400" 
+                          onClick={() => {
+                            setIsMobileMenuOpen(false)
+                            const authButton = document.querySelector('[data-auth-button]');
+                            if (authButton instanceof HTMLElement) {
+                              authButton.click();
+                            }
+                          }}
+                        >
+                          <LogOut className="h-4 w-4 mr-2 group-hover:animate-pulse" />
+                          Sign out
+                        </Button>
+                      </div>
+                    ) : (
+                      <Button 
+                        asChild 
+                        variant="default" 
+                        className="w-full"
+                      >
+                        <Link href="/auth/signin" onClick={() => setIsMobileMenuOpen(false)}>
+                          <LogIn className="h-4 w-4 mr-2" />
+                          Sign In
+                        </Link>
+                      </Button>
+                    )}
+                  </div>
+                </div>
+              </SheetContent>
+            </Sheet>
+          </div>
         </div>
       </div>
-    </nav>
+    </header>
   )
 }

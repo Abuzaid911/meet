@@ -1,39 +1,42 @@
+// app/api/users/search/route.ts
 import { NextResponse } from 'next/server';
 import { getServerSession } from "next-auth/next";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 
 /**
- * Search API endpoint - Finds users by username or name
+ * API endpoint for searching users
+ * Handles case-insensitive search by username or full name
  */
 export async function GET(request: Request) {
   try {
-    // Verify authentication
+    // Authenticate the user
     const session = await getServerSession(authOptions);
     if (!session?.user?.id) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    // Get search query from URL
+    // Get and normalize the search query
     const { searchParams } = new URL(request.url);
-    const query = searchParams.get('query')?.trim();
+    const query = searchParams.get('query')?.trim().toLowerCase();
 
-    // Return empty results if no query provided
+    // Return empty results for short queries
     if (!query || query.length < 2) {
       return NextResponse.json({ users: [] });
     }
 
-    // Find existing friend IDs for current user to exclude them from results
-    const friendships = await prisma.user.findUnique({
+    // Get current user's friends to exclude from results
+    const userWithFriends = await prisma.user.findUnique({
       where: { id: session.user.id },
       select: { friends: { select: { id: true } } }
     });
     
-    const friendIds = friendships?.friends.map(friend => friend.id) || [];
-    // Always exclude the current user from results
+    const friendIds = userWithFriends?.friends.map(friend => friend.id) || [];
+    
+    // Always exclude the current user from search results
     friendIds.push(session.user.id);
 
-    // Get pending friend request IDs (both sent and received)
+    // Get pending friend requests to mark their status
     const pendingRequests = await prisma.friendRequest.findMany({
       where: {
         OR: [
@@ -48,14 +51,14 @@ export async function GET(request: Request) {
       }
     });
 
-    // Extract unique user IDs from pending requests
+    // Create sets for quick lookups
     const pendingUserIds = new Set<string>();
     pendingRequests.forEach(request => {
       if (request.senderId !== session.user.id) pendingUserIds.add(request.senderId);
       if (request.receiverId !== session.user.id) pendingUserIds.add(request.receiverId);
     });
 
-    // Perform search on both username and name
+    // Search users by username or name (both case-insensitive)
     const users = await prisma.user.findMany({
       where: {
         OR: [
@@ -70,15 +73,10 @@ export async function GET(request: Request) {
         name: true,
         image: true,
       },
-      orderBy: [
-        // Sort results by relevance - exact matches first
-        // Note: Using standard Prisma sorting capabilities
-        { username: 'asc' }
-      ],
       take: 10, // Limit results
     });
 
-    // Annotate results with relationship status
+    // Add relationship status to each result
     const usersWithStatus = users.map(user => ({
       ...user,
       status: pendingUserIds.has(user.id) ? 'pending' : 'none'
@@ -86,7 +84,7 @@ export async function GET(request: Request) {
 
     return NextResponse.json({ 
       users: usersWithStatus,
-      query: query
+      query
     });
   } catch (error) {
     console.error('Error searching users:', error);
