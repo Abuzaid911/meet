@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { useRouter, useParams } from "next/navigation";
 import { useSession } from "next-auth/react";
+import Link from "next/link";
 import { Button } from "../../components/ui/button";
 import { useToast } from "../../components/ui/use-toast";
 import {
@@ -15,12 +16,28 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "../../components/ui/alert-dialog";
-import { Loader2, Trash2, Calendar, Clock, MapPin, Users } from "lucide-react";
-import { AttendeeList } from "../../components/attendee-list";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "../../components/ui/tabs";
+import { 
+  Loader2, 
+  Trash2, 
+  Calendar, 
+  Clock, 
+  MapPin, 
+  Users, 
+  Edit,
+  ArrowLeft,
+  CalendarPlus,
+} from "lucide-react";
+import { EventAttendees } from "../../components/event-attendees";
 import { AddAttendeeModal } from "../../components/add-attendee-modal";
+import { EditEventModal } from "../../components/edit-event-modal";
 import { EventAttendance } from "../../components/enhanced-event-attendance";
 import { ShareEventButton } from "../../components/share-event-button";
-import { format } from "date-fns";
+import { UserCard } from "../../components/user-card";
+import { Avatar, AvatarFallback, AvatarImage } from "../../components/ui/avatar";
+import { Card, CardContent } from "../../components/ui/card";
+import { format, isPast, isToday, addMinutes } from "date-fns";
+import { Badge } from "../../components/ui/badge";
 
 interface Event {
   id: string;
@@ -34,6 +51,7 @@ interface Event {
   host: {
     id: string;
     name: string;
+    username?: string;
     image: string | null;
   };
   attendees: {
@@ -42,6 +60,7 @@ interface Event {
     user: {
       id: string;
       name: string;
+      username?: string;
       image: string | null;
     };
   }[];
@@ -54,6 +73,8 @@ export default function EventPage() {
   const [isDeleting, setIsDeleting] = useState(false);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [showAddAttendeeModal, setShowAddAttendeeModal] = useState(false);
+  const [showEditEventModal, setShowEditEventModal] = useState(false);
+  const [selectedTab, setSelectedTab] = useState("details");
   const { data: session } = useSession();
   const router = useRouter();
   const { addToast } = useToast();
@@ -130,6 +151,25 @@ export default function EventPage() {
     fetchEvent();
   };
 
+  const handleEventUpdated = () => {
+    setShowEditEventModal(false);
+    // Refresh event data
+    const fetchEvent = async () => {
+      try {
+        const response = await fetch(`/api/events/${id}`);
+        if (!response.ok) {
+          throw new Error("Failed to fetch event");
+        }
+        const data = await response.json();
+        setEvent(data);
+      } catch (error) {
+        console.error("Error fetching event:", error);
+      }
+    };
+
+    fetchEvent();
+  };
+
   if (isLoading) {
     return (
       <div className="flex justify-center items-center h-screen">
@@ -153,19 +193,51 @@ export default function EventPage() {
 
   const isHost = session?.user?.id === event.hostId;
   const eventDate = new Date(event.date);
+  const eventEndTime = addMinutes(new Date(`${event.date}T${event.time}`), event.duration);
+  const isPastEvent = isPast(eventEndTime);
+  const isActiveEvent = isToday(eventDate) && !isPast(eventEndTime);
+  
+  const confirmedAttendees = event.attendees.filter(a => a.rsvp === "YES");
+  const maybeAttendees = event.attendees.filter(a => a.rsvp === "MAYBE");
 
   return (
     <div className="container mx-auto px-4 py-8 pt-24">
+      {/* Back Button */}
+      <Button 
+        variant="ghost" 
+        onClick={() => router.back()} 
+        className="flex items-center mb-6"
+      >
+        <ArrowLeft className="mr-2 h-4 w-4" />
+        Back
+      </Button>
+
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         {/* Main Event Information */}
         <div className="lg:col-span-2">
-          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md overflow-hidden">
+          <Card className="overflow-hidden shadow-md">
             <div className="bg-gradient-to-r from-teal-400 to-blue-500 p-6 flex justify-between items-start">
-              <div>
-                <h1 className="text-3xl font-bold text-white mb-2">{event.name}</h1>
-                <p className="text-white opacity-90">
+              <div className="flex-1">
+                <div className="flex items-center mb-2">
+                  {isPastEvent ? (
+                    <Badge variant="secondary" className="mr-2 bg-gray-200 text-gray-700">Past Event</Badge>
+                  ) : isActiveEvent ? (
+                    <Badge className="mr-2 bg-green-500 text-white animate-pulse">Happening Now</Badge>
+                  ) : (
+                    <Badge className="mr-2 bg-blue-500 text-white">Upcoming</Badge>
+                  )}
+                </div>
+                <h1 className="text-3xl font-bold text-white">{event.name}</h1>
+                <Link 
+                  href={`/users/${event.host.id}`} 
+                  className="flex items-center mt-2 text-white/90 hover:text-white"
+                >
+                  <Avatar className="h-6 w-6 mr-2 border border-white/20">
+                    <AvatarImage src={event.host?.image || undefined} />
+                    <AvatarFallback>{event.host?.name?.[0] || 'U'}</AvatarFallback>
+                  </Avatar>
                   Hosted by {event.host?.name || "Unknown"}
-                </p>
+                </Link>
               </div>
               
               {/* Share Button in Header */}
@@ -173,100 +245,166 @@ export default function EventPage() {
                 eventId={event.id.toString()} 
                 eventName={event.name} 
                 className="bg-white/20 hover:bg-white/30 text-white border-none"
+                size="sm"
               />
             </div>
             
-            <div className="p-6">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
-                <div className="flex items-center">
-                  <Calendar className="h-5 w-5 mr-3 text-teal-500" />
-                  <div>
-                    <p className="text-sm text-gray-500">Date</p>
-                    <p className="font-medium">{format(eventDate, 'EEEE, MMMM d, yyyy')}</p>
-                  </div>
-                </div>
-                
-                <div className="flex items-center">
-                  <Clock className="h-5 w-5 mr-3 text-teal-500" />
-                  <div>
-                    <p className="text-sm text-gray-500">Time & Duration</p>
-                    <p className="font-medium">{event.time} ({event.duration} minutes)</p>
-                  </div>
-                </div>
-                
-                <div className="flex items-center">
-                  <MapPin className="h-5 w-5 mr-3 text-teal-500" />
-                  <div>
-                    <p className="text-sm text-gray-500">Location</p>
-                    <p className="font-medium">{event.location}</p>
-                  </div>
-                </div>
-                
-                <div className="flex items-center">
-                  <Users className="h-5 w-5 mr-3 text-teal-500" />
-                  <div>
-                    <p className="text-sm text-gray-500">Attendees</p>
-                    <p className="font-medium">
-                      {event.attendees.filter(a => a.rsvp === "YES").length} going
-                    </p>
-                  </div>
-                </div>
-              </div>
+            <Tabs defaultValue="details" value={selectedTab} onValueChange={setSelectedTab}>
+              <TabsList className="m-4 bg-gray-100 dark:bg-gray-800 p-1">
+                <TabsTrigger value="details" className="data-[state=active]:bg-white dark:data-[state=active]:bg-gray-700">
+                  Details
+                </TabsTrigger>
+                <TabsTrigger value="attendees" className="data-[state=active]:bg-white dark:data-[state=active]:bg-gray-700">
+                  Attendees ({confirmedAttendees.length})
+                </TabsTrigger>
+              </TabsList>
               
-              {event.description && (
-                <div className="border-t pt-6">
-                  <h2 className="text-xl font-semibold mb-3">About this event</h2>
-                  <p className="text-gray-700 dark:text-gray-300 whitespace-pre-line">{event.description}</p>
-                </div>
-              )}
-              
-              {/* Action Buttons */}
-              <div className="mt-8 border-t pt-6">
-                <div className="flex flex-wrap gap-4">
-                  {/* Share Button */}
-                  <ShareEventButton 
-                    eventId={event.id.toString()} 
-                    eventName={event.name} 
-                  />
+              <TabsContent value="details" className="p-6 pt-2">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+                  <div className="flex items-center">
+                    <Calendar className="h-5 w-5 mr-3 text-teal-500" />
+                    <div>
+                      <p className="text-sm text-gray-500">Date</p>
+                      <p className="font-medium">{format(eventDate, 'EEEE, MMMM d, yyyy')}</p>
+                    </div>
+                  </div>
                   
-                  {/* Host-only buttons */}
-                  {isHost && (
-                    <>
-                      <Button
-                        variant="secondary"
-                        onClick={() => setShowAddAttendeeModal(true)}
-                      >
-                        <Users className="mr-2 h-4 w-4" />
-                        Invite Friends
-                      </Button>
-                      <Button
-                        variant="destructive"
-                        onClick={() => setShowDeleteDialog(true)}
-                        disabled={isDeleting}
-                      >
-                        {isDeleting ? (
-                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                        ) : (
-                          <Trash2 className="mr-2 h-4 w-4" />
+                  <div className="flex items-center">
+                    <Clock className="h-5 w-5 mr-3 text-teal-500" />
+                    <div>
+                      <p className="text-sm text-gray-500">Time & Duration</p>
+                      <p className="font-medium">{event.time} ({event.duration} minutes)</p>
+                    </div>
+                  </div>
+                  
+                  <div className="flex items-center">
+                    <MapPin className="h-5 w-5 mr-3 text-teal-500" />
+                    <div>
+                      <p className="text-sm text-gray-500">Location</p>
+                      <p className="font-medium">{event.location}</p>
+                    </div>
+                  </div>
+                  
+                  <div className="flex items-center">
+                    <Users className="h-5 w-5 mr-3 text-teal-500" />
+                    <div>
+                      <p className="text-sm text-gray-500">Attendees</p>
+                      <div className="font-medium flex items-center">
+                        <span className="mr-2">{confirmedAttendees.length} going</span>
+                        {maybeAttendees.length > 0 && (
+                          <span className="text-sm text-gray-500">
+                            ({maybeAttendees.length} maybe)
+                          </span>
                         )}
-                        Delete Event
-                      </Button>
-                    </>
-                  )}
+                      </div>
+                    </div>
+                  </div>
                 </div>
-              </div>
-            </div>
-          </div>
-          
-          {/* Attendee List Section */}
-          <div className="mt-8">
-            <AttendeeList eventId={event.id} isHost={isHost} />
-          </div>
+                
+                {event.description && (
+                  <div className="border-t pt-6">
+                    <h2 className="text-xl font-semibold mb-3">About this event</h2>
+                    <p className="text-gray-700 dark:text-gray-300 whitespace-pre-line">{event.description}</p>
+                  </div>
+                )}
+                
+                {/* Host information */}
+                <div className="mt-8 border-t pt-6">
+                  <h2 className="text-xl font-semibold mb-4">Hosted by</h2>
+                  <UserCard 
+                    user={{
+                      id: event.host.id,
+                      name: event.host.name,
+                      username: event.host.username || event.host.name.toLowerCase().replace(/\s+/g, ''),
+                      image: event.host.image
+                    }}
+                    variant="inline"
+                    showBio={false}
+                    showEvents={false}
+                  />
+                </div>
+                
+                {/* Action Buttons */}
+                <div className="mt-8 border-t pt-6">
+                  <div className="flex flex-wrap gap-4">
+                    {/* Add to Calendar */}
+                    <Button variant="outline">
+                      <CalendarPlus className="mr-2 h-4 w-4" />
+                      Add to Calendar
+                    </Button>
+                    
+                    {/* Share Button */}
+                    <ShareEventButton 
+                      eventId={event.id.toString()} 
+                      eventName={event.name} 
+                    />
+                    
+                    {/* Host-only buttons */}
+                    {isHost && (
+                      <>
+                        <Button
+                          variant="outline"
+                          onClick={() => setShowEditEventModal(true)}
+                        >
+                          <Edit className="mr-2 h-4 w-4" />
+                          Edit Event
+                        </Button>
+                        
+                        <Button
+                          variant="secondary"
+                          onClick={() => setShowAddAttendeeModal(true)}
+                        >
+                          <Users className="mr-2 h-4 w-4" />
+                          Invite Friends
+                        </Button>
+                        
+                        <Button
+                          variant="destructive"
+                          onClick={() => setShowDeleteDialog(true)}
+                          disabled={isDeleting}
+                        >
+                          {isDeleting ? (
+                            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                          ) : (
+                            <Trash2 className="mr-2 h-4 w-4" />
+                          )}
+                          Delete Event
+                        </Button>
+                      </>
+                    )}
+                  </div>
+                </div>
+              </TabsContent>
+              
+              <TabsContent value="attendees" className="min-h-[300px]">
+                <CardContent>
+                  <EventAttendees eventId={event.id} isHost={isHost} />
+                </CardContent>
+              </TabsContent>
+            </Tabs>
+          </Card>
         </div>
         
-        {/* RSVP Section */}
-        <div>
+        {/* RSVP Section & Other Information */}
+        <div className="space-y-6">
+          {/* RSVP Widget */}
           <EventAttendance eventId={event.id} />
+          
+          {/* Similar Events (if any) */}
+          {!isPastEvent && (
+            <Card className="overflow-hidden shadow-md">
+              <CardContent className="p-6">
+                <h3 className="text-lg font-semibold mb-4 flex items-center">
+                  <Calendar className="h-5 w-5 mr-2 text-teal-500" />
+                  Similar Events
+                </h3>
+                
+                <div className="text-sm text-gray-500 text-center py-8">
+                  <p>Coming soon</p>
+                </div>
+              </CardContent>
+            </Card>
+          )}
         </div>
       </div>
 
@@ -277,6 +415,15 @@ export default function EventPage() {
         eventId={event.id}
         onAttendeeAdded={handleAttendeeAdded}
       />
+      
+      {/* Edit Event Modal */}
+      {showEditEventModal && (
+        <EditEventModal
+          eventId={event.id}
+          onClose={() => setShowEditEventModal(false)}
+          onEventUpdated={handleEventUpdated}
+        />
+      )}
 
       {/* Delete Confirmation Dialog */}
       <AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>

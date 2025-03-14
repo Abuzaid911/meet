@@ -279,9 +279,6 @@ export default function Home() {
               <p className="text-sm text-gray-800 mt-1">Plan, invite, and track RSVPs in one place</p>
             </div>
             
-            <div className="flex gap-8 text-sm">
-              <Link href="/contact" className="hover:text-black transition-colors">Contact</Link>
-            </div>
           </div>
           
           <div className="mt-8 pt-6 border-t border-gray-800 text-sm text-gray-400 text-center">

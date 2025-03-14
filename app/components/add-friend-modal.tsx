@@ -145,12 +145,6 @@ export function AddFriendModal({ isOpen, onClose, onFriendRequestSent }: AddFrie
         return
       }
   
-      addToast({
-        title: 'Success',
-        description: 'Friend request sent successfully!',
-        variant: 'success',
-      })
-  
       // Close the modal and refresh friend list
       setTimeout(() => {
         onFriendRequestSent()

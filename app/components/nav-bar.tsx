@@ -3,13 +3,13 @@
 import { useState, useEffect } from "react"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
-import { useSession } from "next-auth/react"
+import { useSession, signOut } from "next-auth/react"
 import { 
   Home, 
   Calendar, 
   User, 
   Menu, 
-  X,  
+  X, 
   LogIn, 
   LogOut,
   PlusCircle
@@ -68,6 +68,11 @@ export function NavBar() {
     window.addEventListener("scroll", handleScroll)
     return () => window.removeEventListener("scroll", handleScroll)
   }, [])
+
+  // Direct sign out function - no longer using AuthButton
+  const handleSignOut = () => {
+    signOut({ callbackUrl: '/' });
+  }
 
   // Desktop navigation items
   const navItems = [
@@ -162,21 +167,9 @@ export function NavBar() {
                     </Link>
                   </DropdownMenuItem>
                   <DropdownMenuSeparator />
-                  <DropdownMenuItem asChild>
-                    <button 
-                      className="w-full flex items-center justify-between px-2 py-1.5 text-sm rounded-sm cursor-default select-none group transition-colors hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-950 dark:hover:text-red-400 focus:bg-red-50 focus:text-red-600 dark:focus:bg-red-950 dark:focus:text-red-400"
-                      onClick={() => {
-                        const authButton = document.querySelector('[data-auth-button]');
-                        if (authButton instanceof HTMLElement) {
-                          authButton.click();
-                        }
-                      }}
-                    >
-                      <div className="flex items-center">
-                        <LogOut className="mr-2 h-4 w-4 group-hover:animate-pulse" />
-                        <span>Sign out</span>
-                      </div>
-                    </button>
+                  <DropdownMenuItem onClick={handleSignOut}>
+                    <LogOut className="mr-2 h-4 w-4" />
+                    <span>Sign out</span>
                   </DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>
@@ -272,13 +265,10 @@ export function NavBar() {
                         <Button 
                           variant="outline" 
                           size="sm"
-                          className="w-full flex items-center justify-center group transition-colors hover:bg-red-50 hover:text-red-600 hover:border-red-200 dark:hover:bg-red-950 dark:hover:text-red-400" 
+                          className="w-full flex items-center justify-center group transition-colors hover:bg-red-50 hover:text-red-600 hover:border-red-200 dark:hover:bg-red-950 dark:hover:text-red-400"
                           onClick={() => {
-                            setIsMobileMenuOpen(false)
-                            const authButton = document.querySelector('[data-auth-button]');
-                            if (authButton instanceof HTMLElement) {
-                              authButton.click();
-                            }
+                            setIsMobileMenuOpen(false);
+                            handleSignOut();
                           }}
                         >
                           <LogOut className="h-4 w-4 mr-2 group-hover:animate-pulse" />
