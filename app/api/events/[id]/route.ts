@@ -134,9 +134,21 @@ export async function DELETE(
       );
     }
 
-    await prisma.event.delete({
-      where: { id: eventId },
-    });
+    // Delete all related records first
+    await prisma.$transaction([
+      // Delete all comments for this event
+      prisma.comment.deleteMany({
+        where: { eventId },
+      }),
+      // Delete all attendees for this event
+      prisma.attendee.deleteMany({
+        where: { eventId },
+      }),
+      // Delete the event itself
+      prisma.event.delete({
+        where: { id: eventId },
+      }),
+    ]);
 
     return NextResponse.json({ message: "Event deleted successfully" });
   } catch (error) {
