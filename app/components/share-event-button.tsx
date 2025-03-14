@@ -63,11 +63,6 @@ export function ShareEventButton({
       await copyToClipboard(shareUrl);
     } catch (error) {
       console.error("Error sharing event:", error);
-      addToast({
-        title: "Share Failed",
-        description: "Couldn't share the event. Please try again.",
-        variant: "destructive",
-      });
     }
   };
 
