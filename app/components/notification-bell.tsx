@@ -18,7 +18,8 @@ interface Notification {
   id: string
   message: string
   link: string | null
-  sourceType: 'ATTENDEE' | 'FRIEND_REQUEST'
+  sourceType: 'ATTENDEE' | 'FRIEND_REQUEST' | 'EVENT_UPDATE' | 'EVENT_CANCELLED' | 'EVENT_REMINDER'
+  isRead: boolean
   createdAt: string
   targetUserId: string
   friendRequest?: {
@@ -53,9 +54,8 @@ export function NotificationBell() {
       const data = await response.json()
       setNotifications(data.notifications || [])
       
-      // Since there's no read field in your schema, we'll use the notification count as unread count
-      // In a real implementation, you might want to add a separate table to track read status
-      setUnreadCount(data.notifications.length)
+      // Update unread count based on isRead field
+      setUnreadCount(data.notifications.filter((n: Notification) => !n.isRead).length)
     } catch (error) {
       console.error('Error fetching notifications:', error)
     }
@@ -111,6 +111,12 @@ export function NotificationBell() {
         return <Calendar className="h-5 w-5 text-teal-500" />
       case 'FRIEND_REQUEST':
         return <UserPlus className="h-5 w-5 text-blue-500" />
+      case 'EVENT_UPDATE':
+        return <Calendar className="h-5 w-5 text-yellow-500" />
+      case 'EVENT_CANCELLED':
+        return <Calendar className="h-5 w-5 text-red-500" />
+      case 'EVENT_REMINDER':
+        return <Calendar className="h-5 w-5 text-purple-500" />
       default:
         return <BellRing className="h-5 w-5 text-gray-500" />
     }
@@ -170,7 +176,7 @@ export function NotificationBell() {
               return (
                 <div 
                   key={notification.id}
-                  className="flex items-start gap-3 p-4 hover:bg-gray-50 cursor-pointer transition-colors"
+                  className={`flex items-start gap-3 p-4 hover:bg-gray-50 cursor-pointer transition-colors ${!notification.isRead ? 'bg-blue-50' : ''}`}
                   onClick={() => handleNotificationClick(notification)}
                 >
                   {sender ? (
