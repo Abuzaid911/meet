@@ -7,7 +7,7 @@ import { prisma } from "@/lib/prisma"
 /**
  * GET: Fetch user notifications
  */
-export async function GET(request: Request) {
+export async function GET() {
   try {
     const session = await getServerSession(authOptions)
 
