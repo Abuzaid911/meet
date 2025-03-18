@@ -95,11 +95,32 @@ export async function POST(
 
     // Get event details to check if it exists
     const event = await prisma.event.findUnique({
-      where: { id: eventId }
+      where: { id: eventId },
+      select: {
+        id: true,
+        name: true,
+        hostId: true,
+        capacity: true,
+        attendees: {
+          where: { rsvp: 'YES' },
+          select: { id: true }
+        }
+      }
     });
 
     if (!event) {
       return NextResponse.json({ error: 'Event not found' }, { status: 404 });
+    }
+
+    // Check capacity before allowing YES RSVP
+    if (validatedData.data.rsvp === 'YES' && event.capacity) {
+      const currentAttendees = event.attendees.length;
+      if (currentAttendees >= event.capacity) {
+        return NextResponse.json({ 
+          error: 'Event has reached maximum capacity',
+          details: { currentAttendees, capacity: event.capacity }
+        }, { status: 400 });
+      }
     }
 
     // Normal RSVP processing
@@ -155,10 +176,17 @@ export async function POST(
       });
     }
 
-    return NextResponse.json(updatedAttendee);
-  } catch (error) {
-    console.error('Error updating RSVP:', error);
-    return NextResponse.json({ error: 'Error updating RSVP' }, { status: 500 });
+    return NextResponse.json({
+      success: true,
+      data: updatedAttendee,
+      message: 'RSVP updated successfully'
+    });
+  } catch (dbError) {
+    console.error('Database error while updating RSVP:', dbError);
+    return NextResponse.json({ 
+      error: 'Failed to update RSVP status',
+      details: 'There was an error processing your request'
+    }, { status: 500 });
   }
 }
 
