@@ -138,7 +138,14 @@ export async function POST(request: Request) {
         receiverId: friendUser.id,
         status: 'pending',
       },
+    }).catch((error) => {
+      console.error('Database error creating friend request:', error);
+      throw new Error('Failed to create friend request');
     });
+
+    if (!friendRequest) {
+      return NextResponse.json({ error: 'Failed to create friend request' }, { status: 500 });
+    }
 
     // Create a notification for the request recipient
     await prisma.notification.create({
@@ -149,6 +156,10 @@ export async function POST(request: Request) {
         targetUserId: friendUser.id,
         friendRequestId: friendRequest.id
       }
+    }).catch((error) => {
+      console.error('Database error creating notification:', error);
+      // Don't throw here, as the friend request was already created
+      console.warn('Friend request created but notification failed');
     });
 
     return NextResponse.json({ 
@@ -157,7 +168,8 @@ export async function POST(request: Request) {
     });
   } catch (error) {
     console.error('Error sending friend request:', error);
-    return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
+    const errorMessage = error instanceof Error ? error.message : 'Internal Server Error';
+    return NextResponse.json({ error: errorMessage }, { status: 500 });
   }
 }
 

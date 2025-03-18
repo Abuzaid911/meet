@@ -49,12 +49,20 @@ export async function GET() {
         },
       },
       take: 20, // Limit to the 20 most recent notifications
-    })
+    }).catch((error) => {
+      console.error("Database error fetching notifications:", error);
+      throw new Error("Database error while fetching notifications");
+    });
+
+    if (!notifications) {
+      return NextResponse.json({ notifications: [] });
+    }
 
     return NextResponse.json({ notifications })
   } catch (error) {
     console.error("Error fetching notifications:", error)
-    return NextResponse.json({ error: "Failed to fetch notifications" }, { status: 500 })
+    const errorMessage = error instanceof Error ? error.message : "Failed to fetch notifications";
+    return NextResponse.json({ error: errorMessage }, { status: 500 })
   }
 }
 
