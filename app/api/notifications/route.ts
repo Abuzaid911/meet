@@ -24,7 +24,6 @@ export async function GET() {
         createdAt: "desc",
       },
       include: {
-        // Include friend request details if it's a friend request notification
         friendRequest: {
           include: {
             sender: {
@@ -36,7 +35,6 @@ export async function GET() {
             },
           },
         },
-        // Include event details if it's an event-related notification
         attendee: {
           include: {
             event: {
@@ -48,17 +46,14 @@ export async function GET() {
           },
         },
       },
-      take: 20, // Limit to the 20 most recent notifications
-    }).catch((error) => {
-      console.error("Database error fetching notifications:", error);
-      throw new Error("Database error while fetching notifications");
+      take: 20,
     });
 
     if (!notifications) {
-      return NextResponse.json({ notifications: [] });
+      throw new Error("Failed to fetch notifications from database");
     }
 
-    return NextResponse.json({ notifications })
+    return NextResponse.json({ notifications, success: true });
   } catch (error) {
     console.error("Error fetching notifications:", error)
     const errorMessage = error instanceof Error ? error.message : "Failed to fetch notifications";
