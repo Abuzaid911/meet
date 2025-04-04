@@ -40,7 +40,17 @@ export async function GET(request: Request) {
       date: {
         gte: new Date(),
       },
-      ...(userId && { hostId: userId }),
+      OR: [
+        { hostId: userId || undefined },
+        {
+          attendees: {
+            some: {
+              userId: userId || undefined,
+              rsvp: { in: ['YES', 'MAYBE'] as ('YES' | 'MAYBE')[] }
+            }
+          }
+        }
+      ]
     }
 
     const events = await prisma.event.findMany({

@@ -26,6 +26,7 @@ export async function GET() {
         image: true,
         bio: true,
         username: true,
+        createdAt: true,
       },
     })
 
@@ -72,6 +73,7 @@ export async function PUT(request: Request) {
         image: true,
         bio: true,
         username: true,
+        createdAt: true,
       },
     })
 

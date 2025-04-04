@@ -54,6 +54,7 @@ interface UserProfile {
   email: string | null
   image: string | null
   bio: string | null
+  createdAt: string
 }
 
 interface Event {
@@ -616,7 +617,7 @@ export default function ProfilePage() {
                 <div className="flex items-center justify-between">
                   <div>
                     <p className="text-sm font-medium text-gray-500 dark:text-gray-400">Account Created</p>
-                    <h3 className="text-xl font-semibold mt-1">April 2025</h3>
+                    <h3 className="text-xl font-semibold mt-1">{profile?.createdAt ? format(new Date(profile.createdAt), 'MMMM yyyy') : 'Loading...'}</h3>
                   </div>
                   <div className="bg-indigo-100 dark:bg-indigo-800/40 p-3 rounded-full">
                     <Clock className="h-6 w-6 text-indigo-600 dark:text-indigo-400" />
