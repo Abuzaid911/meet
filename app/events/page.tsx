@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, Suspense } from "react";
 import { Button } from "../components/ui/button";
 import { Input } from "../components/ui/input";
 import { Search, PlusCircle } from "lucide-react";
@@ -8,8 +8,21 @@ import { EventFeed } from "../components/event-feed";
 import { AddEventModal } from "../components/add-event-modal";
 import { Tabs, TabsList, TabsTrigger } from "../components/ui/tabs";
 import { useSession } from "next-auth/react";
+import { useSearchParams } from "next/navigation";
 
-export default function EventsPage() {
+function SearchParamsHandler({ onOpenModal }: { onOpenModal: () => void }) {
+  const searchParams = useSearchParams();
+
+  useEffect(() => {
+    if (searchParams.get("openAddEventModal") === "true") {
+      onOpenModal();
+    }
+  }, [searchParams, onOpenModal]);
+
+  return null;
+}
+
+function EventContent() {
   const { data: session } = useSession();
   const [isAddEventModalOpen, setIsAddEventModalOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
@@ -26,6 +39,10 @@ export default function EventsPage() {
 
   return (
     <div className="container mx-auto px-4 py-8 pt-24">
+      <Suspense fallback={null}>
+        <SearchParamsHandler onOpenModal={handleAddEvent} />
+      </Suspense>
+
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4">
         <h2 className="text-3xl font-bold">Events</h2>
         
@@ -87,4 +104,8 @@ export default function EventsPage() {
       />
     </div>
   );
+}
+
+export default function EventsPage() {
+  return <EventContent />;
 }

@@ -3,7 +3,7 @@ import { Button } from "./ui/button"
 import { Input } from "./ui/input"
 import { Textarea } from "./ui/textarea"
 import { Label } from "./ui/label"
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "./ui/dialog"
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "./ui/dialog"
 import { useToast } from "./ui/use-toast"
 
 interface EditEventModalProps {
@@ -128,6 +128,9 @@ export function EditEventModal({ eventId, onClose, onEventUpdated }: EditEventMo
       <DialogContent>
         <DialogHeader>
           <DialogTitle>Edit Event</DialogTitle>
+          <DialogDescription>
+            Update your event details using the form below.
+          </DialogDescription>
         </DialogHeader>
         <form onSubmit={handleUpdateEvent}>
           <div className="space-y-4">

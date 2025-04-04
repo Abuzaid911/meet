@@ -8,6 +8,7 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
+  DialogDescription,
   DialogFooter,
 } from '../components/ui/dialog'
 import { useToast } from '../components/ui/use-toast'
@@ -179,6 +180,9 @@ export function AddFriendModal({ isOpen, onClose, onFriendRequestSent }: AddFrie
             <UserPlus className="h-5 w-5 text-teal-500" />
             Add Friend
           </DialogTitle>
+          <DialogDescription>
+            Search for a user by username to send them a friend request.
+          </DialogDescription>
         </DialogHeader>
         
         <form onSubmit={handleSubmit} className="space-y-4">

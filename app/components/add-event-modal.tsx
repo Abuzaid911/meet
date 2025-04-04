@@ -5,7 +5,7 @@ import { Button } from "../components/ui/button"
 import { Input } from "../components/ui/input"
 import { Textarea } from "../components/ui/textarea"
 import { Label } from "../components/ui/label"
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "../components/ui/dialog"
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "../components/ui/dialog"
 import { useToast } from "../components/ui/use-toast"
 import { Loader2 } from "lucide-react"
 import { useSession } from "next-auth/react"
@@ -159,6 +159,9 @@ export function AddEventModal({ isOpen, onClose, onEventAdded, initialDate }: Ad
       <DialogContent className="sm:max-w-[500px] max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="text-2xl font-bold bg-gradient-to-r from-teal-400 to-blue-500 bg-clip-text text-transparent">Add New Event</DialogTitle>
+          <DialogDescription>
+            Create a new event and optionally invite your friends to join.
+          </DialogDescription>
         </DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="space-y-2">

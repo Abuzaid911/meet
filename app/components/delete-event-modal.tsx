@@ -3,7 +3,7 @@
 
 import { useState } from 'react'
 import { Button } from '../components/ui/button'
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '../components/ui/dialog'
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '../components/ui/dialog'
 import { Loader2 } from 'lucide-react'
 
 interface EventDeleteModalProps {
@@ -42,8 +42,10 @@ export function EventDeleteModal({ eventId, isOpen, onClose, onEventDeleted }: E
       <DialogContent>
         <DialogHeader>
           <DialogTitle>Delete Event</DialogTitle>
+          <DialogDescription>
+            Are you sure you want to delete this event? This action cannot be undone.
+          </DialogDescription>
         </DialogHeader>
-        <p>Are you sure you want to delete this event? This action cannot be undone.</p>
         <DialogFooter>
           <Button type="button" variant="outline" onClick={onClose}>
             Cancel

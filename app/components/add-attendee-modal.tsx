@@ -4,7 +4,7 @@ import { useState, useEffect, useRef } from 'react';
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
 import { Label } from '../components/ui/label';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '../components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '../components/ui/dialog';
 import { useToast } from '../components/ui/use-toast';
 import { Loader2, User } from 'lucide-react';
 
@@ -108,6 +108,9 @@ export function AddAttendeeModal({ isOpen, onClose, eventId, onAttendeeAdded }: 
       <DialogContent>
         <DialogHeader>
           <DialogTitle>Invite a Friend</DialogTitle>
+          <DialogDescription>
+            Search for a friend by username to invite them to this event.
+          </DialogDescription>
         </DialogHeader>
         <form onSubmit={handleInvite}>
           <div className="space-y-4">
