@@ -58,6 +58,26 @@ export function NavBar() {
   const pathname = usePathname()
   const { data: session, status } = useSession()
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
+  const [profile, setProfile] = useState<{ image: string | null } | null>(null)
+
+  // Fetch user profile
+  useEffect(() => {
+    const fetchProfile = async () => {
+      if (session?.user) {
+        try {
+          const response = await fetch('/api/user')
+          if (response.ok) {
+            const data = await response.json()
+            setProfile(data)
+          }
+        } catch (error) {
+          console.error('Error fetching profile:', error)
+        }
+      }
+    }
+
+    fetchProfile()
+  }, [session?.user])
   
   // Track scroll position for navbar styling
   useEffect(() => {
@@ -139,7 +159,7 @@ export function NavBar() {
                 <DropdownMenuTrigger asChild>
                   <Button variant="ghost" className="relative h-8 w-8 rounded-full">
                     <Avatar className="h-8 w-8">
-                      <AvatarImage src={session.user?.image || undefined} alt={session.user?.name || 'User'} />
+                      <AvatarImage src={profile?.image || session.user?.image || undefined} alt={session.user?.name || 'User'} />
                       <AvatarFallback>
                         {session.user?.name?.[0] || session.user?.email?.[0] || 'U'}
                       </AvatarFallback>
@@ -250,7 +270,7 @@ export function NavBar() {
                       <div className="flex flex-col gap-4">
                         <div className="flex items-center gap-3">
                           <Avatar className="h-10 w-10">
-                            <AvatarImage src={session.user?.image || undefined} alt={session.user?.name || 'User'} />
+                            <AvatarImage src={profile?.image || session.user?.image || undefined} alt={session.user?.name || 'User'} />
                             <AvatarFallback>
                               {session.user?.name?.[0] || session.user?.email?.[0] || 'U'}
                             </AvatarFallback>
