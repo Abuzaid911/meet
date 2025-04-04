@@ -3,9 +3,14 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
-import { writeFile, mkdir } from 'fs/promises';
-import { join } from 'path';
-import { randomUUID } from 'crypto';
+import { v2 as cloudinary } from 'cloudinary';
+
+// Configure Cloudinary
+cloudinary.config({
+  cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
+  api_key: process.env.CLOUDINARY_API_KEY,
+  api_secret: process.env.CLOUDINARY_API_SECRET
+});
 
 /**
  * Handler for uploading a profile image
@@ -37,26 +42,24 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'File size exceeds 5MB limit' }, { status: 400 });
     }
 
-    // Create a unique filename
-    const fileExtension = file.type.split('/')[1];
-    const fileName = `${randomUUID()}.${fileExtension}`;
-    
-    // Ensure the uploads directory exists
-    const uploadDir = join(process.cwd(), 'public', 'uploads');
-    await mkdir(uploadDir, { recursive: true });
-    
-    // Write the file to the server
-    const filePath = join(uploadDir, fileName);
+    // Convert file to base64
     const buffer = Buffer.from(await file.arrayBuffer());
-    await writeFile(filePath, buffer);
+    const base64Data = `data:${file.type};base64,${buffer.toString('base64')}`;
+
+    // Upload to Cloudinary
+    const result = await cloudinary.uploader.upload(base64Data, {
+      folder: 'profile-images',
+      transformation: [
+        { width: 400, height: 400, crop: 'fill' },
+        { quality: 'auto' },
+        { fetch_format: 'auto' }
+      ]
+    });
     
-    // Create the public URL for the image
-    const imageUrl = `/uploads/${fileName}`;
-    
-    // Update the user's profile with the new image URL
+    // Update the user's profile with the Cloudinary URL
     const updatedUser = await prisma.user.update({
       where: { id: session.user.id },
-      data: { image: imageUrl },
+      data: { image: result.secure_url },
       select: {
         id: true,
         name: true,
@@ -68,7 +71,7 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({ 
       message: 'Profile image updated successfully',
-      image: imageUrl,
+      image: result.secure_url,
       user: updatedUser
     });
   } catch (error) {
@@ -86,6 +89,19 @@ export async function DELETE() {
     const session = await getServerSession(authOptions);
     if (!session?.user?.id) {
       return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
+    }
+
+    // Get the current user to find their image URL
+    const user = await prisma.user.findUnique({
+      where: { id: session.user.id },
+      select: { image: true }
+    });
+
+    if (user?.image) {
+      // Extract public_id from Cloudinary URL
+      const publicId = user.image.split('/').slice(-1)[0].split('.')[0];
+      // Delete the image from Cloudinary
+      await cloudinary.uploader.destroy(`profile-images/${publicId}`);
     }
 
     // Update the user's profile to remove the image
