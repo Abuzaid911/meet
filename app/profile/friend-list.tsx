@@ -48,6 +48,12 @@ interface Friend {
   image: string | null
 }
 
+interface Event {
+  id: string
+  name: string
+  hostId: string
+}
+
 interface FriendRequest {
   id: string
   sender: Friend
@@ -68,6 +74,8 @@ export function FriendList({ previewMode = false }: FriendListProps) {
   const [searchTerm, setSearchTerm] = useState('')
   const [showSearch, setShowSearch] = useState(false)
   const [filterOption, setFilterOption] = useState('all')
+  const [hostedEvents, setHostedEvents] = useState<Event[]>([])
+  const [isInviting, setIsInviting] = useState<string | null>(null)
   const searchInputRef = useRef<HTMLInputElement>(null)
   const { addToast } = useToast()
 
@@ -95,10 +103,28 @@ export function FriendList({ previewMode = false }: FriendListProps) {
     }
   }, [addToast])
 
-  // Call fetch function on component mount
+  // Fetch hosted events
+  const fetchHostedEvents = useCallback(async () => {
+    try {
+      const response = await fetch('/api/events?type=hosting')
+      if (!response.ok) throw new Error('Failed to fetch hosted events')
+      const data = await response.json()
+      setHostedEvents(data)
+    } catch (error) {
+      console.error('Error fetching hosted events:', error)
+      addToast({
+        title: "Error",
+        description: "Failed to load hosted events",
+        variant: "destructive",
+      })
+    }
+  }, [addToast])
+
+  // Call fetch functions on component mount
   useEffect(() => {
     fetchFriendsAndRequests()
-  }, [fetchFriendsAndRequests])
+    fetchHostedEvents()
+  }, [fetchFriendsAndRequests, fetchHostedEvents])
 
   // Focus search input when search is shown
   useEffect(() => {
@@ -475,11 +501,58 @@ export function FriendList({ previewMode = false }: FriendListProps) {
                             <Mail className="mr-2 h-4 w-4" />
                             <span>Send Message</span>
                           </DropdownMenuItem>
-                          <DropdownMenuItem asChild>
-                            <Link href="/events/new" className="flex items-center">
+                          <DropdownMenuItem
+                            onClick={async () => {
+                              if (hostedEvents.length === 0) {
+                                addToast({
+                                  title: "No Events",
+                                  description: "You don't have any events to invite friends to. Create an event first!",
+                                  variant: "default",
+                                })
+                                return
+                              }
+                              
+                              setIsInviting(friend.id)
+                              try {
+                                const response = await fetch(`/api/events/${hostedEvents[0].id}/invite`, {
+                                  method: 'POST',
+                                  headers: { 'Content-Type': 'application/json' },
+                                  body: JSON.stringify({ 
+                                    username: friend.username
+                                  })
+                                })
+                                
+                                const data = await response.json()
+                                if (!response.ok) {
+                                  throw new Error(data.error || 'Failed to invite friend')
+                                }
+                                
+                                addToast({
+                                  title: "Invitation Sent",
+                                  description: `Successfully invited ${friend.name} to ${hostedEvents[0].name}`,
+                                  variant: "success",
+                                })
+                                setIsInviting(null) // Reset the inviting state
+                              } catch (error) {
+                                console.error('Error inviting friend:', error)
+                                setIsInviting(null) // Reset the inviting state on error
+                                addToast({
+                                  title: "Error",
+                                  description: error instanceof Error ? error.message : "Failed to send invitation",
+                                  variant: "destructive",
+                                })
+                              } finally {
+                                setIsInviting(null)
+                              }
+                            }}
+                            disabled={isInviting === friend.id}
+                          >
+                            {isInviting === friend.id ? (
+                              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                            ) : (
                               <Calendar className="mr-2 h-4 w-4" />
-                              <span>Invite to Event</span>
-                            </Link>
+                            )}
+                            <span>Invite to Event</span>
                           </DropdownMenuItem>
                           <DropdownMenuSeparator />
                           <DropdownMenuItem 
@@ -506,12 +579,71 @@ export function FriendList({ previewMode = false }: FriendListProps) {
                             Profile
                           </Link>
                         </Button>
-                        <Button size="sm" className="flex-1 bg-teal-500 hover:bg-teal-600" asChild>
-                          <Link href="/events/new">
+                        <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button size="sm" className="flex-1 bg-teal-500 hover:bg-teal-600">
                             <Calendar className="mr-2 h-3.5 w-3.5" />
                             Invite
-                          </Link>
-                        </Button>
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end" className="w-56">
+                          {hostedEvents.length === 0 ? (
+                            <DropdownMenuItem asChild>
+                              <Link href="/events/new" className="w-full">
+                                <Calendar className="h-4 w-4 mr-2" />
+                                Create New Event
+                              </Link>
+                            </DropdownMenuItem>
+                          ) : (
+                            <>
+                              {hostedEvents.map((event) => (
+                                <DropdownMenuItem
+                                  key={event.id}
+                                  onClick={async () => {
+                                    setIsInviting(friend.id)
+                                    try {
+                                      const response = await fetch(`/api/events/${event.id}/invite`, {
+                                        method: 'POST',
+                                        headers: { 'Content-Type': 'application/json' },
+                                        body: JSON.stringify({ username: friend.username }),
+                                      })
+                                      
+                                      const data = await response.json()
+                                      if (!response.ok) {
+                                        throw new Error(data.error || 'Failed to invite friend')
+                                      }
+                                      
+                                      addToast({
+                                        title: "Success",
+                                        description: `Invited ${friend.name} to ${event.name}`,
+                                        variant: "success",
+                                      })
+                                    } catch (error) {
+                                      console.error('Error inviting friend:', error)
+                                      addToast({
+                                        title: "Error",
+                                        description: "Failed to invite friend",
+                                        variant: "destructive",
+                                      })
+                                    } finally {
+                                      setIsInviting(null)
+                                    }
+                                  }}
+                                  disabled={isInviting === friend.id}
+                                >
+                                  {isInviting === friend.id ? (
+                                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                                  ) : (
+                                    <Calendar className="h-4 w-4 mr-2" />
+                                  )}
+                                  {event.name}
+                                </DropdownMenuItem>
+                              ))}
+                              <DropdownMenuSeparator />
+                            </>
+                          )}
+                        </DropdownMenuContent>
+                      </DropdownMenu>
                       </div>
                     </div>
                   </CardContent>
