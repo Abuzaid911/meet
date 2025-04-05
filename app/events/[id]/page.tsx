@@ -26,7 +26,6 @@ import {
   Users, 
   Edit,
   ArrowLeft,
-  CalendarPlus,
 } from "lucide-react";
 import { EventAttendees } from "../../components/event-attendees";
 import { AddAttendeeModal } from "../../components/add-attendee-modal";
