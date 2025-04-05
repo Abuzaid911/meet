@@ -58,6 +58,9 @@ model Event {
   date        DateTime
   time        String
   location    String
+  lat         Float?     @default(0)
+  lng         Float?     @default(0)
+  image       String?
   description String?
   duration    Int
   capacity    Int?

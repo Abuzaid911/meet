@@ -10,6 +10,7 @@ import { useToast } from "../components/ui/use-toast"
 import { Loader2 } from "lucide-react"
 import { useSession } from "next-auth/react"
 import { Avatar, AvatarFallback, AvatarImage } from "../components/ui/avatar"
+import Map from "./map"
 
 interface AddEventModalProps {
   isOpen: boolean
@@ -30,6 +31,7 @@ export function AddEventModal({ isOpen, onClose, onEventAdded, initialDate }: Ad
   const [eventDate, setEventDate] = useState("")
   const [eventTime, setEventTime] = useState("")
   const [eventLocation, setEventLocation] = useState("")
+  const [locationCoords, setLocationCoords] = useState<{ lat: number; lng: number } | null>(null)
   const [eventDescription, setEventDescription] = useState("")
   const [eventDuration, setEventDuration] = useState(30)
   const [friends, setFriends] = useState<Friend[]>([])
@@ -91,6 +93,8 @@ export function AddEventModal({ isOpen, onClose, onEventAdded, initialDate }: Ad
         date: eventDate,
         time: eventTime,
         location: eventLocation,
+        lat: locationCoords?.lat !== undefined ? locationCoords.lat : 0,
+        lng: locationCoords?.lng !== undefined ? locationCoords.lng : 0,
         description: eventDescription,
         duration: eventDuration,
         inviteFriends: selectedFriends.length > 0 ? selectedFriends : undefined
@@ -135,6 +139,7 @@ export function AddEventModal({ isOpen, onClose, onEventAdded, initialDate }: Ad
     setEventDate("")
     setEventTime("")
     setEventLocation("")
+    setLocationCoords(null)
     setEventDescription("")
     setEventDuration(30)
     setSelectedFriends([])
@@ -208,13 +213,15 @@ export function AddEventModal({ isOpen, onClose, onEventAdded, initialDate }: Ad
           
           <div className="space-y-2">
             <Label htmlFor="eventLocation">Location</Label>
-            <Input
-              id="eventLocation"
-              value={eventLocation}
-              onChange={(e) => setEventLocation(e.target.value)}
+            <Map
+              height="300px"
+              defaultAddress={eventLocation}
+              onLocationSelect={({ address, lat, lng }) => {
+                setEventLocation(address);
+                setLocationCoords({ lat, lng });
+                setErrors(prev => ({ ...prev, location: "" }));
+              }}
               className={errors.location ? "border-red-500" : ""}
-              placeholder="Enter location"
-              disabled={isSubmitting}
             />
             {errors.location && <p className="text-sm text-red-500">{errors.location}</p>}
           </div>
