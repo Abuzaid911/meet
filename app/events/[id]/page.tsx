@@ -38,6 +38,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "../../components/ui/avatar"
 import { Card, CardContent } from "../../components/ui/card";
 import { format, isPast, isToday, addMinutes } from "date-fns";
 import { Badge } from "../../components/ui/badge";
+import { AddToCalendarButton } from "../../components/add-to-calendar-button";
 
 interface Event {
   id: string;
@@ -342,10 +343,16 @@ export default function EventPage() {
                 <div className="mt-8 border-t pt-6">
                   <div className="flex flex-wrap gap-4">
                     {/* Add to Calendar */}
-                    <Button variant="outline">
-                      <CalendarPlus className="mr-2 h-4 w-4" />
-                      Add to Calendar
-                    </Button>
+                    <AddToCalendarButton
+                      event={{
+                        name: event.name,
+                        description: event.description,
+                        date: event.date,
+                        time: event.time,
+                        duration: event.duration,
+                        location: event.location
+                      }}
+                    />
                     
                     {/* Share Button */}
                     <ShareEventButton 
