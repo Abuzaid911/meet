@@ -21,27 +21,46 @@ model Session {
 }
 
 model User {
-  id            String    @id @default(cuid())
-  name          String?
-  email         String?   @unique
-  emailVerified DateTime?
-  image         String?
-  password      String?
-  username      String    @unique
-  bio           String?
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
+  id                   String                @id @default(cuid())
+  name                 String?
+  email                String?               @unique
+  emailVerified        DateTime?
+  image                String?
+  password             String?
+  username             String                @unique
+  bio                  String?
+  // New fields for enhanced data collection
+  dateOfBirth          DateTime?
+  gender               String?
+  location             String?               // General location for recommendations
+  interests            String[]              // Array of interest categories
+  language             String?               // Preferred language
+  deviceInfo           Json?                 // Device and browser information
+  timezone             String?               // User's timezone
+  lastActive           DateTime?             // Last activity timestamp
+  onboardingCompleted  Boolean               @default(false)
+  emailPreferences     Json?                 // Email notification preferences
+  pushPreferences      Json?                 // Push notification preferences
+  createdAt            DateTime              @default(now())
+  updatedAt            DateTime              @updatedAt
 
   accounts               Account[]
   sessions               Session[]
   events                 Event[]
-  friends                User[]          @relation("UserFriends")
-  friendOf               User[]          @relation("UserFriends")
+  friends                User[]              @relation("UserFriends")
+  friendOf               User[]              @relation("UserFriends")
   comments               Comment[]
   attendees              Attendee[]
-  sentFriendRequests     FriendRequest[] @relation("SentFriendRequests")
-  receivedFriendRequests FriendRequest[] @relation("ReceivedFriendRequests")
+  sentFriendRequests     FriendRequest[]     @relation("SentFriendRequests")
+  receivedFriendRequests FriendRequest[]     @relation("ReceivedFriendRequests")
   notifications          Notification[]
+  userActivity           UserActivity[]
+  eventInteractions      EventInteraction[]
+  searches               UserSearch[]
+  feedback               UserFeedback[]
+  locations              UserLocation[]
+  // Track device sessions for multi-device users
+  devices                UserDevice[]
 }
 
 model VerificationToken {
@@ -53,36 +72,57 @@ model VerificationToken {
 }
 
 model Event {
-  id          String     @id @default(cuid())
-  name        String
-  date        DateTime
-  time        String
-  location    String
-  lat         Float?     @default(0)
-  lng         Float?     @default(0)
-  image       String?
-  description String?
-  duration    Int
-  capacity    Int?
-  rsvpDeadline DateTime?
-  createdAt   DateTime   @default(now())
-  updatedAt   DateTime   @updatedAt
-  host        User       @relation(fields: [hostId], references: [id])
-  hostId      String
-  comments    Comment[]
-  attendees   Attendee[]
+  id                String            @id @default(cuid())
+  name              String
+  date              DateTime
+  time              String
+  location          String
+  lat               Float?            @default(0)
+  lng               Float?            @default(0)
+  image             String?
+  description       String?
+  duration          Int
+  capacity          Int?
+  rsvpDeadline      DateTime?
+  // New fields for enhanced data collection
+  category          String?           // Type of event (party, meeting, etc.)
+  tags              String[]          // Array of tags describing the event
+  isPrivate         Boolean           @default(false)
+  viewCount         Int               @default(0)  // Track event page views
+  shareCount        Int               @default(0)  // Track how often shared
+  cancelledAt       DateTime?         // Track if/when cancelled
+  ticketPrice       Float?            // Optional for paid events
+  externalUrl       String?           // Link to external event page
+  weather           Json?             // Weather data from when event was created
+  parentEventId     String?           // For recurring events
+  locationDetails   Json?             // Structured location data
+  createdAt         DateTime          @default(now())
+  updatedAt         DateTime          @default(now())
+  host              User              @relation(fields: [hostId], references: [id])
+  hostId            String
+  comments          Comment[]
+  attendees         Attendee[]
+  interactions      EventInteraction[]
+  parentEvent       Event?            @relation("RecurringEvents", fields: [parentEventId], references: [id])
+  recurringEvents   Event[]           @relation("RecurringEvents")
 }
 
 model Comment {
-  id        String   @id @default(cuid())
-  text      String
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-  user      User     @relation(fields: [userId], references: [id])
-  userId    String
-  event     Event    @relation(fields: [eventId], references: [id])
-  eventId   String
-
+  id              String          @id @default(cuid())
+  text            String
+  // New fields for enhanced data collection
+  sentiment       Float?          // Score from sentiment analysis
+  attachments     String[]        // URLs to any attached media
+  editHistory     Json?           // Track edits to comments
+  mentions        String[]        // Track @mentions of users
+  reactionCounts  Json?           // Count reactions (like, love, etc.)
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+  user            User            @relation(fields: [userId], references: [id])
+  userId          String
+  event           Event           @relation(fields: [eventId], references: [id])
+  eventId         String
+  reactions       CommentReaction[]
 }
 
 enum RSVP {
@@ -93,30 +133,42 @@ enum RSVP {
 }
 
 model Attendee {
-  id            String         @id @default(cuid())
-  rsvp          RSVP
-  user          User           @relation(fields: [userId], references: [id])
-  userId        String
-  event         Event          @relation(fields: [eventId], references: [id])
-  eventId       String
-  createdAt     DateTime       @default(now())
-  updatedAt     DateTime       @updatedAt
-  notifications Notification[]
+  id                 String          @id @default(cuid())
+  rsvp               RSVP
+  // New fields for enhanced data collection
+  responseTime       DateTime?       // How long it took to respond
+  changeHistory      Json?           // Track changes to RSVP
+  inviteMethod       String?         // How they were invited
+  checkedIn          Boolean         @default(false)
+  checkinTime        DateTime?       // When they checked in
+  inviteOpenedAt     DateTime?       // When they viewed the invite
+  inviteOpenCount    Int             @default(0)  // How many times they viewed it
+  lastNotifiedAt     DateTime?       // When they were last notified
+  user               User            @relation(fields: [userId], references: [id])
+  userId             String
+  event              Event           @relation(fields: [eventId], references: [id])
+  eventId            String
+  createdAt          DateTime        @default(now())
+  updatedAt          DateTime        @updatedAt
+  notifications      Notification[]
 
   @@unique([userId, eventId])
-
 }
 
 model FriendRequest {
-  id            String         @id @default(cuid())
-  senderId      String
-  receiverId    String
-  status        String         @default("pending") // Can be "pending", "accepted", or "declined"
-  createdAt     DateTime       @default(now())
-  updatedAt     DateTime       @updatedAt
-  sender        User           @relation("SentFriendRequests", fields: [senderId], references: [id])
-  receiver      User           @relation("ReceivedFriendRequests", fields: [receiverId], references: [id])
-  notifications Notification[]
+  id              String           @id @default(cuid())
+  senderId        String
+  receiverId      String
+  status          String           @default("pending") // Can be "pending", "accepted", or "declined"
+  // New fields for enhanced data collection
+  responseTime    DateTime?        // When the request was responded to
+  seenAt          DateTime?        // When the request was viewed
+  declineReason   String?          // Optional reason for declining
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+  sender          User             @relation("SentFriendRequests", fields: [senderId], references: [id])
+  receiver        User             @relation("ReceivedFriendRequests", fields: [receiverId], references: [id])
+  notifications   Notification[]
 
   @@unique([senderId, receiverId])
 }
@@ -127,6 +179,9 @@ enum NotificationSourceType {
   EVENT_UPDATE
   EVENT_CANCELLED
   EVENT_REMINDER
+  COMMENT
+  MENTION
+  SYSTEM
 }
 
 model Notification {
@@ -134,7 +189,13 @@ model Notification {
   message         String
   link            String?
   sourceType      NotificationSourceType
+  // New fields for enhanced data collection
   isRead          Boolean                @default(false)
+  readAt          DateTime?              // When notification was read
+  deliveryStatus  String?                // "delivered", "failed", etc.
+  clickedAt       DateTime?              // When notification link was clicked
+  dismissedAt     DateTime?              // When notification was dismissed
+  priority        Int                    @default(1)  // Priority level
   attendeeId      String?
   attendee        Attendee?              @relation(fields: [attendeeId], references: [id])
   friendRequestId String?
@@ -142,11 +203,10 @@ model Notification {
   targetUserId    String                 @map("userId")
   targetUser      User                   @relation(fields: [targetUserId], references: [id])
   createdAt       DateTime               @default(now())
-
 }
 
 model Account {
-  id                String  @id @default(cuid())
+  id                String   @id @default(cuid())
   userId            String
   type              String
   provider          String
@@ -158,9 +218,112 @@ model Account {
   scope             String?
   id_token          String?
   session_state     String?
-
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user              User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([provider, providerAccountId])
+  @@index([userId])
+}
+
+// New models for enhanced data collection
+
+model UserActivity {
+  id              String    @id @default(cuid())
+  userId          String
+  user            User      @relation(fields: [userId], references: [id])
+  activityType    String    // "login", "view_event", "create_event", etc.
+  metadata        Json?     // Additional context about the activity
+  ipAddress       String?
+  userAgent       String?
+  createdAt       DateTime  @default(now())
+
+  @@index([userId, activityType])
+  @@index([createdAt])
+}
+
+model EventInteraction {
+  id              String    @id @default(cuid())
+  userId          String
+  user            User      @relation(fields: [userId], references: [id])
+  eventId         String
+  event           Event     @relation(fields: [eventId], references: [id])
+  interactionType String    // "view", "share", "save", "click_location", etc.
+  metadata        Json?     // Additional context about the interaction
+  duration        Int?      // Time spent in seconds (for views)
+  createdAt       DateTime  @default(now())
+
+  @@index([userId])
+  @@index([eventId])
+  @@index([interactionType])
+}
+
+model UserSearch {
+  id              String    @id @default(cuid())
+  userId          String
+  user            User      @relation(fields: [userId], references: [id])
+  searchQuery     String    // What the user searched for
+  resultCount     Int       // Number of results returned
+  filtersApplied  Json?     // Any filters used
+  clickedResults  String[]  // IDs of results that were clicked
+  createdAt       DateTime  @default(now())
+
+  @@index([userId])
+  @@index([searchQuery])
+}
+
+model UserFeedback {
+  id              String    @id @default(cuid())
+  userId          String
+  user            User      @relation(fields: [userId], references: [id])
+  feedbackType    String    // "bug", "feature_request", "general", etc.
+  content         String    // The feedback itself
+  context         Json?     // Where/what they were doing when providing feedback
+  satisfaction    Int?      // Optional satisfaction rating
+  createdAt       DateTime  @default(now())
+
+  @@index([userId])
+}
+
+model UserLocation {
+  id              String    @id @default(cuid())
+  userId          String
+  user            User      @relation(fields: [userId], references: [id])
+  lat             Float
+  lng             Float
+  accuracy        Float?    // Accuracy in meters
+  locationName    String?   // Human-readable location
+  source          String    // "ip", "gps", "manual", etc.
+  ipAddress       String?   // If determined by IP
+  createdAt       DateTime  @default(now())
+
+  @@index([userId])
+}
+
+model UserDevice {
+  id              String    @id @default(cuid())
+  userId          String
+  user            User      @relation(fields: [userId], references: [id])
+  deviceId        String    // Unique identifier for the device
+  deviceType      String    // "mobile", "tablet", "desktop"
+  osName          String?   // Operating system
+  osVersion       String?
+  browser         String?
+  pushToken       String?   // For push notifications
+  lastUsed        DateTime  @default(now())
+  createdAt       DateTime  @default(now())
+
+  @@unique([userId, deviceId])
+  @@index([deviceId])
+}
+
+model CommentReaction {
+  id              String    @id @default(cuid())
+  commentId       String
+  comment         Comment   @relation(fields: [commentId], references: [id])
+  userId          String
+  reactionType    String    // "like", "love", "laugh", etc.
+  createdAt       DateTime  @default(now())
+
+  @@unique([commentId, userId, reactionType])
+  @@index([commentId])
   @@index([userId])
 }

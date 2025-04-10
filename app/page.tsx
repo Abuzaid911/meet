@@ -109,7 +109,7 @@ export default function Home() {
             className="text-center mb-12"
           >
             <h1 className="text-4xl md:text-6xl font-extrabold mb-6 tracking-tight">
-              Welcome to <span className="bg-gradient-to-r from-teal-400 to-blue-500 bg-clip-text text-transparent">OMW</span>
+              Welcome to <span className="bg-gradient-to-r from-teal-400 to-blue-500 bg-clip-text text-transparent">MeetOn</span>
             </h1>
             <p className="text-xl text-gray-600 dark:text-gray-300 max-w-3xl mx-auto mb-8">
               Plan and manage events with friends, all in one place. Create, invite, and track RSVPs effortlessly.
@@ -253,7 +253,7 @@ export default function Home() {
           <div className="max-w-4xl mx-auto text-center">
             <h2 className="text-3xl md:text-4xl font-bold mb-6">Ready to start planning your next event?</h2>
             <p className="text-xl mb-8 text-white/90">
-              Join thousands of users who use OMW to organize and coordinate events with friends.
+              Join thousands of users who use MeetOn to organize and coordinate events with friends.
             </p>
             <motion.div
               whileHover={{ scale: 1.05 }}
@@ -263,7 +263,7 @@ export default function Home() {
                 asChild
                 className="bg-white text-blue-600 hover:bg-gray-100 hover:text-blue-700 text-lg px-8 py-6 rounded-full shadow-lg hover:shadow-xl"
               >
-                <Link href="/auth/signin">Sign Up Now</Link>
+                <Link href="/auth/signin">Sign in Now</Link>
               </Button>
             </motion.div>
           </div>
@@ -275,14 +275,14 @@ export default function Home() {
         <div className="max-w-6xl mx-auto px-4 md:px-8 lg:px-16">
           <div className="flex flex-col md:flex-row justify-between items-center gap-4">
             <div className="text-center md:text-left">
-              <span className="text-2xl font-bold text-black">OMW</span>
+              <span className="text-2xl font-bold text-black">MeetOn</span>
               <p className="text-sm text-gray-800 mt-1">Plan, invite, and track RSVPs in one place</p>
             </div>
             
           </div>
           
           <div className="mt-8 pt-6 border-t border-gray-800 text-sm text-gray-400 text-center">
-            <p>© {new Date().getFullYear()} OMW. All rights reserved.</p>
+            <p>© {new Date().getFullYear()} MeetOn. All rights reserved.</p>
           </div>
         </div>
       </footer>

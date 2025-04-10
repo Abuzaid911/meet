@@ -115,7 +115,7 @@ export function NavBar() {
             className="flex items-center gap-2 font-bold text-xl bg-gradient-to-r from-teal-500 to-blue-500 bg-clip-text text-transparent"
           >
             <Calendar className="h-6 w-6 text-teal-500" />
-            OMW
+            MeetON
           </Link>
 
           {/* Desktop Navigation */}
@@ -224,7 +224,7 @@ export function NavBar() {
                     >
                       <Calendar className="h-6 w-6 text-teal-500" />
                       <span className="bg-gradient-to-r from-teal-500 to-blue-500 bg-clip-text text-transparent">
-                        OMW
+                        MeetON
                       </span>
                     </Link>
                     <Button 

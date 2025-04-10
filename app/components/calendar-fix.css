@@ -1,0 +1,52 @@
+/* Fix for calendar component styling and interaction issues */
+
+/* Ensure buttons within the calendar are clickable */
+.rdp-button {
+  cursor: pointer !important;
+  border-radius: 100% !important;
+  font-weight: 500 !important;
+}
+
+/* Ensure today's date is highlighted */
+.rdp-day_today {
+  background-color: rgba(0, 0, 0, 0.05) !important;
+  font-weight: bold !important;
+}
+
+/* Make selected date more visible */
+.rdp-day_selected {
+  background-color: #14b8a6 !important;
+  color: white !important;
+}
+
+.rdp-day_selected:hover {
+  background-color: #0d9488 !important;
+  color: white !important;
+}
+
+/* Fix general interaction */
+.rdp {
+  margin: 0 !important;
+  position: relative !important;
+  z-index: 10 !important;
+}
+
+/* Fix month navigation buttons */
+.rdp-nav_button {
+  width: 30px !important;
+  height: 30px !important;
+  padding: 0 !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+}
+
+/* Make calendar wider for better mobile view */
+.rdp-month {
+  width: 100% !important;
+}
+
+/* Make sure days are easily tappable on mobile */
+.rdp-cell {
+  padding: 5px 0 !important;
+} 
