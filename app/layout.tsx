@@ -1,8 +1,9 @@
 import './globals.css'
 import { Inter } from 'next/font/google'
-import { Providers } from './providers'
-import { NavBar } from './components/nav-bar'
+import { Toaster } from './components/ui/toaster'
 import { ToastProvider } from './components/ui/use-toast'
+import { NavBar } from './components/nav-bar'
+import { Providers } from './providers'
 
 const inter = Inter({ subsets: ['latin'] })
 
@@ -11,18 +12,21 @@ export const metadata = {
   description: 'Schedule meetings and events with your friends',
 }
 
-export default function RootLayout({ children }: { children: React.ReactNode }) {
+export default function RootLayout({
+  children,
+}: {
+  children: React.ReactNode
+}) {
   return (
     <html lang="en">
       <body className={inter.className}>
         <Providers>
-          <NavBar />
           <ToastProvider>
-            <div className="flex flex-col min-h-screen">
-              <main className="flex-grow container mx-auto p-4">
-                {children}
-              </main>
-            </div>
+            <NavBar />
+            <main className={`min-h-screen flex-col px-8 py-14 md:py-16 md:px-24 ${inter.className}`}>
+              {children}
+            </main>
+            <Toaster />
           </ToastProvider>
         </Providers>
       </body>

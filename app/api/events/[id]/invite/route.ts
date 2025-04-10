@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import { NotificationSourceType } from '@prisma/client';
+import { getServerSession } from 'next-auth/next';
+import { authOptions } from '@/lib/auth';
+import { createEventInvitationNotification } from '@/lib/notification-service';
 
 export async function POST(
   request: NextRequest,
@@ -9,6 +11,13 @@ export async function POST(
   try {
     // Await the params promise to extract the 'id'
     const { id } = await context.params;
+    
+    // Get the current user session
+    const session = await getServerSession(authOptions);
+    
+    if (!session?.user?.id) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
 
     const { username } = await request.json();
 
@@ -32,31 +41,35 @@ export async function POST(
     if (!event) {
       return NextResponse.json({ error: 'Event not found' }, { status: 404 });
     }
+    
+    // Make sure the current user is the host
+    if (event.hostId !== session.user.id) {
+      return NextResponse.json({ error: 'Only the event host can invite users' }, { status: 403 });
+    }
 
-    // Use a transaction to create both attendee and notification
-    const result = await prisma.$transaction(async (tx) => {
-      const attendee = await tx.attendee.create({
-        data: {
-          userId: user.id,
-          eventId: id,
-          rsvp: 'PENDING',
-        },
-      });
-
-      const notification = await tx.notification.create({
-        data: {
-          message: `${event.host.name || event.host.username} invited you to ${event.name}`,
-          link: `/events/${id}`,
-          sourceType: NotificationSourceType.ATTENDEE,
-          targetUserId: user.id,
-          attendeeId: attendee.id
-        },
-      });
-
-      return { attendee, notification };
+    // Use a transaction to create attendee
+    const attendee = await prisma.attendee.create({
+      data: {
+        userId: user.id,
+        eventId: id,
+        rsvp: 'PENDING',
+      },
     });
 
-    return NextResponse.json(result, { status: 201 });
+    // Create notification using our notification service
+    const notificationResult = await createEventInvitationNotification({
+      eventId: id,
+      eventName: event.name,
+      attendeeId: attendee.id,
+      targetUserId: user.id,
+      hostName: event.host.name || event.host.username || 'The host',
+    });
+
+    return NextResponse.json({
+      success: true,
+      attendee,
+      notification: notificationResult.success ? 'Notification sent' : 'Notification failed'
+    }, { status: 201 });
   } catch (error) {
     console.error('Error adding attendee:', error);
     return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
