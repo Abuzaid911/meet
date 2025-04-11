@@ -605,14 +605,6 @@ export default function ProfilePage() {
                               </Card>
                           </div>
                           {/* Bio and Email */}
-                          <div>
-                              <h4 className="font-medium mb-1">Bio</h4>
-                              <p className="text-sm text-muted-foreground italic pl-2 border-l-2 border-border">{profile.bio || "No bio provided."}</p>
-                          </div>
-                          <div>
-                               <h4 className="font-medium mb-1">Contact</h4>
-                              <div className="text-sm flex items-center text-muted-foreground"><Mail className="mr-2 h-4 w-4 shrink-0"/> {profile.email}</div>
-                          </div>
                       </div>
                   ) : (
                       <p className="text-muted-foreground">Could not load overview.</p>
