@@ -91,12 +91,14 @@ export default function Home() {
 
 
   return (
-    <div className="min-h-screen relative">
-      {/* Decorative Background Elements */}
-      <div className="absolute top-0 left-0 w-full h-full overflow-hidden pointer-events-none z-0">
-        <div className="absolute top-20 left-10 w-64 h-64 bg-teal-400 rounded-full mix-blend-multiply filter blur-3xl opacity-10 animate-blob"></div>
-        <div className="absolute top-40 right-10 w-72 h-72 bg-blue-400 rounded-full mix-blend-multiply filter blur-3xl opacity-10 animate-blob animation-delay-2000"></div>
-        <div className="absolute bottom-40 left-1/4 w-80 h-80 bg-indigo-400 rounded-full mix-blend-multiply filter blur-3xl opacity-10 animate-blob animation-delay-4000"></div>
+    <div className="min-h-screen relative overflow-x-hidden">
+      {/* Decorative Background Elements - Slightly adjusted */}
+      <div className="absolute inset-0 w-full h-full overflow-hidden pointer-events-none z-0">
+        <div className="absolute top-0 -left-40 w-96 h-96 bg-primary/10 rounded-full mix-blend-multiply filter blur-3xl opacity-30 animate-blob"></div>
+        <div className="absolute top-60 -right-40 w-96 h-96 bg-blue-400/10 rounded-full mix-blend-multiply filter blur-3xl opacity-30 animate-blob animation-delay-2000"></div>
+        <div className="absolute bottom-0 left-1/4 w-96 h-96 bg-indigo-400/10 rounded-full mix-blend-multiply filter blur-3xl opacity-30 animate-blob animation-delay-4000"></div>
+        {/* Optional subtle pattern */}
+        {/* <div className="absolute inset-0 bg-[url('/path/to/subtle-pattern.svg')] opacity-5"></div> */}
       </div>
 
       {/* Hero Section */}
@@ -109,21 +111,19 @@ export default function Home() {
             className="text-center mb-12"
           >
             <h1 className="text-4xl md:text-6xl font-extrabold mb-6 tracking-tight">
-              Welcome to <span className="bg-gradient-to-r from-teal-400 to-blue-500 bg-clip-text text-transparent">MeetOn</span>
+              Welcome to <span className="bg-gradient-to-r from-primary to-blue-500 bg-clip-text text-transparent">MeetOn</span>
             </h1>
-            <p className="text-xl text-gray-600 dark:text-gray-300 max-w-3xl mx-auto mb-8">
+            <p className="text-lg md:text-xl text-muted-foreground max-w-3xl mx-auto mb-10">
               Plan and manage events with friends, all in one place. Create, invite, and track RSVPs effortlessly.
             </p>
             
             <div className="flex flex-wrap justify-center gap-4">
               {session ? (
-                <motion.div
-                  whileHover={{ scale: 1.05 }}
-                  whileTap={{ scale: 0.95 }}
-                >
+                <motion.div whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.97 }}>
                   <Button 
                     onClick={handleAddEvent} 
-                    className="text-lg px-6 py-6 bg-gradient-to-r from-teal-400 to-blue-500 text-white rounded-full hover:from-teal-500 hover:to-blue-600 shadow-lg hover:shadow-xl transition-all"
+                    size="lg"
+                    className="text-base px-8 py-3 bg-gradient-to-r from-primary to-blue-500 text-white rounded-full hover:from-primary/90 hover:to-blue-500/90 shadow-lg hover:shadow-xl transition-all"
                     disabled={isLoading}
                   >
                     <PlusCircle className="mr-2 h-5 w-5" />
@@ -131,15 +131,13 @@ export default function Home() {
                   </Button>
                 </motion.div>
               ) : (
-                <motion.div
-                  whileHover={{ scale: 1.05 }}
-                  whileTap={{ scale: 0.95 }}
-                >
+                <motion.div whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.97 }}>
                   <Button 
                     asChild
-                    className="text-lg px-6 py-6 bg-gradient-to-r from-teal-400 to-blue-500 text-white rounded-full hover:from-teal-500 hover:to-blue-600 shadow-lg hover:shadow-xl transition-all"
+                    size="lg"
+                    className="text-base px-8 py-3 bg-gradient-to-r from-primary to-blue-500 text-white rounded-full hover:from-primary/90 hover:to-blue-500/90 shadow-lg hover:shadow-xl transition-all"
                   >
-                    <Link href="/auth/signin">Get Started</Link>
+                    <Link href="/auth/signin">Get Started Now</Link>
                   </Button>
                 </motion.div>
               )}
@@ -164,7 +162,7 @@ export default function Home() {
             )}
           </AnimatePresence>
 
-          {/* Feature Cards */}
+          {/* Feature Cards - Added subtle hover effect */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mb-16">
             {features.map((feature, i) => (
               <motion.div
@@ -174,7 +172,7 @@ export default function Home() {
                 animate="visible"
                 variants={fadeIn}
               >
-                <Card className="h-full hover:shadow-lg transition-shadow border border-gray-100 dark:border-gray-800">
+                <Card className="h-full hover:shadow-lg hover:border-primary/20 dark:hover:border-primary/40 transition-all border border-border/50 dark:border-border/50">
                   <CardHeader className="flex flex-col items-center text-center pb-2">
                     <div className="rounded-full bg-gray-100 dark:bg-gray-800 p-3 mb-4">
                       {feature.icon}
@@ -191,19 +189,19 @@ export default function Home() {
         </div>
       </section>
       {/* Event Feed Section with Search and Filtering */}
-      <section className="py-12 px-4 md:px-8 lg:px-16 bg-white dark:bg-gray-900 rounded-t-3xl relative z-10 min-h-screen">
+      <section className="py-16 md:py-20 px-4 md:px-8 lg:px-16 bg-background border-t border-border rounded-t-3xl relative z-10 min-h-screen">
         <div className="max-w-6xl mx-auto">
-          <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4">
-            <h2 className="text-3xl font-bold bg-gradient-to-r from-teal-400 to-blue-500 bg-clip-text text-transparent flex items-center">
-              <TrendingUp className="mr-2 h-6 w-6 text-teal-400" />
+          <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-10 gap-4">
+            <h2 className="text-3xl md:text-4xl font-bold tracking-tight flex items-center">
+              <TrendingUp className="mr-3 h-7 w-7 text-primary" />
               Upcoming Events
             </h2>
             
             <div className="flex flex-col sm:flex-row gap-4 w-full md:w-auto">
               <div className="relative flex-grow sm:max-w-xs">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
                 <Input
-                  className="pl-10 bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700"
+                  className="pl-10 bg-muted/40 border-border/50 focus:border-primary focus:bg-background"
                   placeholder="Search events..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
@@ -213,26 +211,11 @@ export default function Home() {
           </div>
 
           {/* Filter Tabs */}
-          <Tabs defaultValue="all" className="mb-6" onValueChange={setFilter}>
-            <TabsList className="bg-gray-100 dark:bg-gray-800 p-1 rounded-full">
-              <TabsTrigger 
-                value="all" 
-                className="rounded-full text-sm px-4 py-1 data-[state=active]:bg-white dark:data-[state=active]:bg-gray-700"
-              >
-                All Events
-              </TabsTrigger>
-              <TabsTrigger 
-                value="thisWeek" 
-                className="rounded-full text-sm px-4 py-1 data-[state=active]:bg-white dark:data-[state=active]:bg-gray-700"
-              >
-                This Week
-              </TabsTrigger>
-              <TabsTrigger 
-                value="thisMonth" 
-                className="rounded-full text-sm px-4 py-1 data-[state=active]:bg-white dark:data-[state=active]:bg-gray-700"
-              >
-                This Month
-              </TabsTrigger>
+          <Tabs defaultValue="all" className="mb-8" onValueChange={setFilter}>
+            <TabsList className="bg-muted/40 p-1 rounded-full">
+              <TabsTrigger value="all" className="rounded-full text-sm px-4 py-1.5 data-[state=active]:bg-background data-[state=active]:text-primary data-[state=active]:shadow-sm"> All Events </TabsTrigger>
+              <TabsTrigger value="thisWeek" className="rounded-full text-sm px-4 py-1.5 data-[state=active]:bg-background data-[state=active]:text-primary data-[state=active]:shadow-sm"> This Week </TabsTrigger>
+              <TabsTrigger value="thisMonth" className="rounded-full text-sm px-4 py-1.5 data-[state=active]:bg-background data-[state=active]:text-primary data-[state=active]:shadow-sm"> This Month </TabsTrigger>
             </TabsList>
           </Tabs>
           
@@ -247,45 +230,27 @@ export default function Home() {
         </div>
       </section>
 
-      {/* Call to Action for Non-logged Users */}
-      {!session && !isLoading && (
-        <section className="py-16 px-4 md:px-8 lg:px-16 bg-gradient-to-br from-teal-500 to-blue-600 text-white relative z-10">
-          <div className="max-w-4xl mx-auto text-center">
-            <h2 className="text-3xl md:text-4xl font-bold mb-6">Ready to start planning your next event?</h2>
-            <p className="text-xl mb-8 text-white/90">
-              Join thousands of users who use MeetOn to organize and coordinate events with friends.
-            </p>
-            <motion.div
-              whileHover={{ scale: 1.05 }}
-              whileTap={{ scale: 0.95 }}
-            >
-              <Button 
-                asChild
-                className="bg-white text-blue-600 hover:bg-gray-100 hover:text-blue-700 text-lg px-8 py-6 rounded-full shadow-lg hover:shadow-xl"
-              >
-                <Link href="/auth/signin">Sign in Now</Link>
-              </Button>
-            </motion.div>
-          </div>
+      {/* Logged Out CTA Section */}
+      {!session && status !== 'loading' && (
+        <section className="py-16 md:py-24 bg-gradient-to-r from-primary/90 to-blue-500/90 text-primary-foreground relative z-10 mt-[-1px]">
+           <div className="container mx-auto px-6 text-center">
+               <motion.div initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} transition={{ duration: 0.6 }} viewport={{ once: true }}>
+                 <h2 className="text-3xl md:text-4xl font-bold mb-4">Ready to Start Planning?</h2>
+                 <p className="text-lg md:text-xl max-w-2xl mx-auto mb-8 opacity-90">
+                    Sign up today and join the easiest way to coordinate events with your friends and community.
+                 </p>
+                 <Button 
+                    asChild 
+                    size="lg"
+                    variant="secondary"
+                    className="text-base px-8 py-3 rounded-full shadow-lg hover:shadow-xl transition-all bg-white text-primary hover:bg-white/90"
+                 >
+                   <Link href="/auth/signin">Sign Up for Free</Link>
+                 </Button>
+              </motion.div>
+           </div>
         </section>
       )}
-
-      {/* Footer */}
-      <footer className="py-6 bg-gray-100 text-gray-800 relative z-10">
-        <div className="max-w-6xl mx-auto px-4 md:px-8 lg:px-16">
-          <div className="flex flex-col md:flex-row justify-between items-center gap-4">
-            <div className="text-center md:text-left">
-              <span className="text-2xl font-bold text-black">MeetOn</span>
-              <p className="text-sm text-gray-800 mt-1">Plan, invite, and track RSVPs in one place</p>
-            </div>
-            
-          </div>
-          
-          <div className="mt-8 pt-6 border-t border-gray-800 text-sm text-gray-400 text-center">
-            <p>© {new Date().getFullYear()} MeetOn. All rights reserved.</p>
-          </div>
-        </div>
-      </footer>
 
       {/* Add Event Modal */}
       <AddEventModal

@@ -4,6 +4,7 @@ import { Toaster } from './components/ui/toaster'
 import { ToastProvider } from './components/ui/use-toast'
 import { NavBar } from './components/nav-bar'
 import { Providers } from './providers'
+import { Footer } from './components/footer'
 
 const inter = Inter({ subsets: ['latin'] })
 
@@ -18,15 +19,16 @@ export default function RootLayout({
   children: React.ReactNode
 }) {
   return (
-    <html lang="en">
-      <body className={inter.className}>
+    <html lang="en" className="h-full">
+      <body className={`${inter.className} flex flex-col min-h-full`}>
         <Providers>
           <ToastProvider>
             <NavBar />
-            <main className={`min-h-screen flex-col px-8 py-14 md:py-16 md:px-24 ${inter.className}`}>
+            <main className={`flex-grow min-h-screen flex-col px-8 py-14 md:py-16 md:px-24 ${inter.className}`}>
               {children}
             </main>
             <Toaster />
+            <Footer />
           </ToastProvider>
         </Providers>
       </body>
