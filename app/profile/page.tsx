@@ -52,7 +52,6 @@ import {
   DialogDescription,
   DialogHeader,
   DialogTitle,
-  DialogTrigger,
   DialogFooter,
   DialogClose
 } from "../components/ui/dialog"
@@ -89,9 +88,9 @@ export default function ProfilePage() {
   const [isLoadingFriends, setIsLoadingFriends] = useState(true)
   const [activeTab, setActiveTab] = useState("overview")
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false)
-  const [editName, setEditName] = useState(profile?.name || "")
-  const [editUsername, setEditUsername] = useState(profile?.username || "")
-  const [editBio, setEditBio] = useState(profile?.bio || "")
+  const [editName, setEditName] = useState("")
+  const [editUsername, setEditUsername] = useState("")
+  const [editBio, setEditBio] = useState("")
   const [isSaving, setIsSaving] = useState(false)
   const [isUploadingImage, setIsUploadingImage] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
@@ -163,14 +162,6 @@ export default function ProfilePage() {
       fetchFriendsAndRequests()
     }
   }, [status, session, fetchProfile, fetchEvents, fetchFriendsAndRequests])
-
-  useEffect(() => {
-    if (profile) {
-      setEditName(profile.name || "")
-      setEditUsername(profile.username || "")
-      setEditBio(profile.bio || "")
-    }
-  }, [profile])
 
   const handleSubmit = async (e?: React.FormEvent) => {
     e?.preventDefault()
@@ -455,55 +446,17 @@ export default function ProfilePage() {
                              </Button>
                           </DropdownMenuTrigger>
                           <DropdownMenuContent align="end">
-                             <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
-                               <DialogTrigger asChild>
-                                 <DropdownMenuItem onSelect={(e) => e.preventDefault()}>
-                                    <Edit2 className="mr-2 h-4 w-4" />
-                                    <span>Edit Profile</span>
-                                 </DropdownMenuItem>
-                               </DialogTrigger>
-                               <DialogContent className="sm:max-w-[425px]">
-                                  <DialogHeader>
-                                     <DialogTitle>Edit Profile</DialogTitle>
-                                     <DialogDescription>
-                                        Make changes to your profile here. Click save when you&apos;re done.
-                                     </DialogDescription>
-                                  </DialogHeader>
-                                   <div className="grid gap-4 py-4">
-                                      <div className="grid grid-cols-4 items-center gap-4">
-                                        <Label htmlFor="dialog-name" className="text-right">Name</Label>
-                                        <Input id="dialog-name" value={editName} onChange={(e) => setEditName(e.target.value)} className="col-span-3" />
-                                      </div>
-                                      <div className="grid grid-cols-4 items-center gap-4">
-                                        <Label htmlFor="dialog-username" className="text-right">Username</Label>
-                                        <Input id="dialog-username" value={editUsername} onChange={(e) => setEditUsername(e.target.value)} className="col-span-3" />
-                                      </div>
-                                      <div className="grid grid-cols-4 items-start gap-4">
-                                        <Label htmlFor="dialog-bio" className="text-right pt-2">Bio</Label>
-                                        <Textarea id="dialog-bio" value={editBio} onChange={(e) => setEditBio(e.target.value)} rows={3} placeholder="Tell us about yourself..." className="col-span-3"/>
-                                      </div>
-                                   </div>
-                                   <DialogFooter>
-                                     <DialogClose asChild>
-                                        <Button type="button" variant="outline" disabled={isSaving}>Cancel</Button>
-                                     </DialogClose>
-                                     <Button type="button" onClick={() => handleSubmit()} disabled={isSaving}>
-                                       {isSaving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />} Save changes
-                                     </Button>
-                                   </DialogFooter>
-                               </DialogContent>
-                             </Dialog>
-                            
-                             <DropdownMenuItem onClick={handleImageClick}>
-                                <Upload className="mr-2 h-4 w-4" />
-                                <span>Upload Picture</span>
+                             <DropdownMenuItem 
+                               onSelect={(event) => { 
+                                 event.preventDefault(); 
+                                 setIsEditDialogOpen(true);
+                               }} 
+                             >
+                                <Edit2 className="mr-2 h-4 w-4" /> 
+                                <span>Edit Profile</span> 
                              </DropdownMenuItem>
-                             {profile.image && (
-                               <DropdownMenuItem onClick={handleRemoveProfilePicture} className="text-red-600 focus:text-red-600 focus:bg-red-50">
-                                  <X className="mr-2 h-4 w-4" />
-                                  <span>Remove Picture</span>
-                               </DropdownMenuItem>
-                             )}
+                             <DropdownMenuItem onClick={handleImageClick}> <Upload className="mr-2 h-4 w-4" /> <span>Upload Picture</span> </DropdownMenuItem>
+                             {profile.image && (<DropdownMenuItem onClick={handleRemoveProfilePicture} className="text-red-600 focus:text-red-600 focus:bg-red-50"> <X className="mr-2 h-4 w-4" /> <span>Remove Picture</span> </DropdownMenuItem>)}
                           </DropdownMenuContent>
                         </DropdownMenu>
                    </div>
@@ -682,8 +635,81 @@ export default function ProfilePage() {
         </motion.div>
       </div>
 
-      {/* Mobile Navigation (if needed) */}
-      {/* <ProfileMobileNavigation activeTab={activeTab} setActiveTab={setActiveTab} /> */}
+      {/* *** Place the Dialog component here, separate from the elements above *** */}
+      <Dialog 
+        open={isEditDialogOpen} 
+        onOpenChange={(isOpen) => {
+          setIsEditDialogOpen(isOpen);
+          if (isOpen && profile) { 
+            console.log("DEBUG: Setting edit state from profile:", profile);
+            const newName = profile.name || "";
+            const newUsername = profile.username || "";
+            const newBio = profile.bio || "";
+            setEditName(newName);
+            setEditUsername(newUsername);
+            setEditBio(newBio);
+            console.log("DEBUG: Set edit states:", { newName, newUsername, newBio });
+          }
+        }}
+      >
+        <DialogContent className="sm:max-w-[425px]">
+            <DialogHeader>
+               <DialogTitle>Edit Profile</DialogTitle>
+               <DialogDescription>
+                  Make changes to your profile here. Click save when you&apos;re done.
+               </DialogDescription>
+            </DialogHeader>
+            <div className="grid gap-4 py-4">
+               {(console.log("DEBUG: Rendering DialogContent with states:", { editName, editUsername, editBio }), null)}
+               <div className="grid grid-cols-4 items-center gap-4">
+                 <Label htmlFor="dialog-name" className="text-right">Name</Label>
+                 <Input
+                   id="dialog-name"
+                   value={editName}
+                   onChange={(e) => {
+                     console.log("DEBUG: Name onChange triggered. Value:", e.target.value);
+                     setEditName(e.target.value);
+                   }}
+                   className="col-span-3"
+                 />
+               </div>
+               <div className="grid grid-cols-4 items-center gap-4">
+                 <Label htmlFor="dialog-username" className="text-right">Username</Label>
+                 <Input
+                   id="dialog-username"
+                   value={editUsername}
+                   onChange={(e) => {
+                     console.log("DEBUG: Username onChange triggered. Value:", e.target.value);
+                     setEditUsername(e.target.value);
+                   }}
+                   className="col-span-3"
+                 />
+               </div>
+               <div className="grid grid-cols-4 items-start gap-4">
+                 <Label htmlFor="dialog-bio" className="text-right pt-2">Bio</Label>
+                 <Textarea
+                   id="dialog-bio"
+                   value={editBio}
+                   onChange={(e) => {
+                     console.log("DEBUG: Bio onChange triggered. Value:", e.target.value);
+                     setEditBio(e.target.value);
+                   }}
+                   rows={3}
+                   placeholder="Tell us about yourself..."
+                   className="col-span-3"
+                 />
+               </div>
+            </div>
+            <DialogFooter>
+              <DialogClose asChild>
+                 <Button type="button" variant="outline" disabled={isSaving}>Cancel</Button>
+              </DialogClose>
+              <Button type="button" onClick={() => handleSubmit()} disabled={isSaving}>
+                {isSaving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />} Save changes
+              </Button>
+            </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }
