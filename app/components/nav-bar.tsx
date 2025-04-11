@@ -133,20 +133,6 @@ export function NavBar() {
 
           {/* Actions: Notifications, Create Event, Profile */}
           <div className="flex items-center gap-2">
-            {/* Create Event Button (desktop only) */}
-            {session && (
-              <Button 
-                asChild
-                variant="default" 
-                size="sm"
-                className="hidden md:flex bg-gradient-to-r from-teal-500 to-blue-500 hover:from-teal-600 hover:to-blue-600"
-              >
-                <Link href="/events/new">
-                  <PlusCircle className="h-4 w-4 mr-2" />
-                  New Event
-                </Link>
-              </Button>
-            )}
             
             {/* Notifications */}
             {session && <NotificationBell />}

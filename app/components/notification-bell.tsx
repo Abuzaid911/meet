@@ -152,7 +152,7 @@ export function NotificationBell() {
       const response = await fetch(`/api/notifications?${params.toString()}`);
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.error || 'Failed to fetch notifications');
+        throw new Error(typeof errorData === 'object' && errorData && 'error' in errorData ? errorData.error : 'Failed to fetch notifications');
       }
       
       const data = await response.json();
