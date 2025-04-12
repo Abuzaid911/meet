@@ -2,59 +2,31 @@
 
 import { useEffect, useState, useCallback, useRef } from "react"
 import { useSession } from "next-auth/react"
-import { Avatar, AvatarFallback, AvatarImage } from "../components/ui/avatar"
 import { Button } from "../components/ui/button"
-import { Input } from "../components/ui/input"
-import { Textarea } from "../components/ui/textarea"
 import { useToast } from "../components/ui/use-toast"
 import { FriendList, Friend, FriendRequest } from "./friend-list"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "../components/ui/tabs"
-import { 
-  Card, 
-  CardContent, 
-  CardHeader, 
-  CardTitle, 
-  CardDescription, 
-  CardFooter 
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+  CardDescription,
+  CardFooter
 } from "../components/ui/card"
 
-import { 
-  Calendar, 
-  Mail, 
-  User, 
-  Edit2, 
-  Save, 
-  X, 
-  Loader2, 
-  Upload, 
+import {
+  User,
+  Loader2,
   UserPlus,
-  CalendarRange,
-  Settings,
-  Clock,
-  Users,
-  MapPin,
-  ChevronRight
 } from "lucide-react"
 import { motion } from "framer-motion"
-import { 
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "../components/ui/dropdown-menu"
-import Link from "next/link"
-import { format, parseISO } from "date-fns"
 import { Skeleton } from "../components/ui/skeleton"
-import { Label } from "../components/ui/label"
-import { 
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-  DialogFooter,
-  DialogClose
-} from "../components/ui/dialog"
+import { Dialog } from "../components/ui/dialog"
+import { EditProfileDialogContent, ProfileFormData } from "../components/edit-profile-dialog"
+import { ProfileHeaderCard } from "../components/profile/profile-header-card"
+import { OverviewStats } from "../components/profile/overview-stats"
+import { EventListItem } from "../components/profile/event-list-item"
 
 interface UserProfile {
   id: string
@@ -78,6 +50,13 @@ interface Event {
 }
 
 export default function ProfilePage() {
+  // Add a hydration safety check
+  const [isClient, setIsClient] = useState(false)
+  
+  useEffect(() => {
+    setIsClient(true)
+  }, [])
+  
   const { data: session, status, update: updateSession } = useSession()
   const [profile, setProfile] = useState<UserProfile | null>(null)
   const [isLoadingProfile, setIsLoadingProfile] = useState(true)
@@ -88,10 +67,6 @@ export default function ProfilePage() {
   const [isLoadingFriends, setIsLoadingFriends] = useState(true)
   const [activeTab, setActiveTab] = useState("overview")
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false)
-  const [editName, setEditName] = useState("")
-  const [editUsername, setEditUsername] = useState("")
-  const [editBio, setEditBio] = useState("")
-  const [isSaving, setIsSaving] = useState(false)
   const [isUploadingImage, setIsUploadingImage] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
   const { addToast } = useToast()
@@ -103,121 +78,226 @@ export default function ProfilePage() {
   }
 
   const fetchProfile = useCallback(async () => {
-    try {
-      setIsLoadingProfile(true)
-      const response = await fetch('/api/user')
-      if (!response.ok) throw new Error('Failed to fetch profile')
-      const data = await response.json()
-      setProfile(data)
-    } catch (error) {
-      console.error('Error fetching profile:', error)
-      addToast({ title: "Error", description: "Failed to load profile.", variant: "destructive" })
-    } finally {
-      setIsLoadingProfile(false)
-    }
-  }, [addToast])
+    const maxRetries = 3;
+    let retryCount = 0;
+
+    const attemptFetch = async () => {
+      try {
+        setIsLoadingProfile(true);
+        const response = await fetch('/api/user', {
+          method: 'GET',
+          cache: 'no-store'
+        });
+
+        if (!response.ok) {
+          throw new Error(`HTTP error! status: ${response.status}`);
+        }
+
+        const data = await response.json();
+        setProfile(data);
+      } catch (error) {
+        console.error('Error fetching profile:', error);
+
+        if (retryCount < maxRetries) {
+          retryCount++;
+          console.log(`Retrying profile fetch (attempt ${retryCount})...`);
+          await new Promise(resolve => setTimeout(resolve, 1000 * retryCount));
+          return attemptFetch();
+        }
+
+        addToast({
+          title: "Network Error",
+          description: "Failed to load profile. Please check your internet connection and try again.",
+          variant: "destructive"
+        });
+      } finally {
+        setIsLoadingProfile(false);
+      }
+    };
+
+    await attemptFetch();
+  }, [addToast]);
 
   const fetchEvents = useCallback(async () => {
-    if (!session?.user?.id) return
-    try {
-      setIsLoadingEvents(true)
-      const response = await fetch(`/api/events?userId=${session.user.id}`)
-      if (!response.ok) throw new Error('Failed to fetch events')
-      const data = await response.json()
-      setEvents(data)
-    } catch (error) {
-      console.error('Error fetching events:', error)
-      addToast({ title: "Error", description: "Failed to load events.", variant: "destructive" })
-    } finally {
-      setIsLoadingEvents(false)
-    }
-  }, [session?.user?.id, addToast])
+    if (!session?.user?.id) return;
+
+    const maxRetries = 3;
+    let retryCount = 0;
+
+    const attemptFetch = async () => {
+      try {
+        setIsLoadingEvents(true);
+        const response = await fetch(`/api/events?userId=${session.user.id}`, {
+          method: 'GET',
+          cache: 'no-store'
+        });
+
+        if (!response.ok) {
+          throw new Error(`HTTP error! status: ${response.status}`);
+        }
+
+        const data = await response.json();
+        setEvents(data);
+      } catch (error) {
+        console.error('Error fetching events:', error);
+
+        if (retryCount < maxRetries) {
+          retryCount++;
+          console.log(`Retrying events fetch (attempt ${retryCount})...`);
+          await new Promise(resolve => setTimeout(resolve, 1000 * retryCount));
+          return attemptFetch();
+        }
+
+        addToast({
+          title: "Network Error",
+          description: "Failed to load events. Please check your internet connection and try again.",
+          variant: "destructive"
+        });
+      } finally {
+        setIsLoadingEvents(false);
+      }
+    };
+
+    await attemptFetch();
+  }, [session?.user?.id, addToast]);
 
   const fetchFriendsAndRequests = useCallback(async () => {
-    try {
-      setIsLoadingFriends(true)
-      const response = await fetch('/api/friends/request')
-      if (!response.ok) {
-        throw new Error('Failed to fetch friends and requests')
+    const maxRetries = 3;
+    let retryCount = 0;
+
+    const attemptFetch = async () => {
+      try {
+        setIsLoadingFriends(true);
+        const response = await fetch('/api/friends/request', {
+          method: 'GET',
+          cache: 'no-store'
+        });
+
+        if (!response.ok) {
+          throw new Error(`HTTP error! status: ${response.status}`);
+        }
+
+        const data = await response.json();
+        setFriends(data.friends || []);
+        setPendingRequests(data.pendingRequests || []);
+      } catch (error) {
+        console.error('Error fetching friends and requests:', error);
+
+        if (retryCount < maxRetries) {
+          retryCount++;
+          console.log(`Retrying friends fetch (attempt ${retryCount})...`);
+          await new Promise(resolve => setTimeout(resolve, 1000 * retryCount));
+          return attemptFetch();
+        }
+
+        addToast({
+          title: "Network Error",
+          description: "Failed to load friends. Please check your internet connection and try again.",
+          variant: "destructive",
+        });
+      } finally {
+        setIsLoadingFriends(false);
       }
-      const data = await response.json()
-      setFriends(data.friends || [])
-      setPendingRequests(data.pendingRequests || [])
-    } catch (error) {
-      console.error('Error fetching friends and requests:', error)
-      addToast({
-        title: "Error",
-        description: "Failed to load friends and requests",
-        variant: "destructive",
-      })
-    } finally {
-      setIsLoadingFriends(false)
-    }
-  }, [addToast])
+    };
+
+    await attemptFetch();
+  }, [addToast]);
 
   useEffect(() => {
     if (status === 'authenticated' && session?.user) {
-      fetchProfile()
-      fetchEvents()
-      fetchFriendsAndRequests()
+      const fetchData = async () => {
+        try {
+          await Promise.all([
+            fetchProfile(),
+            fetchEvents(),
+            fetchFriendsAndRequests()
+          ]);
+        } catch (error) {
+          console.error('Error in initial data fetch:', error);
+          addToast({
+            title: "Connection Error",
+            description: "There was a problem loading your data. Please refresh the page.",
+            variant: "destructive"
+          });
+        }
+      };
+
+      fetchData();
     }
-  }, [status, session, fetchProfile, fetchEvents, fetchFriendsAndRequests])
+  }, [status, session, fetchProfile, fetchEvents, fetchFriendsAndRequests, addToast]);
 
-  const handleSubmit = async (e?: React.FormEvent) => {
-    e?.preventDefault()
-    setIsSaving(true)
-
+  const handleSubmit = async (data: ProfileFormData) => {
     try {
       const response = await fetch('/api/user', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          name: editName,
-          username: editUsername,
-          bio: editBio
+          name: data.name,
+          username: data.username,
+          bio: data.bio
         }),
-      })
+        cache: 'no-store'
+      });
 
-      if (!response.ok) throw new Error('Failed to update profile')
-      const updatedProfile = await response.json()
-      setProfile(updatedProfile)
-      setIsEditDialogOpen(false)
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.message || 'Failed to update profile');
+      }
+      
+      const updatedProfile = await response.json();
+      
+      // Update state safely with a function to avoid stale closures
+      setProfile(prev => ({
+        ...prev,
+        ...updatedProfile
+      }));
+      
+      setIsEditDialogOpen(false);
 
       // Update session to reflect name changes
-      if (updateSession && editName !== session?.user?.name) {
+      if (updateSession && data.name !== session?.user?.name) {
         await updateSession({
           ...session,
           user: {
             ...session?.user,
-            name: editName || session?.user?.name
+            name: data.name || session?.user?.name
           }
-        })
+        });
       }
 
       addToast({
         title: "Success",
         description: "Profile updated successfully!",
         variant: "success"
-      })
+      });
+
+      // Force a re-fetch of profile data to ensure everything is in sync
+      // This is safe practice and handles potential eventual consistency issues
+      setTimeout(() => {
+        fetchProfile();
+      }, 300);
+      
     } catch (error) {
-      console.error('Failed to update profile:', error)
+      console.error('Failed to update profile:', error);
       addToast({
         title: "Error",
-        description: "Failed to update profile.",
+        description: error instanceof Error ? error.message : "Failed to update profile",
         variant: "destructive"
-      })
-    } finally {
-      setIsSaving(false)
+      });
+      throw error;
     }
   }
 
   const handleImageClick = () => {
-    fileInputRef.current?.click()
-  }
+    if (!isClient) return; // Skip if not hydrated
+    fileInputRef.current?.click();
+  };
 
   const handleImageChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0]
-    if (!file) return
+    if (!isClient) return; // Skip if not hydrated
+    
+    const file = e.target.files?.[0];
+    if (!file) return;
 
     // Check file type
     if (!file.type.startsWith('image/')) {
@@ -225,8 +305,8 @@ export default function ProfilePage() {
         title: "Invalid file",
         description: "Please select an image file (JPEG, PNG, etc.)",
         variant: "destructive"
-      })
-      return
+      });
+      return;
     }
 
     // Check file size (limit to 5MB)
@@ -235,33 +315,34 @@ export default function ProfilePage() {
         title: "File too large",
         description: "Please select an image smaller than 5MB",
         variant: "destructive"
-      })
-      return
+      });
+      return;
     }
 
-    setIsUploadingImage(true)
-    
+    setIsUploadingImage(true);
+
     try {
       // Create a FormData object to send the file
-      const formData = new FormData()
-      formData.append('image', file)
+      const formData = new FormData();
+      formData.append('image', file);
 
       // Send the image to the server
       const response = await fetch('/api/user/image', {
         method: 'POST',
-        body: formData
-      })
+        body: formData,
+        cache: 'no-store'
+      });
 
       if (!response.ok) {
-        const errorData = await response.json()
-        throw new Error(errorData.error || 'Failed to upload image')
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || 'Failed to upload image');
       }
 
-      const data = await response.json()
-      
+      const data = await response.json();
+
       // Update the profile state with the new image
-      setProfile(prev => prev ? { ...prev, image: data.image } : prev)
-      
+      setProfile(prev => prev ? { ...prev, image: data.image } : prev);
+
       // Update the session to reflect the new image
       if (updateSession) {
         await updateSession({
@@ -270,51 +351,60 @@ export default function ProfilePage() {
             ...session?.user,
             image: data.image
           }
-        })
+        });
       }
 
       addToast({
         title: "Success",
         description: "Profile picture updated successfully!",
         variant: "success"
-      })
+      });
+      
+      // Force a re-fetch of profile data to ensure everything is in sync
+      setTimeout(() => {
+        fetchProfile();
+      }, 300);
+      
     } catch (error) {
-      console.error('Error uploading image:', error)
+      console.error('Error uploading image:', error);
       addToast({
         title: "Error",
         description: error instanceof Error ? error.message : "Failed to upload image",
         variant: "destructive"
-      })
+      });
     } finally {
-      setIsUploadingImage(false)
-      
+      setIsUploadingImage(false);
+
       // Reset the file input
       if (fileInputRef.current) {
-        fileInputRef.current.value = ''
+        fileInputRef.current.value = '';
       }
     }
-  }
+  };
 
   const handleRemoveProfilePicture = async () => {
+    if (!isClient) return; // Skip if not hydrated
+    
     if (!confirm("Are you sure you want to remove your profile picture?")) {
-      return
+      return;
     }
 
-    setIsUploadingImage(true)
-    
+    setIsUploadingImage(true);
+
     try {
       const response = await fetch('/api/user/image', {
-        method: 'DELETE'
-      })
+        method: 'DELETE',
+        cache: 'no-store'
+      });
 
       if (!response.ok) {
-        const errorData = await response.json()
-        throw new Error(errorData.error || 'Failed to remove profile picture')
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || 'Failed to remove profile picture');
       }
 
       // Update the profile state with the default image
-      setProfile(prev => prev ? { ...prev, image: null } : prev)
-      
+      setProfile(prev => prev ? { ...prev, image: null } : prev);
+
       // Update the session to reflect the removal of the image
       if (updateSession) {
         await updateSession({
@@ -323,24 +413,44 @@ export default function ProfilePage() {
             ...session?.user,
             image: null
           }
-        })
+        });
       }
 
       addToast({
         title: "Success",
         description: "Profile picture removed successfully!",
         variant: "success"
-      })
+      });
+      
+      // Force a re-fetch of profile data to ensure everything is in sync
+      setTimeout(() => {
+        fetchProfile();
+      }, 300);
+      
     } catch (error) {
-      console.error('Error removing profile picture:', error)
+      console.error('Error removing profile picture:', error);
       addToast({
         title: "Error",
         description: error instanceof Error ? error.message : "Failed to remove profile picture",
         variant: "destructive"
-      })
+      });
     } finally {
-      setIsUploadingImage(false)
+      setIsUploadingImage(false);
     }
+  };
+
+  if (!isClient) {
+    // Return a minimal loading state during hydration
+    return (
+      <div className="flex flex-col items-center justify-center h-screen">
+        <div className="flex flex-col items-center justify-center space-y-4">
+          <div className="rounded-full bg-gradient-to-r from-teal-400 to-blue-500 p-3">
+            <Loader2 className="w-12 h-12 animate-spin text-white" />
+          </div>
+          <h2 className="text-2xl font-semibold">Loading Profile</h2>
+        </div>
+      </div>
+    )
   }
 
   if (status === 'loading' || isLoadingProfile) {
@@ -372,8 +482,8 @@ export default function ProfilePage() {
               <p className="text-gray-500 dark:text-gray-400 mb-8">
                 Please sign in to view and manage your profile.
               </p>
-              <Button 
-                onClick={() => window.location.href = '/auth/signin'} 
+              <Button
+                onClick={() => window.location.href = '/auth/signin'}
                 className="w-full bg-gradient-to-r from-teal-400 to-blue-500 text-white hover:from-teal-500 hover:to-blue-600"
               >
                 <UserPlus className="mr-2 h-4 w-4" />
@@ -410,74 +520,30 @@ export default function ProfilePage() {
                 <Skeleton className="h-4 w-3/4 mt-1" />
               </CardContent>
               <CardFooter className="flex justify-center">
-                 <Skeleton className="h-10 w-24" />
+                <Skeleton className="h-10 w-24" />
               </CardFooter>
             </Card>
           ) : profile ? (
-            // --- Actual Profile Info ---
-            <Card className="relative overflow-hidden">
-              <CardHeader className="items-center text-center pt-8 pb-4 bg-gradient-to-b from-muted/50 to-background">
-                  <Avatar
-                      className="w-24 h-24 border-4 border-background shadow-md relative group"
-                  >
-                      <AvatarImage src={profile.image ?? undefined} alt={profile.name ?? profile.username ?? 'User'} />
-                      <AvatarFallback className="text-3xl">
-                          {profile.name ? profile.name.charAt(0).toUpperCase() : profile.username ? profile.username.charAt(0).toUpperCase() : <User />}
-                      </AvatarFallback>
-                      {isUploadingImage && (
-                          <div className="absolute inset-0 bg-black/70 flex items-center justify-center rounded-full">
-                              <Loader2 className="text-white h-8 w-8 animate-spin" />
-                          </div>
-                      )}
-                  </Avatar>
-                  <input
-                      type="file"
-                      ref={fileInputRef}
-                      onChange={handleImageChange}
-                      className="hidden"
-                      accept="image/*"
-                  />
-                  <div className="flex items-center justify-center gap-2 mt-4">
-                        <CardTitle className="text-2xl font-semibold">{profile.name || "Unnamed User"}</CardTitle>
-                        <DropdownMenu>
-                          <DropdownMenuTrigger asChild>
-                             <Button variant="ghost" size="icon" className="rounded-full h-8 w-8">
-                                <Settings className="h-4 w-4 text-muted-foreground" />
-                             </Button>
-                          </DropdownMenuTrigger>
-                          <DropdownMenuContent align="end">
-                             <DropdownMenuItem 
-                               onSelect={(event) => { 
-                                 event.preventDefault(); 
-                                 setIsEditDialogOpen(true);
-                               }} 
-                             >
-                                <Edit2 className="mr-2 h-4 w-4" /> 
-                                <span>Edit Profile</span> 
-                             </DropdownMenuItem>
-                             <DropdownMenuItem onClick={handleImageClick}> <Upload className="mr-2 h-4 w-4" /> <span>Upload Picture</span> </DropdownMenuItem>
-                             {profile.image && (<DropdownMenuItem onClick={handleRemoveProfilePicture} className="text-red-600 focus:text-red-600 focus:bg-red-50"> <X className="mr-2 h-4 w-4" /> <span>Remove Picture</span> </DropdownMenuItem>)}
-                          </DropdownMenuContent>
-                        </DropdownMenu>
-                   </div>
-                  <CardDescription>@{profile.username || "username_missing"}</CardDescription>
-              </CardHeader>
-
-              <CardContent className="px-6 py-4 text-sm text-muted-foreground">
-                   {/* Always display static info now */}
-                  <p className="text-center mb-4 text-foreground italic">{profile.bio || "No bio yet."}</p>
-                  <div className="space-y-2">
-                      <div className="flex items-center">
-                          <Mail className="mr-2 h-4 w-4" />
-                          <span>{profile.email || "No email provided"}</span>
-                      </div>
-                      <div className="flex items-center">
-                          <Calendar className="mr-2 h-4 w-4" />
-                          <span>Joined {format(parseISO(profile.createdAt), 'PPP')}</span>
-                      </div>
-                  </div>
-              </CardContent>
-            </Card>
+            <>
+              {/* Hidden file input element for image upload */}
+              <input
+                type="file"
+                ref={fileInputRef}
+                onChange={handleImageChange}
+                className="hidden"
+                accept="image/*"
+              />
+              
+              {/* Use the new ProfileHeaderCard component */}
+              <ProfileHeaderCard 
+                profile={profile}
+                isUploadingImage={isUploadingImage}
+                onEditClick={() => setIsEditDialogOpen(true)}
+                onImageUploadClick={handleImageClick}
+                onImageRemoveClick={handleRemoveProfilePicture}
+                isClient={isClient}
+              />
+            </>
           ) : (
             // --- Error/Not Found State ---
             <Card>
@@ -508,59 +574,30 @@ export default function ProfilePage() {
             {/* Overview Tab Content */}
             <TabsContent value="overview">
               <Card>
-                 <CardHeader>
-                    <CardTitle>Overview</CardTitle>
-                    <CardDescription>Profile summary and key information.</CardDescription>
+                <CardHeader>
+                  <CardTitle>Overview</CardTitle>
+                  <CardDescription>Profile summary and key information.</CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-6">
-                   {isLoadingProfile ? (
-                      <div className="space-y-3">
-                          <Skeleton className="h-4 w-full" />
-                          <Skeleton className="h-4 w-3/4" />
-                           <Skeleton className="h-4 w-1/2" />
-                      </div>
+                  {isLoadingProfile ? (
+                    <div className="space-y-3">
+                      <Skeleton className="h-4 w-full" />
+                      <Skeleton className="h-4 w-3/4" />
+                      <Skeleton className="h-4 w-1/2" />
+                    </div>
                   ) : profile ? (
-                     <div className="space-y-4">
-                          {/* Profile Summary Cards */}
-                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                              <Card className="bg-secondary/50">
-                                 <CardContent className="p-4 flex items-center space-x-3">
-                                      <div className="p-2 bg-primary/10 rounded-lg">
-                                           <CalendarRange className="h-5 w-5 text-primary" />
-                                      </div>
-                                      <div>
-                                         <p className="text-xs text-muted-foreground">Events Hosted/Attending</p>
-                                         <p className="font-semibold text-lg">{isLoadingEvents ? '...' : events.length}</p>
-                                     </div>
-                                 </CardContent>
-                              </Card>
-                              <Card className="bg-secondary/50">
-                                  <CardContent className="p-4 flex items-center space-x-3">
-                                      <div className="p-2 bg-primary/10 rounded-lg">
-                                           <Users className="h-5 w-5 text-primary" />
-                                      </div>
-                                      <div>
-                                         <p className="text-xs text-muted-foreground">Friends</p>
-                                         <p className="font-semibold text-lg">{isLoadingFriends ? '...' : friends.length}</p>
-                                     </div>
-                                 </CardContent>
-                              </Card>
-                              <Card className="bg-secondary/50">
-                                  <CardContent className="p-4 flex items-center space-x-3">
-                                      <div className="p-2 bg-primary/10 rounded-lg">
-                                           <Clock className="h-5 w-5 text-primary" />
-                                      </div>
-                                      <div>
-                                         <p className="text-xs text-muted-foreground">Member Since</p>
-                                         <p className="font-semibold text-lg">{format(parseISO(profile.createdAt), 'MMM yyyy')}</p>
-                                     </div>
-                                 </CardContent>
-                              </Card>
-                          </div>
-                          {/* Bio and Email */}
-                      </div>
+                    <div className="space-y-4">
+                      {/* Use the new OverviewStats component */}
+                      <OverviewStats
+                        eventsCount={events.length}
+                        friendsCount={friends.length}
+                        isLoadingEvents={isLoadingEvents}
+                        isLoadingFriends={isLoadingFriends}
+                        joinedDate={profile.createdAt}
+                      />
+                    </div>
                   ) : (
-                      <p className="text-muted-foreground">Could not load overview.</p>
+                    <p className="text-muted-foreground">Could not load overview.</p>
                   )}
                 </CardContent>
               </Card>
@@ -569,51 +606,41 @@ export default function ProfilePage() {
             {/* Events Tab Content */}
             <TabsContent value="events">
               <Card>
-                 <CardHeader>
-                    <CardTitle>My Events</CardTitle>
-                    <CardDescription>Events you are hosting or attending.</CardDescription>
-                 </CardHeader>
+                <CardHeader>
+                  <CardTitle>My Events</CardTitle>
+                  <CardDescription>Events you are hosting or attending.</CardDescription>
+                </CardHeader>
                 <CardContent className="space-y-4">
                   {isLoadingEvents ? (
-                     // --- Events Skeleton ---
+                    // --- Events Skeleton ---
                     <>
                       {[1, 2, 3].map((i) => (
                         <Card key={i} className="flex items-center space-x-4 p-4">
-                           <Skeleton className="h-10 w-10 rounded-md" />
-                           <div className="flex-1 space-y-1">
-                              <Skeleton className="h-4 w-3/4" />
-                              <Skeleton className="h-3 w-1/2" />
-                              <Skeleton className="h-3 w-1/4" />
-                           </div>
-                           <Skeleton className="h-6 w-6 rounded-full" />
+                          <Skeleton className="h-10 w-10 rounded-md" />
+                          <div className="flex-1 space-y-1">
+                            <Skeleton className="h-4 w-3/4" />
+                            <Skeleton className="h-3 w-1/2" />
+                            <Skeleton className="h-3 w-1/4" />
+                          </div>
+                          <Skeleton className="h-6 w-6 rounded-full" />
                         </Card>
                       ))}
                     </>
                   ) : events.length > 0 ? (
-                     // --- Actual Event List ---
-                    events.map((event) => (
-                       <Link href={`/events/${event.id}`} key={event.id} className="block hover:bg-muted/50 transition-colors rounded-lg">
-                          <Card className="flex items-start space-x-4 p-4 border shadow-sm hover:shadow-md">
-                             {/* Event Icon or Image Placeholder */}
-                             <div className="p-2 bg-primary/10 rounded-lg mt-1">
-                                <CalendarRange className="h-6 w-6 text-primary" />
-                             </div>
-
-                             <div className="flex-1 space-y-1">
-                                <p className="font-semibold text-base leading-tight">{event.name}</p>
-                                <div className="text-xs text-muted-foreground flex items-center space-x-3 flex-wrap">
-                                   <span className="flex items-center"><Calendar className="mr-1 h-3 w-3"/> {format(parseISO(event.date), 'PP')}</span>
-                                   <span className="flex items-center"><Clock className="mr-1 h-3 w-3"/> {event.time}</span>
-                                   <span className="flex items-center"><MapPin className="mr-1 h-3 w-3"/> {event.location}</span>
-                                   {/* Add duration if needed */}
-                                </div>
-                                 {/* Optional: Show short description */}
-                                 {/* <p className="text-sm text-muted-foreground truncate">{event.description}</p> */}
-                             </div>
-                             <ChevronRight className="h-5 w-5 text-muted-foreground self-center" />
-                          </Card>
-                       </Link>
-                    ))
+                    // Use the new EventListItem component
+                    <div className="space-y-3">
+                      {events.map((event) => (
+                        <EventListItem
+                          key={event.id}
+                          id={event.id}
+                          name={event.name}
+                          date={event.date}
+                          time={event.time}
+                          location={event.location}
+                          description={event.description}
+                        />
+                      ))}
+                    </div>
                   ) : (
                     <p className="text-center text-muted-foreground py-6">No events found.</p>
                   )}
@@ -623,93 +650,41 @@ export default function ProfilePage() {
 
             {/* Friends Tab Content */}
             <TabsContent value="friends">
-               <FriendList 
-                 friends={friends}
-                 pendingRequests={pendingRequests}
-                 isLoading={isLoadingFriends}
-                 onAction={fetchFriendsAndRequests}
-               />
+              <FriendList
+                friends={friends}
+                pendingRequests={pendingRequests}
+                isLoading={isLoadingFriends}
+                onAction={fetchFriendsAndRequests}
+              />
             </TabsContent>
 
           </Tabs>
         </motion.div>
       </div>
 
-      {/* *** Place the Dialog component here, separate from the elements above *** */}
-      <Dialog 
-        open={isEditDialogOpen} 
-        onOpenChange={(isOpen) => {
-          setIsEditDialogOpen(isOpen);
-          if (isOpen && profile) { 
-            console.log("DEBUG: Setting edit state from profile:", profile);
-            const newName = profile.name || "";
-            const newUsername = profile.username || "";
-            const newBio = profile.bio || "";
-            setEditName(newName);
-            setEditUsername(newUsername);
-            setEditBio(newBio);
-            console.log("DEBUG: Set edit states:", { newName, newUsername, newBio });
+      {/* Dialog component with improved focus management */}
+      <Dialog
+        open={isEditDialogOpen}
+        onOpenChange={(open) => {
+          setIsEditDialogOpen(open);
+          // If the dialog is closing, ensure we reset focus properly
+          if (!open) {
+            // Small delay to ensure DOM is updated
+            setTimeout(() => {
+              // Find the dropdown trigger button by accessing the DOM
+              const settingsButton = document.querySelector('.settings-dropdown-trigger') as HTMLButtonElement;
+              if (settingsButton) {
+                settingsButton.focus();
+              }
+            }, 50);
           }
         }}
       >
-        <DialogContent className="sm:max-w-[425px]">
-            <DialogHeader>
-               <DialogTitle>Edit Profile</DialogTitle>
-               <DialogDescription>
-                  Make changes to your profile here. Click save when you&apos;re done.
-               </DialogDescription>
-            </DialogHeader>
-            <div className="grid gap-4 py-4">
-               {(console.log("DEBUG: Rendering DialogContent with states:", { editName, editUsername, editBio }), null)}
-               <div className="grid grid-cols-4 items-center gap-4">
-                 <Label htmlFor="dialog-name" className="text-right">Name</Label>
-                 <Input
-                   id="dialog-name"
-                   value={editName}
-                   onChange={(e) => {
-                     console.log("DEBUG: Name onChange triggered. Value:", e.target.value);
-                     setEditName(e.target.value);
-                   }}
-                   className="col-span-3"
-                 />
-               </div>
-               <div className="grid grid-cols-4 items-center gap-4">
-                 <Label htmlFor="dialog-username" className="text-right">Username</Label>
-                 <Input
-                   id="dialog-username"
-                   value={editUsername}
-                   onChange={(e) => {
-                     console.log("DEBUG: Username onChange triggered. Value:", e.target.value);
-                     setEditUsername(e.target.value);
-                   }}
-                   className="col-span-3"
-                 />
-               </div>
-               <div className="grid grid-cols-4 items-start gap-4">
-                 <Label htmlFor="dialog-bio" className="text-right pt-2">Bio</Label>
-                 <Textarea
-                   id="dialog-bio"
-                   value={editBio}
-                   onChange={(e) => {
-                     console.log("DEBUG: Bio onChange triggered. Value:", e.target.value);
-                     setEditBio(e.target.value);
-                   }}
-                   rows={3}
-                   placeholder="Tell us about yourself..."
-                   className="col-span-3"
-                 />
-               </div>
-            </div>
-            <DialogFooter>
-              <DialogClose asChild>
-                 <Button type="button" variant="outline" disabled={isSaving}>Cancel</Button>
-              </DialogClose>
-              <Button type="button" onClick={() => handleSubmit()} disabled={isSaving}>
-                {isSaving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />} Save changes
-              </Button>
-            </DialogFooter>
-        </DialogContent>
+        <EditProfileDialogContent
+          profile={profile}
+          onSaveChanges={handleSubmit}
+        />
       </Dialog>
     </div>
   )
-}
+} 
