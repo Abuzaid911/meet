@@ -1,12 +1,18 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
-// Assuming components are in ../../components relative to this file
-import { Button } from "../../components/ui/button";
-import { useToast } from "../../components/ui/use-toast";
+import { motion } from "framer-motion";
+
+// UI Components
+import { Card } from "@/app/components/ui/card";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/app/components/ui/tabs";
+import { Button } from "@/app/components/ui/button";
+import { Avatar, AvatarFallback, AvatarImage } from "@/app/components/ui/avatar";
+import { Badge } from "@/app/components/ui/badge";
+import { Skeleton } from "@/app/components/ui/skeleton";
+import { useToast } from "@/app/components/ui/use-toast";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -16,616 +22,796 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-} from "../../components/ui/alert-dialog";
-import { Tabs, TabsList, TabsTrigger, TabsContent } from "../../components/ui/tabs";
-import { Avatar, AvatarFallback, AvatarImage } from "../../components/ui/avatar";
-import { Card, CardContent, CardHeader, CardTitle } from "../../components/ui/card";
-import { Badge } from "../../components/ui/badge";
-import { Skeleton } from "../../components/ui/skeleton";
-import { EventAttendees } from "../../components/event-attendees";
-import { AddAttendeeModal } from "../../components/add-attendee-modal";
-import { EditEventModal } from "../../components/edit-event-modal";
-import { EventAttendance } from "../../components/enhanced-event-attendance";
-import { ShareEventButton } from "../../components/share-event-button";
-import { AddToCalendarButton } from "../../components/add-to-calendar-button";
-import { Separator } from "../../components/ui/separator";
-import { EventPhotoGallery } from "../../components/event-photos";
+} from "@/app/components/ui/alert-dialog";
 
+// App Components
+import { AddAttendeeModal } from "@/app/components/add-attendee-modal";
+import { EditEventModal } from "@/app/components/edit-event-modal";
+import { EventPhotoGallery } from "@/app/components/event-photos";
+
+// Icons
 import {
   Loader2,
   Trash2,
-  Calendar,
-  Clock,
-  MapPin,
-  Users,
   Edit,
   ArrowLeft,
-  ExternalLink,
   AlertTriangle,
-  Info,
-  Camera // Icon for Photos tab
+  Calendar,
+  MapPin,
+  Users,
+  Clock,
+  Share,
+  CalendarPlus,
+  UserPlus,
 } from "lucide-react";
-import { format, isPast, isToday, addMinutes, parseISO, isValid } from "date-fns"; // Added isValid
-import { motion, AnimatePresence } from "framer-motion";
 
-// --- Interfaces (assuming these remain the same) ---
-interface Attendee { id: string; rsvp: string; user: { id: string; name: string | null; username?: string; image: string | null; }; }
-interface Host { id: string; name: string | null; username?: string; image: string | null; }
+// Utilities
+import { format } from "date-fns";
+
+// Animation variants
+const fadeIn = {
+  hidden: { opacity: 0 },
+  visible: { opacity: 1, transition: { duration: 0.5 } }
+};
+
+const slideIn = {
+  hidden: { opacity: 0, y: 20 },
+  visible: { opacity: 1, y: 0, transition: { duration: 0.5 } }
+};
+
+// Interfaces
+interface Attendee {
+  id: string;
+  rsvp: string;
+  userId: string;
+  user: {
+    id: string;
+    name: string | null;
+    username?: string;
+    image: string | null;
+  };
+}
+
+interface Host {
+  id: string;
+  name: string | null;
+  username?: string;
+  image: string | null;
+}
+
 interface Event {
   id: string;
   name: string;
-  date: string; // ISO string format expected (e.g., "2025-12-31T00:00:00.000Z")
-  time: string; // HH:mm format expected (e.g., "14:30")
+  date: string;
+  time: string;
   location: string;
-  lat?: number | null; // Optional coordinates
-  lng?: number | null; // Optional coordinates
-  description: string | null; // Allow null
-  duration: number; // Duration in minutes
+  lat?: number | null;
+  lng?: number | null;
+  description: string | null;
+  duration: number;
   hostId: string;
   host: Host;
   attendees: Attendee[];
-  // Optional header customization fields
+  totalAttendees: number;
   headerType?: "color" | "image";
-  headerColor?: string; // e.g., "#ff0000" or "teal-500" (if mapping Tailwind colors)
+  headerColor?: string;
   headerImageUrl?: string;
+  endDate: string;
 }
 
-// --- Animation Variants ---
-const fadeIn = {
-  hidden: { opacity: 0, y: 15 },
-  visible: { opacity: 1, y: 0, transition: { duration: 0.5, ease: "easeOut" } },
-};
-
-const staggerContainer = {
-  hidden: { opacity: 1 }, // Keep container visible
-  visible: { opacity: 1, transition: { staggerChildren: 0.1 } },
-};
-
-// --- Skeleton Components ---
+// Skeleton components
 const EventPageSkeleton = () => (
-  <div className="min-h-screen flex flex-col animate-pulse">
-     {/* Header Area Skeleton */}
-     <div className="relative w-full h-[50vh] min-h-[400px] bg-gray-200 dark:bg-gray-700">
-        {/* Back button placeholder */}
-        <div className="container mx-auto px-4 pt-20 pb-3 z-10 absolute top-0 left-0 right-0">
-            <Skeleton className="h-9 w-24" />
-        </div>
-        {/* Overlaid Content Skeleton */}
-        <div className="relative container mx-auto px-4 pt-14 pb-20 h-full flex flex-col">
-            <div className="mt-auto space-y-4">
-                {/* Badge & Share Button Skeleton */}
-                <div className="flex items-center justify-between">
-                    <Skeleton className="h-6 w-24 rounded-md" />
-                    <Skeleton className="h-8 w-8 rounded-md" />
-                </div>
-                {/* Title Skeleton */}
-                <Skeleton className="h-9 w-3/4 md:h-12 md:w-1/2" />
-                {/* Host Skeleton */}
-                <div className="flex items-center">
-                    <Skeleton className="h-6 w-6 rounded-full mr-2" />
-                    <Skeleton className="h-4 w-1/3" />
-                </div>
-                {/* Key Details Overlay Skeleton */}
-                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 py-4 px-5 backdrop-blur-sm bg-black/10 dark:bg-black/30 rounded-lg max-w-2xl">
-                    {[...Array(4)].map((_, i) => (
-                        <div key={i} className="flex items-start">
-                            <Skeleton className="h-5 w-5 mr-3 rounded-md flex-shrink-0 mt-0.5" />
-                            <div>
-                                <Skeleton className="h-3 w-16 mb-1.5" />
-                                <Skeleton className="h-4 w-32" />
-                            </div>
-                        </div>
-                    ))}
-                 </div>
-            </div>
-        </div>
-         {/* Curved bottom placeholder */}
-         <div className="absolute bottom-0 left-0 right-0 h-12 bg-background" style={{ clipPath: 'ellipse(70% 100% at 50% 100%)' }}></div>
-     </div>
-
-     {/* Main Content Area Skeleton */}
-     <div className="container mx-auto px-4 py-6 flex-grow bg-background">
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 items-start">
-            {/* Left Column Skeleton */}
-            <div className="lg:col-span-2 space-y-6">
-                {/* Tabs Skeleton */}
-                <div>
-                    <Skeleton className="h-10 w-1/2 rounded-md mb-4" />
-                    <Card>
-                        <CardHeader> <Skeleton className="h-6 w-32"/> </CardHeader>
-                        <CardContent className="space-y-2">
-                            <Skeleton className="h-4 w-full" />
-                            <Skeleton className="h-4 w-full" />
-                            <Skeleton className="h-4 w-5/6" />
-                        </CardContent>
-                    </Card>
-                </div>
-            </div>
-            {/* Right Sidebar Skeleton */}
-            <div className="space-y-6 lg:sticky lg:top-24">
-                <Card>
-                    <CardHeader><Skeleton className="h-6 w-32"/></CardHeader>
-                    <CardContent className="p-6">
-                        <Skeleton className="h-8 w-full mb-4" />
-                        <Skeleton className="h-8 w-full" />
-                    </CardContent>
-                </Card>
-                <Card>
-                    <CardHeader><Skeleton className="h-6 w-32"/></CardHeader>
-                    <CardContent className="p-6">
-                        <Skeleton className="h-16 w-full" />
-                    </CardContent>
-                </Card>
-            </div>
-        </div>
-     </div>
+  <div className="min-h-screen flex flex-col items-center justify-center p-4">
+    <div className="w-full max-w-3xl">
+      <Skeleton className="h-64 w-full rounded-t-xl" />
+      <Skeleton className="h-12 w-3/4 mt-6" />
+      <div className="mt-8 space-y-4">
+        <Skeleton className="h-10 w-full" />
+        <Skeleton className="h-10 w-full" />
+        <Skeleton className="h-10 w-full" />
+      </div>
+    </div>
   </div>
 );
 
+// Error display component
+const ErrorDisplay = ({ error }: { error: string }) => (
+  <div className="min-h-screen flex items-center justify-center p-4">
+    <div className="text-center max-w-md">
+      <AlertTriangle className="h-12 w-12 mx-auto text-yellow-500 mb-4" />
+      <h2 className="text-xl font-semibold mb-2">Error</h2>
+      <p className="text-muted-foreground mb-6">{error}</p>
+      <Button onClick={() => window.history.back()} variant="default">
+        Go Back
+      </Button>
+    </div>
+  </div>
+);
 
-// --- Main Component ---
+// Main Component
 export default function EventPage() {
   const params = useParams();
   const id = params.id as string;
+  const router = useRouter();
+  const { data: session } = useSession();
+  const { addToast } = useToast();
+
+  // State
   const [event, setEvent] = useState<Event | null>(null);
   const [isLoading, setIsLoading] = useState(true);
-  const [fetchError, setFetchError] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [selectedTab, setSelectedTab] = useState("details");
   const [isDeleting, setIsDeleting] = useState(false);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [showAddAttendeeModal, setShowAddAttendeeModal] = useState(false);
   const [showEditEventModal, setShowEditEventModal] = useState(false);
-  const [selectedTab, setSelectedTab] = useState("about"); // Default to 'about'
-  const { data: session } = useSession();
-  const router = useRouter();
-  const { addToast } = useToast();
 
-  // --- Data Fetching ---
+  // Fetch event data
   const fetchEvent = useCallback(async () => {
-    // Only set error null, don't reset loading on manual refetch
-    setFetchError(null);
     try {
+      setError(null);
       const response = await fetch(`/api/events/${id}`);
+
       if (!response.ok) {
-        if (response.status === 404) throw new Error("Event not found.");
-        throw new Error("Failed to fetch event details.");
+        if (response.status === 404) throw new Error("Event not found");
+        throw new Error("Failed to fetch event details");
       }
+
       const data = await response.json();
-      if (!Array.isArray(data.attendees)) data.attendees = [];
       setEvent(data);
-    } catch (error: unknown) {
-      console.error("Error fetching event:", error);
-      const message = error instanceof Error ? error.message : "Could not load event.";
-      setFetchError(message);
-      if (message !== "Event not found.") {
-          addToast({ title: "Error", description: message, variant: "destructive" });
-      }
+    } catch (err) {
+      console.error("Error fetching event:", err);
+      setError(err instanceof Error ? err.message : "An unknown error occurred");
     } finally {
-      // Only set loading false on initial load triggered by useEffect
-      // Manual refetches won't set isLoading back to false here
-    }
-  }, [id, addToast]); // Dependencies needed for useCallback
-
-  useEffect(() => {
-    if (id) {
-      setIsLoading(true); // Set loading true only when ID changes or on initial mount
-      fetchEvent().finally(() => {
-          // Ensure loading is set to false after the initial fetch completes
-          setIsLoading(false);
-      });
-    } else {
       setIsLoading(false);
-      setFetchError("Event ID is missing.");
     }
-  }, [id, fetchEvent]); // Rerun when id changes, fetchEvent is stable due to useCallback
+  }, [id]);
 
-  // --- Event Handlers ---
-   const handleDelete = async () => {
+  // Initial data load
+  useEffect(() => {
+    if (!id) {
+      setError("Event ID is missing");
+      setIsLoading(false);
+      return;
+    }
+
+    fetchEvent();
+  }, [id, fetchEvent]);
+
+  // Event handlers
+  const handleDelete = async () => {
     setIsDeleting(true);
     try {
       const response = await fetch(`/api/events/${id}`, { method: "DELETE" });
       if (!response.ok) throw new Error("Failed to delete event");
-      addToast({ title: "Success", description: "Event deleted successfully", variant: "success" });
+
+      addToast({
+        title: "Success",
+        description: "Event deleted successfully",
+      });
       router.push("/events");
-    } catch (error) {
-      console.error("Error deleting event:", error);
-      addToast({ title: "Error", description: "Failed to delete event", variant: "destructive" });
-      setShowDeleteDialog(false);
+    } catch (err) {
+      console.error("Error deleting event:", err);
+      addToast({
+        title: "Error",
+        description: "Failed to delete event",
+        variant: "destructive"
+      });
     } finally {
       setIsDeleting(false);
+      setShowDeleteDialog(false);
     }
   };
-  // Use fetchEvent directly for updates
-  const handleAttendeeUpdate = () => fetchEvent();
-  const handleEventUpdated = () => { setShowEditEventModal(false); fetchEvent(); };
 
-  // --- Derived State ---
-  const isHost = session?.user?.id === event?.hostId;
+  const handleRSVP = async (status: string) => {
+    if (!event || !session?.user?.id) return;
 
-  // Use temporary variables for safe date parsing
-  let eventDate: Date | null = null;
-  let eventStartDateTime: Date | null = null;
-  let eventEndTime: Date | null = null;
-  let isPastEvent = false;
-  let isActiveEvent = false;
+    try {
+      const response = await fetch(`/api/events/${id}/rsvp`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ rsvp: status }),
+      });
 
-  if (event?.date) {
-      try {
-          const parsedDate = parseISO(event.date);
-          if (isValid(parsedDate)) { // Check if date is valid
-              eventDate = parsedDate;
-              if(event.time) {
-                  const dateTimeString = `${event.date.substring(0, 10)}T${event.time}`;
-                  const parsedStartDateTime = new Date(dateTimeString); // Use native Date constructor
-                   if (isValid(parsedStartDateTime)) {
-                       eventStartDateTime = parsedStartDateTime;
-                       eventEndTime = addMinutes(eventStartDateTime, event.duration);
-                       isPastEvent = isPast(eventEndTime);
-                       isActiveEvent = isToday(eventDate) && !isPast(eventEndTime) && isPast(eventStartDateTime);
-                   }
-              }
-          }
-      } catch (e) {
-          console.error("Error parsing event date/time:", e);
-          // Keep dates as null if parsing fails
+      if (!response.ok) throw new Error("Failed to update RSVP status");
+
+      fetchEvent();
+      addToast({
+        title: "RSVP Updated",
+        description: `You're now ${status.toLowerCase()} to this event`,
+      });
+    } catch (err) {
+      console.error("Error updating RSVP:", err);
+      addToast({
+        title: "Error",
+        description: "Failed to update your RSVP status",
+        variant: "destructive",
+      });
+    }
+  };
+
+  // Format date helper
+  const formatEventDate = (dateStr: string): string => {
+    try {
+      const date = new Date(dateStr);
+      return format(date, "MMMM d, yyyy");
+    } catch (e) {
+      console.error("Error formatting date:", e);
+      return "Invalid date";
+    }
+  };
+
+  const formatEventTime = (timeStr: string): string => {
+    try {
+      return timeStr; // Already in HH:MM format
+    } catch (e) {
+      console.error("Error formatting time:", e);
+      return timeStr;
+    }
+  };
+
+  // Computed properties
+  const isHost = event?.hostId === session?.user?.id;
+  const isPastEvent = event ? new Date(event.endDate) < new Date() : false;
+  const isAttending = event?.attendees.some(a =>
+    a.userId === session?.user?.id && a.rsvp === "YES"
+  );
+
+  // Get current user's RSVP status
+  const getUserRsvp = (): 'YES' | 'MAYBE' | 'NO' | null => {
+    if (!event || !session?.user?.id) return null;
+
+    const userAttendance = event.attendees.find(a => a.userId === session.user.id);
+    return userAttendance?.rsvp as 'YES' | 'MAYBE' | 'NO' | null;
+  };
+
+  // Get background style
+  const getBackgroundStyle = () => {
+    if (event?.headerImageUrl) {
+      return {
+        backgroundImage: `url(${event.headerImageUrl})`,
+        backgroundSize: 'cover',
+        backgroundPosition: 'center',
+      };
+    } else if (event?.headerColor) {
+      return {
+        backgroundColor: event.headerColor,
+      };
+    }
+    return {
+      backgroundImage: 'linear-gradient(to right, #ff7e5f, #feb47b)',
+    };
+  };
+
+  // Add function to create and download an ICS file
+  const addToCalendar = () => {
+    if (!event) return;
+
+    try {
+      // Create proper date objects with correct parsing
+      const dateParts = event.date.split('-').map(part => parseInt(part, 10));
+      const timeParts = event.time.split(':').map(part => parseInt(part, 10));
+
+      // Create a valid date object (year, month (0-based), day, hours, minutes)
+      const eventDate = new Date(dateParts[0], dateParts[1] - 1, dateParts[2], timeParts[0], timeParts[1]);
+      const endTime = new Date(eventDate.getTime() + event.duration * 60000);
+
+      // Validate date objects
+      if (isNaN(eventDate.getTime()) || isNaN(endTime.getTime())) {
+        throw new Error("Invalid date or time format");
       }
-  }
 
-  const confirmedAttendees = event?.attendees?.filter(a => a.rsvp === "YES") ?? [];
-  const maybeAttendees = event?.attendees?.filter(a => a.rsvp === "MAYBE") ?? [];
+      const icsContent = [
+        'BEGIN:VCALENDAR',
+        'VERSION:2.0',
+        'CALSCALE:GREGORIAN',
+        'BEGIN:VEVENT',
+        `UID:${event.id}@meet-app`,
+        `SUMMARY:${event.name}`,
+        `DTSTART:${formatICSDate(eventDate)}`,
+        `DTEND:${formatICSDate(endTime)}`,
+        `LOCATION:${event.location}`,
+        event.description ? `DESCRIPTION:${event.description.replace(/\n/g, '\\n')}` : '',
+        `ORGANIZER;CN=${event.host.name || 'Event Host'}:MAILTO:noreply@example.com`,
+        'STATUS:CONFIRMED',
+        'SEQUENCE:0',
+        `DTSTAMP:${formatICSDate(new Date())}`,
+        'END:VEVENT',
+        'END:VCALENDAR'
+      ].filter(Boolean).join('\r\n');
 
-  // --- Render Logic ---
+      // Create and trigger download
+      const blob = new Blob([icsContent], { type: 'text/calendar;charset=utf-8' });
+      const link = document.createElement('a');
+      link.href = URL.createObjectURL(blob);
+      link.download = `${event.name.replace(/\s+/g, '-')}.ics`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
 
+      addToast({
+        title: "Added to Calendar",
+        description: "Calendar file downloaded successfully",
+      });
+    } catch (err) {
+      console.error("Error creating calendar event:", err);
+      addToast({
+        title: "Error",
+        description: "Failed to create calendar event",
+        variant: "destructive",
+      });
+    }
+  };
+
+  // Helper to format date for ICS file
+  const formatICSDate = (date: Date): string => {
+    const year = date.getFullYear();
+    const month = (date.getMonth() + 1).toString().padStart(2, '0');
+    const day = date.getDate().toString().padStart(2, '0');
+    const hours = date.getHours().toString().padStart(2, '0');
+    const minutes = date.getMinutes().toString().padStart(2, '0');
+    const seconds = date.getSeconds().toString().padStart(2, '0');
+
+    // Format: YYYYMMDDTHHMMSSZ
+    return `${year}${month}${day}T${hours}${minutes}${seconds}Z`;
+  };
+
+  // Loading state
   if (isLoading) return <EventPageSkeleton />;
 
-  if (fetchError) {
-    // Error State Card
+  // Error state
+  if (error) return <ErrorDisplay error={error} />;
+
+  // Missing data state
+  if (!event) {
     return (
-       <div className="container mx-auto px-4 py-10 pt-24 flex flex-col items-center justify-center min-h-[calc(100vh-10rem)]">
-         <Card className="w-full max-w-md p-6 text-center">
-           <AlertTriangle className="h-12 w-12 mx-auto mb-4 text-destructive" />
-           <h2 className="text-xl font-semibold mb-2 text-destructive">{fetchError === 'Event not found.' ? 'Event Not Found' : 'Error Loading Event'}</h2>
-           <p className="text-muted-foreground mb-6">{fetchError === 'Event not found.' ? "The event you're looking for doesn't exist or may have been removed." : "There was a problem loading the event data. Please try again later."}</p>
-           <Button onClick={() => router.back()} variant="outline"><ArrowLeft className="mr-2 h-4 w-4" /> Go Back</Button>
-         </Card>
-       </div>
-     );
+      <div className="min-h-screen flex items-center justify-center p-4">
+        <div className="text-center max-w-md">
+          <AlertTriangle className="h-12 w-12 mx-auto text-yellow-500 mb-4" />
+          <h2 className="text-xl font-semibold mb-2">Event Not Found</h2>
+          <p className="text-muted-foreground mb-6">The event you are looking for does not exist or may have been removed.</p>
+          <Button onClick={() => router.push("/events")} variant="default">
+            Go Back to Events
+          </Button>
+        </div>
+      </div>
+    );
   }
 
-  if (!event || !eventDate || !eventStartDateTime) {
-    // Fallback if data is invalid after loading without error
-     return ( <div className="flex flex-col justify-center items-center h-screen text-muted-foreground"><h2 className="text-2xl font-semibold">Event data unavailable or invalid</h2><Button onClick={() => router.push("/events")} className="mt-4">Back to Events</Button></div>);
-  }
-
-  // Generate Google Maps URL - Corrected
-   const mapQuery = event.lat && event.lng
-    ? `${event.lat},${event.lng}`
-    : encodeURIComponent(event.location);
-   // Use standard search query for text, or direct coordinates link
-   const mapUrl = event.lat && event.lng
-    ? `https://www.google.com/maps?q=$${mapQuery}` // Link for coordinates
-    : `https://www.google.com/maps/search/?api=1&query=${mapQuery}`; // Link for search term
-
+  // Render the event page
   return (
-    <motion.div
-        initial="hidden"
-        animate="visible"
-        variants={fadeIn}
-        className="min-h-screen flex flex-col bg-background" // Ensure background covers page
-    >
-      {/* Back Button - Positioned above header */}
-      <div className="container mx-auto px-4 pt-20 pb-3 z-20 relative"> {/* Increased z-index */}
-         {/* Apply text color based on header type for better contrast */}
+    <>
+      {/* Full-page background with blur effect */}
+      <div
+        className="fixed inset-0 w-full h-full bg-cover bg-center"
+        style={getBackgroundStyle()}
+      >
+        <div className="absolute inset-0 backdrop-blur-md bg-black/30" />
+      </div>
+
+      {/* Back button */}
+      <div className="fixed top-4 left-4 z-10">
         <Button
-            variant="ghost"
-            onClick={() => router.back()}
-            className={`flex items-center pl-0 hover:bg-transparent ${event.headerType === 'image' ? 'text-white/90 hover:text-white' : 'text-muted-foreground hover:text-foreground'}`}
+          variant="ghost"
+          onClick={() => router.back()}
+          className="bg-black/30 hover:bg-black/40 text-white"
         >
-          <ArrowLeft className="mr-2 h-4 w-4" /> Back
+          <ArrowLeft className="h-4 w-4 mr-2" /> Back
         </Button>
       </div>
 
-      {/* Custom Header - Either Image or Color */}
-      <div className="relative w-full h-[50vh] min-h-[400px]"> {/* Ensure header has height */}
-        {/* Header Background */}
-        <div className="absolute inset-0">
-            {event.headerType === "image" && event.headerImageUrl ? (
-              <>
-                <img
-                  src={event.headerImageUrl}
-                  alt={event.name}
-                  className="w-full h-full object-cover"
-                  onError={(e) => { e.currentTarget.style.display = 'none'; /* Hide img on error */ }}
-                />
-                 {/* Fallback color div in case image fails or is missing */}
-                 <div
-                    className="absolute inset-0 -z-10"
-                    style={{ backgroundColor: event.headerColor || "#14b8a6" /* Default Teal */ }}
-                 ></div>
-                {/* Gradient overlay for image */}
-                <div className="absolute inset-0 bg-gradient-to-b from-black/30 via-black/20 to-black/70"></div>
-              </>
-            ) : (
-              // Solid color background with subtle gradient
-              <div
-                className="h-full w-full"
-                style={{ backgroundColor: event.headerColor || "#14b8a6" /* Default Teal */ }}
-              >
-                <div className="absolute inset-0 bg-gradient-to-b from-black/10 via-transparent to-black/60"></div>
-              </div>
-            )}
-        </div>
-
-
-        {/* Content overlaid on header */}
-        <div className="relative container mx-auto px-4 pt-10 pb-16 md:pb-20 h-full flex flex-col text-white z-10"> {/* Adjusted padding */}
-          <div className="mt-auto space-y-3"> {/* Use space-y for consistent spacing */}
-            {/* Status Badge & Share Button */}
-            <div className="flex items-center justify-between">
-              <div>
-                {isPastEvent ? ( <Badge variant="secondary" className="bg-white/20 text-white backdrop-blur-sm">Past Event</Badge> )
-                : isActiveEvent ? ( <Badge className="bg-green-500 border-green-600 text-white shadow-sm animate-pulse backdrop-blur-sm">Happening Now</Badge> )
-                : ( <Badge className="bg-blue-500 border-blue-600 text-white shadow-sm backdrop-blur-sm">Upcoming</Badge> )}
-              </div>
-              <ShareEventButton eventId={event.id.toString()} eventName={event.name} size="sm" variant="outline" className="text-white border-white/30 hover:bg-white/10 backdrop-blur-sm" />
-            </div>
-
-            {/* Event Name */}
-            <h1 className="text-3xl md:text-5xl font-bold tracking-tight drop-shadow-md">{event.name}</h1>
+      {/* Main Content */}
+      <div className="flex min-h-screen items-center justify-center px-4 py-16 relative z-10">
+        <Card className="w-full max-w-3xl mx-auto rounded-xl overflow-hidden bg-black/70 backdrop-blur-md text-white border-0">
+          {/* Event Title */}
+          <div className="p-6 md:p-8 text-center">
+            <h1 className="text-4xl md:text-5xl font-bold tracking-tight mb-4">
+              {event.name}
+            </h1>
 
             {/* Host Info */}
-            <div className="flex items-center text-white/90">
-              <span className="mr-2">Hosted by</span>
-              <Link href={`/users/${event.host.id}`} className="flex items-center group">
-                <Avatar className="h-6 w-6 mr-1.5 border border-white/30 group-hover:border-white transition-colors">
-                  <AvatarImage src={event.host?.image || undefined} alt={event.host?.name ?? "Host"}/>
-                  <AvatarFallback className="text-xs bg-white/10">{event.host?.name?.[0]?.toUpperCase() || "H"}</AvatarFallback>
+            <div className="flex flex-col items-center justify-center mb-6">
+              <div className="text-sm uppercase tracking-wide opacity-80 mb-2">HOSTED BY</div>
+              <div className="flex items-center">
+                <Avatar className="h-12 w-12 border-2 border-white">
+                  <AvatarImage src={event.host.image || undefined} />
+                  <AvatarFallback>{event.host.name?.[0] || 'H'}</AvatarFallback>
                 </Avatar>
-                <span className="font-medium group-hover:text-white transition-colors">{event.host?.name || "Unknown"}</span>
-              </Link>
+                <div className="ml-3 text-left">
+                  <h3 className="text-xl font-medium">{event.host.name || 'Anonymous'}</h3>
+                  {isHost && (
+                    <div className="flex mt-2 gap-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setShowEditEventModal(true)}
+                        className="bg-transparent border-white/30 hover:bg-white/10 text-white"
+                      >
+                        <Edit className="h-3.5 w-3.5 mr-1" />
+                        Edit
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setShowDeleteDialog(true)}
+                        className="bg-transparent border-red-500/50 hover:bg-red-500/20 text-red-400"
+                      >
+                        <Trash2 className="h-3.5 w-3.5 mr-1" />
+                        Delete
+                      </Button>
+                    </div>
+                  )}
+                </div>
+              </div>
             </div>
 
-            {/* Key Details Overlay Box */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-4 py-4 px-5 backdrop-blur-md bg-black/40 dark:bg-black/50 rounded-lg max-w-2xl shadow-lg">
-              {/* Date */}
-              <div className="flex items-start">
-                <Calendar className="h-5 w-5 mr-3 text-teal-300 flex-shrink-0 mt-0.5" />
-                <div>
-                  <p className="text-sm text-white/70">Date</p>
-                  <p className="font-medium">{format(eventDate, 'EEEE, MMMM d, yyyy')}</p> {/* Ensure year is included */}
+            <hr className="border-white/20 my-6" />
+
+            {/* Event Details */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {/* Date & Time Block */}
+              <motion.div
+                className="flex items-center bg-white/10 hover:bg-white/20 backdrop-blur-md rounded-xl p-5 transition-all duration-200 shadow-sm group cursor-pointer"
+                whileHover={{ scale: 1.02, boxShadow: "0 10px 30px -15px rgba(0,0,0,0.3)" }}
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.3 }}
+              >
+                <div className="bg-white/20 rounded-full p-3 mr-4 group-hover:bg-white/30 transition-colors">
+                  <Calendar className="h-6 w-6 text-white flex-shrink-0" />
                 </div>
-              </div>
-              {/* Time & Duration */}
-              <div className="flex items-start">
-                <Clock className="h-5 w-5 mr-3 text-teal-300 flex-shrink-0 mt-0.5" />
-                <div>
-                  <p className="text-sm text-white/70">Time & Duration</p>
-                  <p className="font-medium">{event.time} ({event.duration} minutes)</p>
-                </div>
-              </div>
-              {/* Location */}
-              <div className="flex items-start">
-                <MapPin className="h-5 w-5 mr-3 text-teal-300 flex-shrink-0 mt-0.5" />
-                <div>
-                  <p className="text-sm text-white/70">Location</p>
-                  <a href={mapUrl} target="_blank" rel="noopener noreferrer" className="font-medium text-white hover:text-teal-300 flex items-center group">
-                    {event.location}
-                    <ExternalLink className="h-4 w-4 ml-1.5 opacity-70 group-hover:opacity-100 transition-opacity" />
-                  </a>
-                </div>
-              </div>
-              {/* Attendees Summary */}
-              <div className="flex items-start">
-                <Users className="h-5 w-5 mr-3 text-teal-300 flex-shrink-0 mt-0.5" />
-                <div>
-                  <p className="text-sm text-white/70">Attendees</p>
-                  <div className="font-medium flex items-center">
-                    <span className="mr-2">{confirmedAttendees.length} going</span>
-                    {maybeAttendees.length > 0 && (
-                      <span className="text-xs text-white/60">(+{maybeAttendees.length} maybe)</span>
-                    )}
+                <div className="text-left flex-1">
+                  <div className="text-lg sm:text-xl font-semibold text-white group-hover:text-white/90 transition-colors">{formatEventDate(event.date)}</div>
+                  <div className="flex items-center text-sm text-white/70">
+                    <Clock className="h-3.5 w-3.5 mr-1.5" />
+                    {formatEventTime(event.time)}
+                    {event.duration && <span className="ml-1">· {event.duration} min</span>}
                   </div>
                 </div>
+              </motion.div>
+
+              {/* Location Block */}
+              <motion.a
+                href={`https://maps.google.com/?q=${encodeURIComponent(event.location)}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center bg-white/10 hover:bg-white/20 backdrop-blur-md rounded-xl p-5 transition-all duration-200 shadow-sm group cursor-pointer"
+                whileHover={{ scale: 1.02, boxShadow: "0 10px 30px -15px rgba(0,0,0,0.3)" }}
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.3, delay: 0.1 }}
+              >
+                <div className="bg-white/20 rounded-full p-3 mr-4 group-hover:bg-white/30 transition-colors">
+                  <MapPin className="h-6 w-6 text-white flex-shrink-0" />
+                </div>
+                <div className="text-left overflow-hidden flex-1">
+                  <div className="text-lg sm:text-xl font-semibold text-white group-hover:text-white/90 transition-colors truncate max-w-full">{event.location}</div>
+                  <div className="flex items-center text-sm text-white/70 group-hover:text-white/80 transition-colors">
+                    <span>View on maps</span>
+                  </div>
+                </div>
+              </motion.a>
+            </div>
+
+            <hr className="border-white/20 my-6" />
+
+            {/* Attendees */}
+            <div className="mb-6">
+              <h3 className="text-sm uppercase tracking-wide opacity-80 mb-4">ATTENDEES</h3>
+
+              {/* Attendee Avatars */}
+              <div className="flex justify-center mb-4">
+                {event.attendees.filter(a => a.rsvp === "YES").slice(0, 5).map((attendee) => (
+                  <Avatar
+                    key={attendee.id}
+                    className="h-12 w-12 border-2 border-black/70 -ml-2 first:ml-0 cursor-pointer hover:scale-105 transition-transform"
+                    onClick={() => router.push(`/users/${attendee.userId}`)}
+                  >
+                    <AvatarImage src={attendee.user.image || undefined} />
+                    <AvatarFallback>{attendee.user.name?.[0] || '?'}</AvatarFallback>
+                  </Avatar>
+                ))}
+
+                {event.attendees.filter(a => a.rsvp === "YES").length > 5 && (
+                  <div className="h-12 w-12 rounded-full bg-white/20 -ml-2 flex items-center justify-center text-sm font-medium cursor-pointer hover:bg-white/30 transition-colors"
+                    onClick={() => setSelectedTab("attendees")}>
+                    +{event.attendees.filter(a => a.rsvp === "YES").length - 5}
+                  </div>
+                )}
               </div>
+
+              {/* RSVP Buttons */}
+              <div className="flex justify-center gap-2 flex-wrap">
+                <Button
+                  variant={getUserRsvp() === "YES" ? "default" : "outline"}
+                  className={getUserRsvp() === "YES"
+                    ? "bg-green-600 hover:bg-green-700"
+                    : "bg-transparent border-white/30 hover:bg-white/10 text-white"}
+                  onClick={() => handleRSVP("YES")}
+                >
+                  Going
+                </Button>
+                <Button
+                  variant={getUserRsvp() === "MAYBE" ? "default" : "outline"}
+                  className={getUserRsvp() === "MAYBE"
+                    ? "bg-amber-600 hover:bg-amber-700"
+                    : "bg-transparent border-white/30 hover:bg-white/10 text-white"}
+                  onClick={() => handleRSVP("MAYBE")}
+                >
+                  Maybe
+                </Button>
+                <Button
+                  variant={getUserRsvp() === "NO" ? "default" : "outline"}
+                  className={getUserRsvp() === "NO"
+                    ? "bg-red-600 hover:bg-red-700"
+                    : "bg-transparent border-white/30 hover:bg-white/10 text-white"}
+                  onClick={() => handleRSVP("NO")}
+                >
+                  Cant Go
+                </Button>
+              </div>
+            </div>
+
+            <hr className="border-white/20 my-6" />
+
+            {/* Action Buttons */}
+            <div className="flex justify-center gap-4">
+              <Button
+                variant="outline"
+                className="bg-transparent border-white/30 hover:bg-white/10 text-white"
+                onClick={addToCalendar}
+              >
+                <CalendarPlus className="h-4 w-4 mr-2" />
+                Add to Calendar
+              </Button>
+
+              <Button
+                variant="outline"
+                className="bg-transparent border-white/30 hover:bg-white/10 text-white"
+                onClick={() => {
+                  if (navigator.share) {
+                    navigator.share({
+                      title: event.name,
+                      text: `Check out this event: ${event.name}`,
+                      url: window.location.href,
+                    });
+                  } else {
+                    navigator.clipboard.writeText(window.location.href);
+                    addToast({
+                      title: "Link copied",
+                      description: "Event link copied to clipboard",
+                    });
+                  }
+                }}
+              >
+                <Share className="h-4 w-4 mr-2" />
+                Share
+              </Button>
+
+              {isHost && (
+                <Button
+                  variant="outline"
+                  className="bg-transparent border-white/30 hover:bg-white/10 text-white"
+                  onClick={() => setShowAddAttendeeModal(true)}
+                >
+                  <UserPlus className="h-4 w-4 mr-2" />
+                  Invite
+                </Button>
+              )}
             </div>
           </div>
-        </div>
 
-        {/* Curved Bottom Edge - Ensure background matches main content area */}
-        <div className="absolute bottom-0 left-0 right-0 h-12 bg-background z-10" style={{
-          clipPath: 'ellipse(70% 100% at 50% 100%)'
-        }}></div>
-      </div>
+          {/* Tabs for Extra Content */}
+          <Tabs value={selectedTab} onValueChange={setSelectedTab} className="p-6 pt-0">
+            {/* TabsList contains only the tab buttons/triggers */}
+            <TabsList className="bg-white/10">
+              <TabsTrigger
+                value="details"
+                className="data-[state=active]:bg-white/20 text-white"
+              >
+                Details
+              </TabsTrigger>
+              <TabsTrigger
+                value="attendees"
+                className="data-[state=active]:bg-white/20 text-white"
+              >
+                Attendees
+              </TabsTrigger>
+              <TabsTrigger
+                value="photos"
+                className="data-[state=active]:bg-white/20 text-white"
+              >
+                Photos
+              </TabsTrigger>
+            </TabsList>
 
-      {/* Main Content Below Header */}
-      <div className="container mx-auto px-4 py-6 flex-grow relative z-0"> {/* Ensure content is above background but below header curve */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 items-start">
-          {/* --- Main Content Area --- */}
-          <motion.div className="lg:col-span-2 space-y-6" variants={staggerContainer}>
-            {/* Tabs for Description and Attendees */}
-            <motion.div variants={fadeIn}>
-              <Tabs defaultValue="about" value={selectedTab} onValueChange={setSelectedTab} className="w-full">
-                <TabsList className="bg-muted/60 dark:bg-muted/30 p-1 mb-6 rounded-lg">
-                  <TabsTrigger 
-                    value="about" 
-                    className="data-[state=active]:bg-background data-[state=active]:shadow-sm rounded-md"
-                  >
-                    <Info className="mr-1.5 h-4 w-4"/> About
-                  </TabsTrigger>
-                  <TabsTrigger 
-                    value="attendees" 
-                    className="data-[state=active]:bg-background data-[state=active]:shadow-sm rounded-md"
-                  >
-                    <Users className="mr-1.5 h-4 w-4"/> Attendees ({confirmedAttendees.length})
-                  </TabsTrigger>
-                  <TabsTrigger 
-                    value="photos" 
-                    className="data-[state=active]:bg-background data-[state=active]:shadow-sm rounded-md"
-                  >
-                    <Camera className="mr-1.5 h-4 w-4"/> Photos
-                  </TabsTrigger>
-                </TabsList>
+            {/* TabsContent sections contain the actual content for each tab */}
+            <TabsContent value="details">
+              {event.description ? (
+                <p className="whitespace-pre-line text-white">{event.description}</p>
+              ) : (
+                <p className="opacity-60 text-white">No description provided.</p>
+              )}
+            </TabsContent>
 
-                <AnimatePresence mode="wait">
-                  <motion.div
-                    key={selectedTab}
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    exit={{ opacity: 0 }}
-                    transition={{ duration: 0.2 }} // Faster fade
-                  >
-                    {/* About Tab */}
-                    {selectedTab === "about" && (
-                      <TabsContent value="about" forceMount className="mt-0 focus-visible:outline-none focus-visible:ring-0">
-                        <Card className="border border-border/60 shadow-sm">
-                          <CardContent className="p-6 space-y-6">
-                            {/* Description */}
-                            {event.description ? (
-                              <div>
-                                <h2 className="text-lg font-semibold mb-2">About this event</h2>
-                                <p className="text-foreground/90 whitespace-pre-line leading-relaxed">{event.description}</p>
-                              </div>
-                            ) : (
-                              <p className="text-muted-foreground text-center py-4">No description provided.</p>
-                            )}
+            {/* Details Tab */}
+            {/* <TabsContent value="details" className="text-white mt-4">
+              <motion.div
+                variants={fadeIn}
+                initial="hidden"
+                animate="visible"
+              >
+                <h3 className="text-xl font-semibold mb-3">About This Event</h3>
+                {event.description ? (
+                  <p className="whitespace-pre-line">{event.description}</p>
+                ) : (
+                  <p className="opacity-60">No description provided.</p>
+                )}
 
-                            <Separator />
+                <div className="mt-6 pt-6 border-t border-white/20">
+                  <h3 className="text-xl font-semibold mb-3">Event Details</h3>
 
-                            {/* Action Buttons */}
-                            <div>
-                              <h3 className="text-md font-semibold mb-3">Actions</h3>
-                              <div className="flex flex-wrap gap-3">
-                                {event && <AddToCalendarButton
-                                  event={{
-                                    name: event.name,
-                                    description: event.description || '', // Provide fallback
-                                    date: event.date,
-                                    time: event.time,
-                                    duration: event.duration,
-                                    location: event.location
-                                  }}
-                                />}
-                                {/* Share button moved to header */}
-                                {isHost && (
-                                  <>
-                                    <Button variant="outline" size="sm" onClick={() => setShowEditEventModal(true)}>
-                                      <Edit className="mr-1.5 h-4 w-4" /> Edit
-                                    </Button>
-                                    <Button variant="outline" size="sm" onClick={() => setShowAddAttendeeModal(true)}>
-                                      <Users className="mr-1.5 h-4 w-4" /> Invite
-                                    </Button>
-                                    <Button variant="destructive" size="sm" onClick={() => setShowDeleteDialog(true)} disabled={isDeleting}>
-                                      {isDeleting ? <Loader2 className="mr-1.5 h-4 w-4 animate-spin" /> : <Trash2 className="mr-1.5 h-4 w-4" />}
-                                      Delete
-                                    </Button>
-                                  </>
-                                )}
-                              </div>
-                            </div>
-                          </CardContent>
-                        </Card>
-                      </TabsContent>
-                    )}
+                  <div className="grid grid-cols-1 gap-3">
+                    <div className="flex items-start">
+                      <Clock className="h-5 w-5 mr-3 text-white/80 mt-0.5" />
+                      <div>
+                        <p className="text-sm opacity-70">Duration</p>
+                        <p className="font-medium">{event.duration} minutes</p>
+                      </div>
+                    </div>
 
-                    {/* Attendees Tab */}
-                    {selectedTab === "attendees" && (
-                      <TabsContent value="attendees" forceMount className="mt-0 focus-visible:outline-none focus-visible:ring-0">
-                        <Card className="border border-border/60 shadow-sm">
-                          <CardContent className="p-6">
-                            <EventAttendees eventId={event.id} isHost={isHost} />
-                          </CardContent>
-                        </Card>
-                      </TabsContent>
-                    )}
-
-                    {/* Photos Tab */}
-                    {selectedTab === "photos" && (
-                      <TabsContent value="photos" forceMount className="mt-0 focus-visible:outline-none focus-visible:ring-0">
-                        <Card className="border border-border/60 shadow-sm">
-                          <CardContent className="p-6">
-                            <EventPhotoGallery 
-                              eventId={event.id} 
-                              isHost={isHost} 
-                              isPastEvent={isPastEvent} 
-                              isAttending={event.attendees.some(a => a.user.id === session?.user?.id && a.rsvp === "YES")}
-                            />
-                          </CardContent>
-                        </Card>
-                      </TabsContent>
-                    )}
-                  </motion.div>
-                </AnimatePresence>
-              </Tabs>
-            </motion.div>
-          </motion.div>
-
-          {/* --- Right Sidebar (Sticky) --- */}
-          <motion.div
-            variants={fadeIn}
-            transition={{ delay: 0.2 }} // Slight delay for sidebar entrance
-            className="space-y-6 lg:sticky lg:top-24" // Adjust top offset if needed
-          >
-            {/* RSVP Widget */}
-            <EventAttendance eventId={event.id} />
-
-            {/* Similar Events Placeholder */}
-            {!isPastEvent && (
-              <Card className="border border-border/60 shadow-sm">
-                <CardHeader>
-                  <CardTitle className="text-lg font-semibold flex items-center">
-                    <Calendar className="h-5 w-5 mr-2 text-primary" />
-                    Similar Events
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="text-sm text-muted-foreground text-center py-8">
-                    <p>Feature coming soon!</p>
+                    <div className="flex items-start">
+                      <MapPin className="h-5 w-5 mr-3 text-white/80 mt-0.5" />
+                      <div>
+                        <p className="text-sm opacity-70">Location</p>
+                        <p className="font-medium">{event.location}</p>
+                        <Button
+                          variant="link"
+                          className="p-0 h-auto text-sm mt-1 text-blue-400"
+                          onClick={() => {
+                            const mapUrl = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(event.location)}`;
+                            window.open(mapUrl, '_blank');
+                          }}
+                        >
+                          View Map
+                        </Button>
+                      </div>
+                    </div>
                   </div>
-                </CardContent>
-              </Card>
-            )}
-          </motion.div>
-        </div>
+                </div>
+              </motion.div>
+            </TabsContent> */}
+
+            {/* Attendees Tab */}
+            <TabsContent value="attendees" className="text-white mt-4">
+              <motion.div
+                variants={slideIn}
+                initial="hidden"
+                animate="visible"
+              >
+                <div className="flex gap-2 mb-4">
+                  <Badge className="bg-green-600 text-white">
+                    {event.attendees.filter(a => a.rsvp === "YES").length} Going
+                  </Badge>
+                  <Badge className="bg-amber-600 text-white">
+                    {event.attendees.filter(a => a.rsvp === "MAYBE").length} Maybe
+                  </Badge>
+                  <Badge className="bg-red-600 text-white">
+                    {event.attendees.filter(a => a.rsvp === "NO").length} Not Going
+                  </Badge>
+                </div>
+
+                {event.attendees.length === 0 ? (
+                  <div className="text-center py-8">
+                    <Users className="h-10 w-10 mx-auto mb-2 opacity-40" />
+                    <p className="opacity-70">No attendees yet.</p>
+                    <p className="text-sm opacity-50 mt-1">Be the first to RSVP!</p>
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    {event.attendees.map((attendee) => (
+                      <div
+                        key={attendee.id}
+                        className="flex items-center justify-between p-2 rounded-lg hover:bg-white/10 cursor-pointer"
+                        onClick={() => router.push(`/users/${attendee.userId}`)}
+                      >
+                        <div className="flex items-center gap-3">
+                          <Avatar className="h-10 w-10 border border-white/30">
+                            <AvatarImage src={attendee.user.image || undefined} />
+                            <AvatarFallback>{attendee.user.name?.[0] || '?'}</AvatarFallback>
+                          </Avatar>
+                          <div>
+                            <p className="font-medium">{attendee.user.name || 'Anonymous'}</p>
+                            {attendee.user.username && (
+                              <p className="text-sm opacity-70">@{attendee.user.username}</p>
+                            )}
+                          </div>
+                        </div>
+                        <Badge
+                          className={
+                            attendee.rsvp === "YES" ? "bg-green-600" :
+                              attendee.rsvp === "MAYBE" ? "bg-amber-600" :
+                                "bg-red-600"
+                          }
+                        >
+                          {attendee.rsvp === "YES" ? "Going" :
+                            attendee.rsvp === "MAYBE" ? "Maybe" : "Not Going"}
+                        </Badge>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {isHost && (
+                  <div className="mt-6 flex justify-center">
+                    <Button
+                      onClick={() => setShowAddAttendeeModal(true)}
+                      variant="outline"
+                      className="bg-transparent border-white/30 hover:bg-white/10 text-white"
+                    >
+                      <UserPlus className="h-4 w-4 mr-2" />
+                      Invite People
+                    </Button>
+                  </div>
+                )}
+              </motion.div>
+            </TabsContent>
+
+            {/* Photos Tab */}
+            <TabsContent value="photos" className="text-white mt-4">
+              <motion.div
+                variants={fadeIn}
+                initial="hidden"
+                animate="visible"
+              >
+                <EventPhotoGallery
+                  eventId={id}
+                  isHost={isHost}
+                  isPastEvent={isPastEvent}
+                  isAttending={isAttending || false}
+                />
+              </motion.div>
+            </TabsContent>
+          </Tabs>
+        </Card>
       </div>
 
-      {/* --- Modals & Dialogs --- */}
-      {showAddAttendeeModal && (
-        <AddAttendeeModal
-          isOpen={showAddAttendeeModal}
-          onClose={() => setShowAddAttendeeModal(false)}
-          eventId={event.id}
-          onAttendeeAdded={handleAttendeeUpdate}
-        />
-      )}
+      {/* Modals */}
+      <AddAttendeeModal
+        isOpen={showAddAttendeeModal}
+        onClose={() => setShowAddAttendeeModal(false)}
+        eventId={id}
+        onAttendeeAdded={fetchEvent}
+      />
 
-      {showEditEventModal && event && (
-        <EditEventModal
-          eventId={event.id}
-          onClose={() => setShowEditEventModal(false)}
-          onEventUpdated={handleEventUpdated}
-        />
-      )}
+      <EditEventModal
+        eventId={event.id}
+        isOpen={showEditEventModal}
+        onClose={() => setShowEditEventModal(false)}
+        onEventUpdated={fetchEvent}
+      />
 
       <AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Delete Event?</AlertDialogTitle>
+            <AlertDialogTitle>Delete Event</AlertDialogTitle>
             <AlertDialogDescription>
-              This action cannot be undone. This will permanently delete the event &quot;{event.name}&quot; and all associated data.
+              Are you sure you want to delete this event? This action cannot be undone.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
             <AlertDialogAction
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
               onClick={handleDelete}
-              className="bg-destructive hover:bg-destructive/90"
               disabled={isDeleting}
             >
-              {isDeleting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              Delete Event
+              {isDeleting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+              {isDeleting ? "Deleting..." : "Delete"}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-    </motion.div>
+    </>
   );
 }

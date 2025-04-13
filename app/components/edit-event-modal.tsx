@@ -8,11 +8,12 @@ import { useToast } from "./ui/use-toast"
 
 interface EditEventModalProps {
   eventId: string
+  isOpen: boolean
   onClose: () => void
   onEventUpdated: () => void
 }
 
-export function EditEventModal({ eventId, onClose, onEventUpdated }: EditEventModalProps) {
+export function EditEventModal({ eventId, isOpen, onClose, onEventUpdated }: EditEventModalProps) {
   const [eventName, setEventName] = useState("")
   const [eventDate, setEventDate] = useState("")
   const [eventTime, setEventTime] = useState("")
@@ -124,7 +125,7 @@ export function EditEventModal({ eventId, onClose, onEventUpdated }: EditEventMo
   }
 
   return (
-    <Dialog open={true} onOpenChange={onClose}>
+    <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent>
         <DialogHeader>
           <DialogTitle>Edit Event</DialogTitle>
