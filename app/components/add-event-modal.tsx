@@ -7,7 +7,7 @@ import { Textarea } from "../components/ui/textarea"
 import { Label } from "../components/ui/label"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "../components/ui/dialog"
 import { useToast } from "../components/ui/use-toast"
-import { Loader2, Image as ImageIcon, Palette, Check, ChevronLeft, ChevronRight, Calendar as CalendarIcon, Clock, MapPin, Users, CheckCircle2, Eye, EyeOff, Globe, Lock } from "lucide-react"
+import { Loader2, Image as ImageIcon, Palette, Check, ChevronLeft, ChevronRight, Calendar as CalendarIcon, Clock, MapPin, Users, Info, CheckCircle2, Eye, EyeOff, Globe, Lock } from "lucide-react"
 import { useSession } from "next-auth/react"
 import { Avatar, AvatarFallback, AvatarImage } from "../components/ui/avatar"
 import { Tabs, TabsList, TabsTrigger } from "../components/ui/tabs"
@@ -18,6 +18,7 @@ import { motion, AnimatePresence } from "framer-motion"
 import Map from "./map"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "../components/ui/tooltip"
 import Image from "next/image"
+import { cn } from "@/lib/utils"
 
 interface AddEventModalProps {
   isOpen: boolean
@@ -37,6 +38,8 @@ interface Friend {
 
 type Step = "basicInfo" | "location" | "customization" | "invitations" | "preview";
 
+// Define step metadata for better organization
+const STEPS: Array<{id: Step, label: string, icon: React.ReactNode, description: string}> = [];
 
 // Animation variants are defined but not used, removing to fix linter errors
 
