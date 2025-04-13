@@ -35,7 +35,19 @@ export async function POST(
     // Get event details for the notification
     const event = await prisma.event.findUnique({
       where: { id },
-      include: { host: true }
+      select: {
+        id: true,
+        name: true,
+        hostId: true,
+        host: {
+          select: {
+            id: true,
+            name: true,
+            username: true
+          }
+        },
+        privacyLevel: true
+      }
     });
 
     if (!event) {
@@ -53,6 +65,7 @@ export async function POST(
         userId: user.id,
         eventId: id,
         rsvp: 'PENDING',
+        inviteMethod: event.privacyLevel === "PRIVATE" ? "private_invite" : "direct",
       },
     });
 
@@ -63,6 +76,7 @@ export async function POST(
       attendeeId: attendee.id,
       targetUserId: user.id,
       hostName: event.host.name || event.host.username || 'The host',
+      privacyLevel: event.privacyLevel as "PUBLIC" | "FRIENDS_ONLY" | "PRIVATE",
     });
 
     return NextResponse.json({

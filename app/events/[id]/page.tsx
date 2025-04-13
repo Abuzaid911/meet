@@ -181,7 +181,7 @@ export default function EventPage() {
   }, [id, fetchEvent]);
 
   // Event handlers
-  const handleDelete = async () => {
+   const handleDelete = async () => {
     setIsDeleting(true);
     try {
       const response = await fetch(`/api/events/${id}`, { method: "DELETE" });
@@ -407,8 +407,8 @@ export default function EventPage() {
             Go Back to Events
           </Button>
         </div>
-      </div>
-    );
+       </div>
+     );
   }
 
   // Render the event page
@@ -456,23 +456,23 @@ export default function EventPage() {
                       <span className="mr-1">{icon}</span>
                       <span className="font-medium">{label}</span>
                       <span className="ml-2 text-xs opacity-75">{description}</span>
-                    </div>
+                 </div>
                   );
                 })()}
-              </div>
-              
+             </div>
+
               {/* Host info */}
               <div className="flex items-center gap-2 mb-4">
                 <Avatar className="h-8 w-8 border border-border">
                   <AvatarImage src={event.host.image || undefined} alt={event.host.name || "Host"} />
                   <AvatarFallback>{event.host.name?.[0] || "H"}</AvatarFallback>
-                </Avatar>
+                    </Avatar>
                 <div>
                   <div className="text-sm text-muted-foreground">Hosted by</div>
                   <div className="font-medium">{event.host.name || "Unknown Host"}</div>
                 </div>
-              </div>
-            </motion.div>
+             </div>
+          </motion.div>
 
             <hr className="border-white/20 my-4 sm:my-6" />
 
@@ -497,8 +497,8 @@ export default function EventPage() {
                       {formatEventTime(event.time)}
                       {event.duration && <span className="ml-1">· {event.duration} min</span>}
                     </span>
-                  </div>
-                </div>
+                        </div>
+                    </div>
               </motion.div>
 
               {/* Location Block */}
@@ -519,8 +519,8 @@ export default function EventPage() {
                   <div className="text-base sm:text-lg md:text-xl font-semibold text-white group-hover:text-white/90 transition-colors truncate max-w-full">{event.location}</div>
                   <div className="flex items-center text-xs sm:text-sm text-white/70 group-hover:text-white/80 transition-colors">
                     <span>View on maps</span>
-                  </div>
-                </div>
+                        </div>
+                    </div>
               </motion.a>
             </div>
 
@@ -583,8 +583,8 @@ export default function EventPage() {
                 >
                   Cant Go
                 </Button>
-              </div>
-            </div>
+                        </div>
+                    </div>
 
             <hr className="border-white/20 my-4 sm:my-6" />
 
@@ -635,8 +635,8 @@ export default function EventPage() {
                   Invite
                 </Button>
               )}
-            </div>
-          </div>
+                            </div>
+                        </div>
 
           {/* Tabs for Extra Content */}
           <Tabs value={selectedTab} onValueChange={setSelectedTab} className="p-4 sm:p-6 pt-0">
@@ -652,24 +652,24 @@ export default function EventPage() {
                 className="flex-1 data-[state=active]:bg-white/20 text-white text-xs sm:text-sm"
               >
                 Attendees
-              </TabsTrigger>
+                        </TabsTrigger>
               <TabsTrigger
                 value="photos"
                 className="flex-1 data-[state=active]:bg-white/20 text-white text-xs sm:text-sm"
               >
                 Photos
-              </TabsTrigger>
-            </TabsList>
+                        </TabsTrigger>
+                    </TabsList>
 
             {/* Details Tab */}
             <TabsContent value="details" className="text-white mt-4">
-              <motion.div
+                        <motion.div
                 variants={fadeIn}
                 initial="hidden"
                 animate="visible"
               >
                 <h3 className="text-lg sm:text-xl font-semibold mb-3">About This Event</h3>
-                {event.description ? (
+                                            {event.description ? (
                   <p className="whitespace-pre-line text-sm sm:text-base">{event.description}</p>
                 ) : (
                   <p className="opacity-60 text-sm sm:text-base">No description provided.</p>
@@ -720,9 +720,9 @@ export default function EventPage() {
                             <p className="font-medium text-sm sm:text-base truncate">{attendee.user.name || 'Anonymous'}</p>
                             {attendee.user.username && (
                               <p className="text-xs opacity-70 truncate">@{attendee.user.username}</p>
-                            )}
-                          </div>
-                        </div>
+                                                    )}
+                                                </div>
+                                            </div>
                         <Badge
                           className={
                             attendee.rsvp === "YES" ? "bg-green-600" :
@@ -752,14 +752,14 @@ export default function EventPage() {
                       Invite People
                     </Button>
                   </div>
-                )}
-              </motion.div>
+                            )}
+                        </motion.div>
             </TabsContent>
 
             {/* Photos Tab */}
             <TabsContent value="photos" className="text-white mt-4">
-              <motion.div
-                variants={fadeIn}
+        <motion.div
+            variants={fadeIn}
                 initial="hidden"
                 animate="visible"
               >
@@ -772,7 +772,7 @@ export default function EventPage() {
               </motion.div>
             </TabsContent>
           </Tabs>
-        </Card>
+            </Card>
       </div>
 
       {/* Modals */}

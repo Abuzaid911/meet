@@ -4,6 +4,7 @@ import { getServerSession } from "next-auth/next"
 import { authOptions } from "@/lib/auth"
 import { prisma } from "@/lib/prisma"
 import { z } from "zod"
+import { createEventInvitationNotification } from "@/lib/notification-service"
 // Cloudflare R2 utilities are dynamically imported when needed
 
 // Enhanced schema validation for event creation
@@ -306,25 +307,49 @@ export async function POST(request: Request) {
         const friendships = await prisma.user.findUnique({
           where: { id: session.user.id },
           select: {
+            id: true,
+            name: true,
+            username: true,
             friends: {
               where: { id: { in: inviteFriends } },
+              select: { 
+                id: true,
+                name: true
+              },
             },
           },
         })
 
         if (friendships?.friends) {
           // Create attendee records for each friend with PENDING status
-          await Promise.all(
-            friendships.friends.map((friend) =>
-              prisma.attendee.create({
+          const attendeeCreations = await Promise.all(
+            friendships.friends.map(async (friend) => {
+              // Create the attendee record first
+              const attendee = await prisma.attendee.create({
                 data: {
                   userId: friend.id,
                   eventId: event.id,
                   rsvp: "PENDING",
+                  inviteMethod: privacyLevel === "PRIVATE" ? "private_invite" : "direct",
                 },
-              })
-            )
-          )
+              });
+              
+              // Send notification using the notification service
+              await createEventInvitationNotification({
+                eventId: event.id,
+                eventName: event.name,
+                attendeeId: attendee.id,
+                targetUserId: friend.id,
+                hostName: friendships.name || friendships.username || "The host",
+                privacyLevel: privacyLevel as "PUBLIC" | "FRIENDS_ONLY" | "PRIVATE",
+              });
+              
+              return attendee;
+            })
+          );
+          
+          // Log success
+          console.log(`Created ${attendeeCreations.length} attendee records with notifications`);
         }
       }
 

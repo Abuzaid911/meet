@@ -195,6 +195,7 @@ enum NotificationSourceType {
   COMMENT
   MENTION
   SYSTEM
+  PRIVATE_INVITATION
 }
 
 model Notification {

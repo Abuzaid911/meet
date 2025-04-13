@@ -182,20 +182,43 @@ export async function createEventInvitationNotification({
   attendeeId,
   targetUserId,
   hostName,
+  privacyLevel = "PUBLIC",
 }: {
   eventId: string;
   eventName: string;
   attendeeId: string;
   targetUserId: string;
   hostName: string;
+  privacyLevel?: "PUBLIC" | "FRIENDS_ONLY" | "PRIVATE";
 }) {
+  // Set message based on privacy level
+  let message = "";
+  let priority: 1 | 2 | 3 = 1;
+  let sourceType: NotificationSourceType = "ATTENDEE";
+
+  switch (privacyLevel) {
+    case "PRIVATE":
+      message = `${hostName} invited you to their private event: ${eventName}`;
+      priority = 2; // Higher priority for private invitations
+      sourceType = "PRIVATE_INVITATION";
+      break;
+    case "FRIENDS_ONLY":
+      message = `${hostName} invited you to a friends-only event: ${eventName}`;
+      priority = 2; // Medium priority
+      break;
+    case "PUBLIC":
+    default:
+      message = `${hostName} invited you to an event: ${eventName}`;
+      priority = 1; // Standard priority
+  }
+
   return createNotification({
-    message: `${hostName} invited you to ${eventName}`,
+    message,
     link: `/events/${eventId}`,
-    sourceType: 'ATTENDEE',
+    sourceType,
     targetUserId,
     attendeeId,
-    priority: 2, // Event invitations are medium priority
+    priority,
   });
 }
 
