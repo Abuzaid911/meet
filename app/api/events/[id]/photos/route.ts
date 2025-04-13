@@ -15,40 +15,55 @@ export async function GET(request: Request) {
     const parts = pathname.split('/');
     const eventId = parts[parts.indexOf('events') + 1];
 
+    console.log(`Fetching photos for event: ${eventId}`);
+
     if (!eventId) {
+      console.log('Missing event ID in request');
       return NextResponse.json({ error: "Missing event ID" }, { status: 400 });
     }
 
     // Check if event exists
+    console.log('Looking up event in database');
     const event = await prisma.event.findUnique({
       where: { id: eventId },
     });
 
     if (!event) {
+      console.log(`Event not found: ${eventId}`);
       return NextResponse.json({ error: "Event not found" }, { status: 404 });
     }
 
     // Fetch photos for this event
-    const photos = await prisma.eventPhoto.findMany({
-      where: { eventId },
-      include: {
-        user: {
-          select: {
-            id: true,
-            name: true,
-            image: true,
-            username: true,
+    console.log(`Event found, fetching photos for: ${eventId}`);
+    try {
+      const photos = await prisma.eventPhoto.findMany({
+        where: { eventId },
+        include: {
+          user: {
+            select: {
+              id: true,
+              name: true,
+              image: true,
+              username: true,
+            },
           },
         },
-      },
-      orderBy: { uploadedAt: "desc" },
-    });
-
-    return NextResponse.json(photos);
+        orderBy: { uploadedAt: "desc" },
+      });
+      
+      console.log(`Found ${photos.length} photos for event ${eventId}`);
+      return NextResponse.json(photos);
+    } catch (dbError) {
+      console.error("Database error fetching photos:", dbError);
+      return NextResponse.json(
+        { error: "Database error fetching photos", details: dbError instanceof Error ? dbError.message : String(dbError) },
+        { status: 500 }
+      );
+    }
   } catch (error) {
     console.error("Error fetching event photos:", error);
     return NextResponse.json(
-      { error: "Failed to fetch photos" },
+      { error: "Failed to fetch photos", details: error instanceof Error ? error.message : String(error) },
       { status: 500 }
     );
   }
