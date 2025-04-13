@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { Avatar, AvatarFallback, AvatarImage } from '@/app/components/ui/avatar';
 import { Button } from '@/app/components/ui/button';
 import { Badge } from '@/app/components/ui/badge';
-import { CalendarIcon, MapPin, Share2, Users, ExternalLink } from 'lucide-react';
+import { CalendarIcon, MapPin, Share2, Users, ExternalLink, Globe, Lock, UserCircle } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { cn } from '@/lib/utils';
 
@@ -21,6 +21,7 @@ interface EventCardProps {
   backgroundImage?: string | null; // Allow null
   currentRsvp?: 'YES' | 'MAYBE' | 'NO' | null;
   attendeeCount?: number; // Optional attendee count
+  privacyLevel?: string; // "PUBLIC", "FRIENDS_ONLY", or "PRIVATE"
   // Callbacks should ideally pass eventId and the new status
   onRSVP?: (eventId: string, status: 'YES' | 'MAYBE' | 'NO') => void;
   onAddToCalendar?: (eventId: string) => void;
@@ -40,6 +41,7 @@ export default function EventCard({
   backgroundImage,
   currentRsvp,
   attendeeCount,
+  privacyLevel = "PUBLIC",
   onRSVP,
   onAddToCalendar,
   onShare
@@ -94,6 +96,33 @@ export default function EventCard({
         : "You can't attend";
   };
 
+  // Get privacy display elements
+  const getPrivacyDetails = () => {
+    switch (privacyLevel) {
+      case "PRIVATE":
+        return {
+          icon: <Lock className="h-4 w-4 text-white" />,
+          label: "Private Event",
+          bgColor: "bg-red-500/70"
+        };
+      case "FRIENDS_ONLY":
+        return {
+          icon: <UserCircle className="h-4 w-4 text-white" />,
+          label: "Friends Only",
+          bgColor: "bg-blue-500/70"
+        };
+      case "PUBLIC":
+      default:
+        return {
+          icon: <Globe className="h-4 w-4 text-white" />,
+          label: "Public Event",
+          bgColor: "bg-green-500/70"
+        };
+    }
+  };
+
+  const { icon, label, bgColor } = getPrivacyDetails();
+
   return (
     <motion.div
       initial={{ opacity: 0, y: 20 }}
@@ -103,6 +132,15 @@ export default function EventCard({
     >
       {/* Overlay for text contrast */}
       <div className="bg-black/40 backdrop-blur-[2px] p-5 sm:p-6 text-white">
+        {/* Privacy Level Badge */}
+        <div className={cn(
+          "absolute top-4 left-4 rounded-full px-3 py-1 text-xs font-medium shadow-md flex items-center space-x-1",
+          bgColor
+        )}>
+          {icon}
+          <span>{label}</span>
+        </div>
+
         {/* RSVP Status Badge - Only show if user has RSVP'd */}
         {userRsvp && (
           <div className={cn(
@@ -120,7 +158,7 @@ export default function EventCard({
           initial={{ opacity: 0 }} 
           animate={{ opacity: 1 }} 
           transition={{ delay: 0.1 }}
-          className="flex justify-between items-center mb-4"
+          className="flex justify-between items-center mb-4 mt-8"
         >
           <Link href={`/profile/${hostName}`} className="flex items-center gap-2 group min-w-0">
             <Avatar className="h-8 w-8 sm:h-9 sm:w-9 border border-white/20 group-hover:border-white transition-colors">

@@ -32,8 +32,6 @@ import { EventPhotoGallery } from "@/app/components/event-photos";
 // Icons
 import {
   Loader2,
-  Trash2,
-  Edit,
   ArrowLeft,
   AlertTriangle,
   Calendar,
@@ -43,6 +41,9 @@ import {
   Share,
   CalendarPlus,
   UserPlus,
+  Globe,
+  Lock,
+  UserCircle,
 } from "lucide-react";
 
 // Utilities
@@ -97,6 +98,7 @@ interface Event {
   headerColor?: string;
   headerImageUrl?: string;
   endDate: string;
+  privacyLevel?: string; // "PUBLIC", "FRIENDS_ONLY", or "PRIVATE"
 }
 
 // Skeleton components
@@ -356,6 +358,37 @@ export default function EventPage() {
     return `${year}${month}${day}T${hours}${minutes}${seconds}Z`;
   };
 
+  // Get privacy display elements
+  const getPrivacyDetails = (privacyLevel: string = "PUBLIC") => {
+    switch (privacyLevel) {
+      case "PRIVATE":
+        return {
+          icon: <Lock className="h-4 w-4" />,
+          label: "Private Event",
+          description: "Only invited guests can view and attend",
+          color: "text-red-500",
+          bgColor: "bg-red-100"
+        };
+      case "FRIENDS_ONLY":
+        return {
+          icon: <UserCircle className="h-4 w-4" />,
+          label: "Friends Only",
+          description: "Visible to your friends network",
+          color: "text-blue-500",
+          bgColor: "bg-blue-100"
+        };
+      case "PUBLIC":
+      default:
+        return {
+          icon: <Globe className="h-4 w-4" />,
+          label: "Public Event",
+          description: "Visible to everyone on the platform",
+          color: "text-green-500",
+          bgColor: "bg-green-100"
+        };
+    }
+  };
+
   // Loading state
   if (isLoading) return <EventPageSkeleton />;
 
@@ -405,45 +438,41 @@ export default function EventPage() {
         <Card className="w-full max-w-3xl mx-auto rounded-xl overflow-hidden bg-black/70 backdrop-blur-md text-white border-0">
           {/* Event Title */}
           <div className="p-4 sm:p-6 md:p-8 text-center">
-            <h1 className="text-2xl sm:text-4xl md:text-5xl font-bold tracking-tight mb-4 break-words">
-              {event.name}
-            </h1>
-
-            {/* Host Info */}
-            <div className="flex flex-col items-center justify-center mb-4 sm:mb-6">
-              <div className="text-xs sm:text-sm uppercase tracking-wide opacity-80 mb-2">HOSTED BY</div>
-              <div className="flex items-center">
-                <Avatar className="h-10 w-10 sm:h-12 sm:w-12 border-2 border-white">
-                  <AvatarImage src={event.host.image || undefined} />
-                  <AvatarFallback>{event.host.name?.[0] || 'H'}</AvatarFallback>
-                </Avatar>
-                <div className="ml-3 text-left">
-                  <h3 className="text-lg sm:text-xl font-medium">{event.host.name || 'Anonymous'}</h3>
-                  {isHost && (
-                    <div className="flex mt-2 gap-1 sm:gap-2">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => setShowEditEventModal(true)}
-                        className="bg-transparent border-white/30 hover:bg-white/10 text-white text-xs sm:text-sm h-7 sm:h-8"
-                      >
-                        <Edit className="h-3 w-3 sm:h-3.5 sm:w-3.5 mr-1" />
-                        Edit
-                      </Button>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => setShowDeleteDialog(true)}
-                        className="bg-transparent border-red-500/50 hover:bg-red-500/20 text-red-400 text-xs sm:text-sm h-7 sm:h-8"
-                      >
-                        <Trash2 className="h-3 w-3 sm:h-3.5 sm:w-3.5 mr-1" />
-                        Delete
-                      </Button>
+            <motion.div 
+              variants={fadeIn} 
+              initial="hidden" 
+              animate="visible"
+              className="mb-8"
+            >
+              {/* Event name */}
+              <h1 className="text-3xl font-bold mb-2">{event.name}</h1>
+              
+              {/* Privacy Badge */}
+              <div className="mb-6">
+                {(() => {
+                  const { icon, label, description, color, bgColor } = getPrivacyDetails(event.privacyLevel);
+                  return (
+                    <div className={`inline-flex items-center px-3 py-1 rounded-full text-sm ${color} ${bgColor}`}>
+                      <span className="mr-1">{icon}</span>
+                      <span className="font-medium">{label}</span>
+                      <span className="ml-2 text-xs opacity-75">{description}</span>
                     </div>
-                  )}
+                  );
+                })()}
+              </div>
+              
+              {/* Host info */}
+              <div className="flex items-center gap-2 mb-4">
+                <Avatar className="h-8 w-8 border border-border">
+                  <AvatarImage src={event.host.image || undefined} alt={event.host.name || "Host"} />
+                  <AvatarFallback>{event.host.name?.[0] || "H"}</AvatarFallback>
+                </Avatar>
+                <div>
+                  <div className="text-sm text-muted-foreground">Hosted by</div>
+                  <div className="font-medium">{event.host.name || "Unknown Host"}</div>
                 </div>
               </div>
-            </div>
+            </motion.div>
 
             <hr className="border-white/20 my-4 sm:my-6" />
 

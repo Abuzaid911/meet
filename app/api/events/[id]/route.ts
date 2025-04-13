@@ -18,6 +18,10 @@ export async function GET(
   context: { params: Promise<{ id: string }> }
 ): Promise<NextResponse> {
   try {
+    // Get the current user's session
+    const session = await getServerSession(authOptions);
+    const currentUserId = session?.user?.id;
+
     // Await the params to extract the 'id'
     const { id } = await context.params;
 
@@ -31,6 +35,7 @@ export async function GET(
             id: true,
             name: true,
             image: true,
+            username: true,
           },
         },
       },
@@ -38,6 +43,44 @@ export async function GET(
 
     if (!event) {
       return NextResponse.json({ error: 'Event not found' }, { status: 404 });
+    }
+
+    // Check if the user has permission to view this event
+    // Allow if user is the host or if the event is public
+    if (!currentUserId) {
+      // If not logged in, only allow viewing public events
+      if (event.privacyLevel !== "PUBLIC") {
+        return NextResponse.json({ error: 'You must be logged in to view this event' }, { status: 401 });
+      }
+    } else if (event.hostId !== currentUserId) {
+      // Check privacy level if user is not the host
+      if (event.privacyLevel === "PRIVATE") {
+        // For private events, check if user is invited
+        const isInvited = event.attendees.some(attendee => attendee.user.id === currentUserId);
+        if (!isInvited) {
+          return NextResponse.json({ error: 'You do not have permission to view this private event' }, { status: 403 });
+        }
+      } else if (event.privacyLevel === "FRIENDS_ONLY") {
+        // For friends-only events, check if user is a friend of the host
+        const hostUser = await prisma.user.findUnique({
+          where: { id: event.hostId },
+          include: {
+            friends: {
+              where: { id: currentUserId },
+              select: { id: true }
+            }
+          }
+        });
+        
+        const isFriend = hostUser?.friends.some(friend => friend.id === currentUserId) || false;
+        
+        // Allow if user is invited or is a friend
+        const isInvited = event.attendees.some(attendee => attendee.user.id === currentUserId);
+        
+        if (!isFriend && !isInvited) {
+          return NextResponse.json({ error: 'This event is only visible to friends of the host' }, { status: 403 });
+        }
+      }
     }
 
     return NextResponse.json(event);
@@ -221,6 +264,7 @@ export async function PUT(
     const headerType = formData.get('headerType') as 'color' | 'image';
     const headerColor = headerType === 'color' ? formData.get('headerColor') as string : undefined;
     const headerImage = headerType === 'image' ? formData.get('headerImage') : null;
+    const privacyLevel = formData.get('privacyLevel') as string || 'PUBLIC';
     
     // First check if the user is the event host and get current event data
     const event = await prisma.event.findUnique({
@@ -228,7 +272,8 @@ export async function PUT(
       select: { 
         hostId: true,
         headerType: true,
-        headerImageUrl: true 
+        headerImageUrl: true,
+        privacyLevel: true
       },
     });
 
@@ -243,6 +288,9 @@ export async function PUT(
       );
     }
 
+    // Track if privacy level has changed
+    const privacyChanged = event.privacyLevel !== privacyLevel;
+    
     // Prepare update data
     const updateData: {
       name: string;
@@ -251,23 +299,48 @@ export async function PUT(
       location: string;
       description?: string;
       duration: number;
-      headerType: 'color' | 'image';
       headerColor?: string;
-      headerImageUrl?: string | null;
+      headerType?: string;
+      headerImageUrl?: string;
+      privacyLevel: string;
+      privacyChanged?: Date;
     } = {
       name,
-      date: date ? new Date(date) : undefined,
       time,
       location,
       description,
       duration,
-      headerType
+      privacyLevel,
     };
+    
+    // Add date if valid
+    if (date) {
+      try {
+        updateData.date = new Date(date);
+      } catch {
+        // Ignore the error variable since we're not using it
+        return NextResponse.json({ error: "Invalid date format" }, { status: 400 });
+      }
+    }
+
+    // Add privacy changed timestamp if privacy level changed
+    if (privacyChanged) {
+      updateData.privacyChanged = new Date();
+      
+      // If going from more private to more public, send notifications to newly eligible users
+      if (
+        (event.privacyLevel === 'PRIVATE' && (privacyLevel === 'FRIENDS_ONLY' || privacyLevel === 'PUBLIC')) ||
+        (event.privacyLevel === 'FRIENDS_ONLY' && privacyLevel === 'PUBLIC')
+      ) {
+        // We'll implement the notification logic here later
+        console.log('Privacy level upgraded, should notify users');
+      }
+    }
     
     // Handle header color if needed
     if (headerType === 'color') {
       updateData.headerColor = headerColor;
-      updateData.headerImageUrl = null; // Clear image URL when switching to color
+      updateData.headerImageUrl = undefined; // Clear image URL when switching to color
     }
 
     // Process new header image if provided
@@ -323,7 +396,7 @@ export async function PUT(
 
     return NextResponse.json(updatedEvent);
   } catch (error) {
-    console.error("Error updating event:", error);
+    console.error('Error updating event:', error);
     return NextResponse.json({ error: "Error updating event" }, { status: 500 });
   }
 }

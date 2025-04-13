@@ -95,6 +95,10 @@ model Event {
   // New fields for enhanced data collection
   category          String?           // Type of event (party, meeting, etc.)
   tags              String[]          // Array of tags describing the event
+  // Privacy settings
+  privacyLevel      String            @default("PUBLIC") // "PUBLIC", "FRIENDS_ONLY", "PRIVATE"
+  privacyChanged    DateTime?         // Track when privacy setting was last changed
+  // Legacy field - to be removed after migration
   isPrivate         Boolean           @default(false)
   viewCount         Int               @default(0)  // Track event page views
   shareCount        Int               @default(0)  // Track how often shared

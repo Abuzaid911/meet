@@ -8,6 +8,7 @@ export async function GET() {
         date: {
           gte: new Date(),
         },
+        privacyLevel: "PUBLIC" // Only show public events
       },
       orderBy: {
         date: 'asc',

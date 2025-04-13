@@ -7,7 +7,7 @@ import { Textarea } from "../components/ui/textarea"
 import { Label } from "../components/ui/label"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "../components/ui/dialog"
 import { useToast } from "../components/ui/use-toast"
-import { Loader2, Image as ImageIcon, Palette, Check, ChevronLeft, ChevronRight, Calendar as CalendarIcon, Clock, MapPin, Users, Info, CheckCircle2, Eye, EyeOff } from "lucide-react"
+import { Loader2, Image as ImageIcon, Palette, Check, ChevronLeft, ChevronRight, Calendar as CalendarIcon, Clock, MapPin, Users, Info, CheckCircle2, Eye, EyeOff, Globe, Lock } from "lucide-react"
 import { useSession } from "next-auth/react"
 import { Avatar, AvatarFallback, AvatarImage } from "../components/ui/avatar"
 import { Tabs, TabsList, TabsTrigger } from "../components/ui/tabs"
@@ -26,7 +26,7 @@ interface AddEventModalProps {
   initialDate?: Date
 }
 
-type PrivacyOption = "public" | "private" | "friends";
+type PrivacyOption = "PUBLIC" | "FRIENDS_ONLY" | "PRIVATE";
 
 interface Friend {
   id: string
@@ -83,7 +83,7 @@ export function AddEventModal({ isOpen, onClose, onEventAdded, initialDate }: Ad
   const [eventLocation, setEventLocation] = useState("")
   const [locationCoords, setLocationCoords] = useState<{ lat: number; lng: number } | null>(null)
   const [eventDescription, setEventDescription] = useState("")
-  const [privacyOption, setPrivacyOption] = useState<PrivacyOption>("public")
+  const [privacyOption, setPrivacyOption] = useState<PrivacyOption>("PUBLIC")
   const [headerType, setHeaderType] = useState<"color" | "image">("color")
   const [headerColor, setHeaderColor] = useState("#10b981") // Default teal color
   const [headerImage, setHeaderImage] = useState<File | null>(null)
@@ -151,7 +151,7 @@ export function AddEventModal({ isOpen, onClose, onEventAdded, initialDate }: Ad
         if (headerType === "image" && !headerImage) newErrors.headerImage = "Please upload an image";
         break;
       case "invitations":
-        if (privacyOption === "private" && selectedFriends.length === 0) {
+        if (privacyOption === "PRIVATE" && selectedFriends.length === 0) {
           newErrors.invitations = "Please select at least one person to invite to your private event";
         }
         break;
@@ -219,7 +219,7 @@ export function AddEventModal({ isOpen, onClose, onEventAdded, initialDate }: Ad
       formData.append("lat", locationCoords?.lat !== undefined ? locationCoords.lat.toString() : "0");
       formData.append("lng", locationCoords?.lng !== undefined ? locationCoords.lng.toString() : "0");
       formData.append("description", eventDescription);
-      formData.append("privacyOption", privacyOption);
+      formData.append("privacyLevel", privacyOption);
       formData.append("duration", String(calculateDuration()));
       formData.append("headerType", headerType);
       
@@ -343,7 +343,7 @@ export function AddEventModal({ isOpen, onClose, onEventAdded, initialDate }: Ad
         isComplete = headerType === "color" ? Boolean(headerColor) : Boolean(headerImage);
         break;
       case "invitations":
-        isComplete = privacyOption !== "private" || selectedFriends.length > 0;
+        isComplete = privacyOption !== "PRIVATE" || selectedFriends.length > 0;
         break;
       case "preview":
         isComplete = true; // Always complete
@@ -672,54 +672,85 @@ export function AddEventModal({ isOpen, onClose, onEventAdded, initialDate }: Ad
                 <Label className="text-base font-medium">
                   Privacy <span className="text-red-500 ml-1">*</span>
                 </Label>
-                <p className="text-sm text-muted-foreground mb-2">
-                  Choose who can see your event
+                <p className="text-sm text-muted-foreground mb-3">
+                  Choose who can see and interact with your event
                 </p>
 
-                <div className="flex flex-col space-y-2">
-                  <div className="flex items-center space-x-2">
-                    <input
-                      type="radio"
-                      id="privacy-public"
-                      name="privacy"
-                      value="public"
-                      checked={privacyOption === "public"}
-                      onChange={() => setPrivacyOption("public")}
-                      className="h-4 w-4 text-primary"
-                    />
-                    <Label htmlFor="privacy-public" className="text-sm cursor-pointer">
-                      <span className="font-medium">Public</span> - Everyone on the app can see it
-                    </Label>
+                <div className="flex flex-col space-y-4">
+                  <div className="flex items-start space-x-3 p-3 border rounded-lg hover:bg-slate-50 transition-colors cursor-pointer" onClick={() => setPrivacyOption("PUBLIC")}>
+                    <div className="mt-0.5">
+                      <input
+                        type="radio"
+                        id="privacy-public"
+                        name="privacy"
+                        value="PUBLIC"
+                        checked={privacyOption === "PUBLIC"}
+                        onChange={() => setPrivacyOption("PUBLIC")}
+                        className="h-4 w-4 text-primary"
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="privacy-public" className="text-sm cursor-pointer">
+                        <span className="font-medium flex items-center">
+                          <Globe className="h-4 w-4 mr-2 text-green-500" />
+                          Public
+                          <Badge className="ml-2 bg-green-100 text-green-800 hover:bg-green-100">Recommended</Badge>
+                        </span>
+                      </Label>
+                      <p className="text-xs text-muted-foreground mt-1">
+                        Everyone on the app can discover your event. Great for building community and meeting new people. Your event will appear in the explore feed and search results.
+                      </p>
+                    </div>
                   </div>
 
-                  <div className="flex items-center space-x-2">
-                    <input
-                      type="radio"
-                      id="privacy-friends"
-                      name="privacy"
-                      value="friends"
-                      checked={privacyOption === "friends"}
-                      onChange={() => setPrivacyOption("friends")}
-                      className="h-4 w-4 text-primary"
-                    />
-                    <Label htmlFor="privacy-friends" className="text-sm cursor-pointer">
-                      <span className="font-medium">Only Friends</span> - Only your friends can see it
-                    </Label>
+                  <div className="flex items-start space-x-3 p-3 border rounded-lg hover:bg-slate-50 transition-colors cursor-pointer" onClick={() => setPrivacyOption("FRIENDS_ONLY")}>
+                    <div className="mt-0.5">
+                      <input
+                        type="radio"
+                        id="privacy-friends"
+                        name="privacy"
+                        value="FRIENDS_ONLY"
+                        checked={privacyOption === "FRIENDS_ONLY"}
+                        onChange={() => setPrivacyOption("FRIENDS_ONLY")}
+                        className="h-4 w-4 text-primary"
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="privacy-friends" className="text-sm cursor-pointer">
+                        <span className="font-medium flex items-center">
+                          <Users className="h-4 w-4 mr-2 text-blue-500" />
+                          Friends Only
+                        </span>
+                      </Label>
+                      <p className="text-xs text-muted-foreground mt-1">
+                        Only your friends can see and join this event.
+                      </p>
+                    </div>
                   </div>
 
-                  <div className="flex items-center space-x-2">
-                    <input
-                      type="radio"
-                      id="privacy-private"
-                      name="privacy"
-                      value="private"
-                      checked={privacyOption === "private"}
-                      onChange={() => setPrivacyOption("private")}
-                      className="h-4 w-4 text-primary"
-                    />
-                    <Label htmlFor="privacy-private" className="text-sm cursor-pointer">
-                      <span className="font-medium">Private</span> - Only invited people can see it
-                    </Label>
+                  <div className="flex items-start space-x-3 p-3 border rounded-lg hover:bg-slate-50 transition-colors cursor-pointer" onClick={() => setPrivacyOption("PRIVATE")}>
+                    <div className="mt-0.5">
+                      <input
+                        type="radio"
+                        id="privacy-private"
+                        name="privacy"
+                        value="PRIVATE"
+                        checked={privacyOption === "PRIVATE"}
+                        onChange={() => setPrivacyOption("PRIVATE")}
+                        className="h-4 w-4 text-primary"
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="privacy-private" className="text-sm cursor-pointer">
+                        <span className="font-medium flex items-center">
+                          <Lock className="h-4 w-4 mr-2 text-red-500" />
+                          Private
+                        </span>
+                      </Label>
+                      <p className="text-xs text-muted-foreground mt-1">
+                        Only people you specifically invite can see this event. You will need to select invitees in the next step.
+                      </p>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -856,14 +887,16 @@ export function AddEventModal({ isOpen, onClose, onEventAdded, initialDate }: Ad
             <div className="space-y-4">
               <div className="space-y-2">
                 <Label className="text-base font-medium flex items-center">
-                  <span>Invite {privacyOption === "private" ? "People" : "Friends"}</span>
-                  <span className="text-xs text-muted-foreground ml-2">{privacyOption === "private" ? "(required)" : "(optional)"}</span>
+                  <span>Invite {privacyOption === "PRIVATE" ? "People" : "Friends"}</span>
+                  <span className="text-xs text-muted-foreground ml-2">{privacyOption === "PRIVATE" ? "(required)" : "(optional)"}</span>
                   {isLoadingFriends && <Loader2 className="ml-2 h-4 w-4 animate-spin" />}
                 </Label>
                 <p className="text-sm text-muted-foreground">
-                  {privacyOption === "private" 
+                  {privacyOption === "PRIVATE" 
                     ? "Select people to invite to your private event. Only they will be able to see it." 
-                    : "Select friends to invite to your event"}
+                    : privacyOption === "FRIENDS_ONLY"
+                      ? "Your event will be visible to all your friends, but you can also specifically invite some of them."
+                      : "Select friends to invite to your public event. Everyone can see it, but your invitees will receive notifications."}
                 </p>
                 
                 {friends.length > 0 ? (
@@ -982,22 +1015,22 @@ export function AddEventModal({ isOpen, onClose, onEventAdded, initialDate }: Ad
                           </div>
 
                           <div className="flex items-center">
-                            {privacyOption === "public" && (
+                            {privacyOption === "PUBLIC" && (
                               <>
-                                <Users className="h-4 w-4 mr-2 text-teal-500" />
+                                <Globe className="h-4 w-4 mr-2 text-green-500" />
                                 <span>Public event - Everyone can see it</span>
                               </>
                             )}
-                            {privacyOption === "friends" && (
+                            {privacyOption === "FRIENDS_ONLY" && (
                               <>
-                                <Users className="h-4 w-4 mr-2 text-teal-500" />
-                                <span>Only visible to friends</span>
+                                <Users className="h-4 w-4 mr-2 text-blue-500" />
+                                <span>Friends-only event - Visible to your friend network</span>
                               </>
                             )}
-                            {privacyOption === "private" && (
+                            {privacyOption === "PRIVATE" && (
                               <>
-                                <Users className="h-4 w-4 mr-2 text-teal-500" />
-                                <span>Private - Only visible to {selectedFriends.length} invited {selectedFriends.length === 1 ? 'person' : 'people'}</span>
+                                <Lock className="h-4 w-4 mr-2 text-red-500" />
+                                <span>Private event - Only visible to {selectedFriends.length} invited {selectedFriends.length === 1 ? 'person' : 'people'}</span>
                               </>
                             )}
                           </div>
@@ -1156,7 +1189,7 @@ export function AddEventModal({ isOpen, onClose, onEventAdded, initialDate }: Ad
     setEventLocation("")
     setLocationCoords(null)
     setEventDescription("")
-    setPrivacyOption("public")
+    setPrivacyOption("PUBLIC")
     setHeaderType("color")
     setHeaderColor("#10b981")
     setHeaderImage(null)

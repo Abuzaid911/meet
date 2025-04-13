@@ -23,7 +23,8 @@ const createEventSchema = z.object({
   inviteFriends: z.array(z.string()).optional(),
   headerType: z.enum(["color", "image"]),
   headerColor: z.string().optional(),
-  headerImageUrl: z.string().optional()
+  headerImageUrl: z.string().optional(),
+  privacyLevel: z.enum(["PUBLIC", "FRIENDS_ONLY", "PRIVATE"]).default("PUBLIC")
 })
 
 /**
@@ -37,23 +38,67 @@ export async function GET(request: Request) {
       return NextResponse.json({ error: "You must be signed in to view events" }, { status: 401 })
     }
 
+    const userId = session.user.id;
     const { searchParams } = new URL(request.url)
-    const userId = searchParams.get("userId")
-
+    const requestedUserId = searchParams.get("userId")
+    
+    // If a specific user's events are requested, use that, otherwise use the current user's ID
+    const targetUserId = requestedUserId || userId;
+    
+    // Find user's friends for the friends-only privacy setting
+    const currentUser = await prisma.user.findUnique({
+      where: { id: userId },
+      select: {
+        id: true,
+        friends: { select: { id: true } }
+      }
+    });
+    
+    if (!currentUser) {
+      return NextResponse.json({ error: "User not found" }, { status: 404 });
+    }
+    
+    // Extract friend IDs for easier filtering
+    const friendIds = currentUser.friends.map(friend => friend.id);
+    
+    // Build where clause based on privacy and userId
     const where = {
       date: {
         gte: new Date(),
       },
       OR: [
-        { hostId: userId || undefined },
+        // Events the target user is hosting
+        { hostId: targetUserId },
+        
+        // Events the target user is attending (with YES or MAYBE response)
         {
           attendees: {
             some: {
-              userId: userId || undefined,
+              userId: targetUserId,
               rsvp: { in: ['YES', 'MAYBE'] as ('YES' | 'MAYBE')[] }
             }
           }
-        }
+        },
+        
+        // If viewing all events (not just a specific user's events)
+        ...(targetUserId === userId ? [
+          // Public events
+          { privacyLevel: "PUBLIC" },
+          
+          // Friends-only events where current user is friends with the host
+          {
+            privacyLevel: "FRIENDS_ONLY",
+            hostId: { in: friendIds }
+          },
+          
+          // Private events where current user is specifically invited
+          {
+            privacyLevel: "PRIVATE",
+            attendees: {
+              some: { userId }
+            }
+          }
+        ] : [])
       ]
     }
 
@@ -69,6 +114,7 @@ export async function GET(request: Request) {
             id: true,
             name: true,
             image: true,
+            username: true,
           },
         },
         attendees: {
@@ -78,6 +124,7 @@ export async function GET(request: Request) {
                 id: true,
                 name: true,
                 image: true,
+                username: true,
               },
             },
           },
@@ -112,6 +159,7 @@ export async function POST(request: Request) {
     const time = formData.get('time') as string
     const location = formData.get('location') as string
     const description = formData.get('description') as string || undefined
+    const privacyLevel = formData.get('privacyLevel') as string || "PUBLIC"
     
     // For all-day events, set a default duration
     let duration: number;
@@ -160,7 +208,8 @@ export async function POST(request: Request) {
       headerColor,
       headerImageUrl,
       inviteFriends: inviteFriends || [],
-      rsvpDeadline: date // Using event date as RSVP deadline for now
+      rsvpDeadline: date, // Using event date as RSVP deadline for now
+      privacyLevel
     }
     
     const validation = createEventSchema.safeParse(dataToValidate);
@@ -226,7 +275,9 @@ export async function POST(request: Request) {
           hostId: session.user.id,
           headerType,
           headerColor,
-          headerImageUrl
+          headerImageUrl,
+          privacyLevel,
+          privacyChanged: new Date() // Track when privacy was set
         },
         include: {
           host: {
@@ -234,6 +285,7 @@ export async function POST(request: Request) {
               id: true,
               name: true,
               image: true,
+              username: true,
             },
           },
         },
