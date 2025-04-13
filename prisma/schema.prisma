@@ -47,6 +47,7 @@ model User {
   accounts               Account[]
   sessions               Session[]
   events                 Event[]
+  eventPhotos            EventPhoto[]        // Photos uploaded by this user
   friends                User[]              @relation("UserFriends")
   friendOf               User[]              @relation("UserFriends")
   comments               Comment[]
@@ -84,6 +85,13 @@ model Event {
   duration          Int
   capacity          Int?
   rsvpDeadline      DateTime?
+  // Header styling options
+  headerType        String?           // "color" or "image"
+  headerColor       String?           // Color code for color headers
+  headerImageUrl    String?           // URL to header image
+  // Event status tracking
+  isArchived        Boolean           @default(false)  // Flag for archived events
+  archivedAt        DateTime?         // When the event was archived
   // New fields for enhanced data collection
   category          String?           // Type of event (party, meeting, etc.)
   tags              String[]          // Array of tags describing the event
@@ -102,6 +110,7 @@ model Event {
   hostId            String
   comments          Comment[]
   attendees         Attendee[]
+  photos            EventPhoto[]      // Relation to event photos
   interactions      EventInteraction[]
   parentEvent       Event?            @relation("RecurringEvents", fields: [parentEventId], references: [id])
   recurringEvents   Event[]           @relation("RecurringEvents")
@@ -325,5 +334,26 @@ model CommentReaction {
 
   @@unique([commentId, userId, reactionType])
   @@index([commentId])
+  @@index([userId])
+}
+
+// New model for event photos
+model EventPhoto {
+  id          String    @id @default(cuid())
+  imageUrl    String    // URL to the photo
+  caption     String?   // Optional caption
+  uploadedAt  DateTime  @default(now())
+  
+  // Relations
+  event       Event     @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  eventId     String
+  
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId      String    // Who uploaded the photo
+  
+  // For allowing likes and comments on photos later
+  likeCount   Int       @default(0)  
+  
+  @@index([eventId])
   @@index([userId])
 }

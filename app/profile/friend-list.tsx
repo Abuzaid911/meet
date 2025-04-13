@@ -224,7 +224,7 @@ export function FriendList({
         ) : (
           <div className="space-y-3">
             {friends.slice(0, 3).map(friend => (
-              <Link href={`/profile/${friend.username}`} key={friend.id} className="flex items-center p-2 rounded-lg hover:bg-muted/50">
+              <Link href={`/users/${friend.id}`} key={friend.id} className="flex items-center p-2 rounded-lg hover:bg-muted/50">
                 <Avatar className="h-10 w-10 mr-3">
                   <AvatarImage src={friend.image ?? undefined} />
                   <AvatarFallback>{friend.name?.[0] || 'U'}</AvatarFallback>
@@ -329,7 +329,7 @@ export function FriendList({
                 <div className="space-y-3">
                   {pendingRequests.map(request => (
                     <div key={request.id} className="flex items-center justify-between p-3 bg-secondary/50 rounded-lg">
-                      <div className="flex items-center space-x-3">
+                      <Link href={`/users/${request.sender.id}`} className="flex items-center space-x-3">
                         <Avatar className="h-9 w-9">
                           <AvatarImage src={request.sender.image ?? undefined} alt={request.sender.name} />
                           <AvatarFallback>{request.sender.name?.[0] || 'U'}</AvatarFallback>
@@ -338,7 +338,7 @@ export function FriendList({
                           <p className="text-sm font-medium leading-none truncate">{request.sender.name}</p>
                           <p className="text-xs text-muted-foreground truncate">@{request.sender.username}</p>
                         </div>
-                      </div>
+                      </Link>
                       <div className="flex items-center gap-1.5">
                         {isProcessingRequest === request.id ? (
                           <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
@@ -378,7 +378,7 @@ export function FriendList({
               {filteredFriends.length > 0 ? (
                 filteredFriends.map(friend => (
                   <div key={friend.id} className="flex items-center justify-between p-2 hover:bg-muted/50 rounded-lg group"> {/* Added group for potential group-hover */}
-                    <Link href={`/profile/${friend.username}`} className="flex items-center space-x-3 flex-grow min-w-0 mr-2"> {/* Added margin */}
+                    <Link href={`/users/${friend.id}`} className="flex items-center space-x-3 flex-grow min-w-0 mr-2"> {/* Added margin */}
                       <Avatar className="h-10 w-10 flex-shrink-0">
                         <AvatarImage src={friend.image ?? undefined} alt={friend.name} />
                         <AvatarFallback>{friend.name?.[0] || 'U'}</AvatarFallback>
