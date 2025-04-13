@@ -301,7 +301,7 @@ export function EventPhotoGallery({
 
       {/* No photos state */}
       {photos.length === 0 && (
-        <div className="text-center py-8 border border-dashed rounded-lg bg-muted/40">
+        <div className="text-center py-8 border border-dashed rounded-lg bg-muted/20">
           <ImageIcon className="h-10 w-10 text-muted-foreground/60 mx-auto mb-2" />
           <p className="text-muted-foreground mb-2">No photos yet</p>
           
@@ -318,8 +318,8 @@ export function EventPhotoGallery({
               onClick={() => setShowUploadModal(true)}
               className="mt-2"
             >
-              <Plus className="h-4 w-4 mr-1" />
-              Add the first photo
+              <Plus className="h-4 w-4 mr-1 text-black" />
+             <p className="text-black"> Add the first photo</p>
             </Button>
           )}
           
