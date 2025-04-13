@@ -372,40 +372,6 @@ export function AddEventModal({ isOpen, onClose, onEventAdded, initialDate }: Ad
       localStorage.setItem('eventDraft', JSON.stringify(draftData));
     }
   }, [isOpen, eventName, eventDate, eventTime, eventEndTime, isAllDay, eventLocation, eventDescription, privacyOption]);
-
-  // Add autosave feature with localStorage
-  useEffect(() => {
-    // Load saved draft if available
-    if (isOpen) {
-      try {
-        const savedDraft = localStorage.getItem('eventDraft');
-        if (savedDraft) {
-          const draft = JSON.parse(savedDraft);
-          
-          // Only set values if they're empty/default
-          if (!eventName) setEventName(draft.name || "");
-          if (!eventDate) setEventDate(draft.date || "");
-          if (!eventTime) setEventTime(draft.time || "");
-          if (!eventEndTime) setEventEndTime(draft.endTime || "");
-          if (draft.isAllDay !== undefined) setIsAllDay(draft.isAllDay);
-          if (!eventLocation) setEventLocation(draft.location || "");
-          if (eventDescription === "") setEventDescription(draft.description || "");
-          if (draft.privacyOption) setPrivacyOption(draft.privacyOption);
-          
-          // Show toast if we loaded a draft
-          if (draft.name || draft.date || draft.time || draft.location) {
-            addToast({
-              title: "Draft loaded",
-              description: "We've restored your event details from a previous session",
-              variant: "default"
-            });
-          }
-        }
-      } catch (e) {
-        console.error("Error loading draft:", e);
-      }
-    }
-  }, [isOpen, addToast, eventDate, eventDescription, eventEndTime, eventLocation, eventName, eventTime]);
   
   // Debounced validation for a better UX
   const debouncedValidate = useCallback(() => {
@@ -788,7 +754,7 @@ export function AddEventModal({ isOpen, onClose, onEventAdded, initialDate }: Ad
                   Header Style <span className="text-red-500 ml-1">*</span>
                 </Label>
                 <p className="text-sm text-muted-foreground mb-2">
-                  Choose a beautiful header for your event invitation
+                  Choose a beautiful header color or image for your event invitation
                 </p>
                 
                 <Tabs defaultValue="color" value={headerType} onValueChange={(v) => setHeaderType(v as "color" | "image")} className="w-full">
