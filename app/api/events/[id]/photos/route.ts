@@ -16,6 +16,7 @@ export async function GET(request: Request) {
     const eventId = parts[parts.indexOf('events') + 1];
 
     console.log(`Fetching photos for event: ${eventId}`);
+    console.log(`Full pathname: ${pathname}, parts: ${JSON.stringify(parts)}`);
 
     if (!eventId) {
       console.log('Missing event ID in request');
@@ -24,9 +25,19 @@ export async function GET(request: Request) {
 
     // Check if event exists
     console.log('Looking up event in database');
-    const event = await prisma.event.findUnique({
-      where: { id: eventId },
-    });
+    let event;
+    try {
+      event = await prisma.event.findUnique({
+        where: { id: eventId },
+      });
+      console.log(`Event lookup result: ${event ? 'Found' : 'Not found'}`);
+    } catch (lookupError) {
+      console.error(`Error looking up event ${eventId}:`, lookupError);
+      return NextResponse.json(
+        { error: "Error looking up event", details: lookupError instanceof Error ? lookupError.message : String(lookupError) },
+        { status: 500 }
+      );
+    }
 
     if (!event) {
       console.log(`Event not found: ${eventId}`);
@@ -62,6 +73,7 @@ export async function GET(request: Request) {
     }
   } catch (error) {
     console.error("Error fetching event photos:", error);
+    console.error("Error stack:", error instanceof Error ? error.stack : 'No stack trace available');
     return NextResponse.json(
       { error: "Failed to fetch photos", details: error instanceof Error ? error.message : String(error) },
       { status: 500 }
