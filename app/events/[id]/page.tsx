@@ -552,7 +552,7 @@ export default function EventPage() {
                     : "bg-transparent border-white/30 hover:bg-white/10 text-white text-xs sm:text-sm h-8"}
                   onClick={() => handleRSVP("NO")}
                 >
-                  Can't Go
+                  Cant Go
                 </Button>
               </div>
             </div>
