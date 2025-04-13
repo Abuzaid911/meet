@@ -386,7 +386,7 @@ export default function EventPage() {
         className="fixed inset-0 w-full h-full bg-cover bg-center"
         style={getBackgroundStyle()}
       >
-        <div className="absolute inset-0 backdrop-blur-md bg-black/30" />
+        <div className="absolute inset-0 backdrop-blur-none bg-black/40" />
       </div>
 
       {/* Back button */}

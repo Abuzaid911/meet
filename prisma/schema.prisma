@@ -343,6 +343,7 @@ model EventPhoto {
   imageUrl    String    // URL to the photo
   caption     String?   // Optional caption
   uploadedAt  DateTime  @default(now())
+  storageKey  String?   // The key in Cloudflare R2 for deletion
   
   // Relations
   event       Event     @relation(fields: [eventId], references: [id], onDelete: Cascade)

@@ -3,14 +3,22 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
-import { v2 as cloudinary } from 'cloudinary';
+import { uploadToR2, deleteFromR2, generateFileKey } from '@/lib/cloudflare-r2';
 
-// Configure Cloudinary
-cloudinary.config({
-  cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
-  api_key: process.env.CLOUDINARY_API_KEY,
-  api_secret: process.env.CLOUDINARY_API_SECRET
-});
+/**
+ * Extract storage key from image URL
+ */
+function extractKeyFromUrl(imageUrl: string): string | null {
+  try {
+    // For Cloudflare R2 URLs: https://public-url.com/profile-images/userId-timestamp.ext
+    // We want: profile-images/userId-timestamp.ext
+    const url = new URL(imageUrl);
+    return url.pathname.startsWith('/') ? url.pathname.substring(1) : url.pathname;
+  } catch (error) {
+    console.error("Failed to extract storage key from URL:", error);
+    return null;
+  }
+}
 
 /**
  * Handler for uploading a profile image
@@ -42,24 +50,38 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'File size exceeds 5MB limit' }, { status: 400 });
     }
 
-    // Convert file to base64
-    const buffer = Buffer.from(await file.arrayBuffer());
-    const base64Data = `data:${file.type};base64,${buffer.toString('base64')}`;
-
-    // Upload to Cloudinary
-    const result = await cloudinary.uploader.upload(base64Data, {
-      folder: 'profile-images',
-      transformation: [
-        { width: 400, height: 400, crop: 'fill' },
-        { quality: 'auto' },
-        { fetch_format: 'auto' }
-      ]
+    // Get current user to check for existing profile image
+    const user = await prisma.user.findUnique({
+      where: { id: session.user.id },
+      select: { image: true }
     });
+
+    // If user has an existing profile image, delete it from R2
+    if (user?.image) {
+      const oldKey = extractKeyFromUrl(user.image);
+      if (oldKey) {
+        try {
+          await deleteFromR2(oldKey);
+        } catch (deleteError) {
+          // Log but continue with upload
+          console.error("Error deleting old profile image:", deleteError);
+        }
+      }
+    }
+
+    // Convert file to buffer
+    const buffer = Buffer.from(await file.arrayBuffer());
     
-    // Update the user's profile with the Cloudinary URL
+    // Generate a unique key for R2
+    const key = generateFileKey('profile-images', session.user.id, file.name);
+    
+    // Upload to R2
+    const imageUrl = await uploadToR2(buffer, key, file.type);
+    
+    // Update the user's profile with the R2 URL
     const updatedUser = await prisma.user.update({
       where: { id: session.user.id },
-      data: { image: result.secure_url },
+      data: { image: imageUrl },
       select: {
         id: true,
         name: true,
@@ -71,7 +93,7 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({ 
       message: 'Profile image updated successfully',
-      image: result.secure_url,
+      image: imageUrl,
       user: updatedUser
     });
   } catch (error) {
@@ -97,11 +119,17 @@ export async function DELETE() {
       select: { image: true }
     });
 
+    // Delete the image from R2 if it exists
     if (user?.image) {
-      // Extract public_id from Cloudinary URL
-      const publicId = user.image.split('/').slice(-1)[0].split('.')[0];
-      // Delete the image from Cloudinary
-      await cloudinary.uploader.destroy(`profile-images/${publicId}`);
+      const storageKey = extractKeyFromUrl(user.image);
+      if (storageKey) {
+        try {
+          await deleteFromR2(storageKey);
+        } catch (deleteError) {
+          // Log error but continue with removing from database
+          console.error("Error deleting profile image from R2:", deleteError);
+        }
+      }
     }
 
     // Update the user's profile to remove the image

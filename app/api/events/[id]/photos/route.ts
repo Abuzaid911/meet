@@ -2,10 +2,7 @@ import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { writeFile, mkdir } from "fs/promises";
-import path from "path";
-import { existsSync } from "fs";
-// Removed unused import
+import { uploadToR2, generateFileKey } from "@/lib/cloudflare-r2";
 
 /**
  * GET /api/events/[id]/photos
@@ -123,25 +120,15 @@ export async function POST(request: Request) {
       );
     }
 
-    // Create upload directory if it doesn't exist
-    const uploadDir = path.join(process.cwd(), "public", "uploads", "events", eventId);
-    if (!existsSync(uploadDir)) {
-      await mkdir(uploadDir, { recursive: true });
-    }
-
-    // Generate a unique filename
-    const timestamp = Date.now();
-    const fileExtension = photo.name.split(".").pop();
-    const filename = `${userId}-${timestamp}.${fileExtension}`;
-    const filePath = path.join(uploadDir, filename);
-
-    // Convert file to buffer and save to disk
+    // Convert file to buffer
     const bytes = await photo.arrayBuffer();
     const buffer = Buffer.from(bytes);
-    await writeFile(filePath, buffer);
 
-    // Create relative URL path
-    const imageUrl = `/uploads/events/${eventId}/${filename}`;
+    // Generate a unique key for R2
+    const key = generateFileKey(`events/${eventId}`, userId, photo.name);
+
+    // Upload to R2
+    const imageUrl = await uploadToR2(buffer, key, photo.type);
 
     // Create photo record in database
     const newPhoto = await prisma.eventPhoto.create({

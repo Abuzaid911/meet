@@ -4,9 +4,7 @@ import { getServerSession } from "next-auth/next"
 import { authOptions } from "@/lib/auth"
 import { prisma } from "@/lib/prisma"
 import { z } from "zod"
-import { writeFile } from 'fs/promises'
-import path from 'path'
-import { v4 as uuidv4 } from 'uuid'
+// Cloudflare R2 utilities are dynamically imported when needed
 
 // Enhanced schema validation for event creation
 const createEventSchema = z.object({
@@ -176,44 +174,37 @@ export async function POST(request: Request) {
     }
     
     // Process headerImage if present
-    if (headerType === 'image' && headerImage && headerImage instanceof File) {
+    if (headerType === 'image' && headerImage) {
       try {
-        console.log('Processing header image file:', headerImage.name, headerImage.size, headerImage.type);
+        console.log('Processing header image');
         
-        const imageExt = headerImage.name.split('.').pop() || 'png'
-        const fileName = `event-${uuidv4()}.${imageExt}`
-        const publicDir = path.join(process.cwd(), 'public')
-        const uploadsDir = path.join(publicDir, 'uploads')
-        
-        console.log('Checking if uploads directory exists:', uploadsDir);
-        
-        // Make sure uploads directory exists
-        try {
-          await import('fs').then(async fs => {
-            if (!fs.existsSync(uploadsDir)) {
-              console.log('Creating uploads directory');
-              await import('fs/promises').then(async fsp => {
-                await fsp.mkdir(uploadsDir, { recursive: true });
-              });
-            }
-          });
-        } catch (dirError) {
-          console.error('Error creating uploads directory:', dirError);
-          throw new Error('Failed to create uploads directory');
+        // In server-side environment, we need to check in a different way since File is browser-specific
+        if (headerImage && typeof headerImage === 'object' && 'arrayBuffer' in headerImage) {
+          const buffer = Buffer.from(await headerImage.arrayBuffer());
+          
+          // Import the Cloudflare R2 utilities
+          const { uploadToR2, generateFileKey } = await import('@/lib/cloudflare-r2');
+          
+          // Generate a unique key for the image
+          const key = generateFileKey('event-headers', session.user.id, 
+            headerImage.name || `event-image-${Date.now()}.png`);
+          
+          // Upload to R2
+          headerImageUrl = await uploadToR2(
+            buffer, 
+            key, 
+            headerImage.type || 'image/png'
+          );
+          
+          console.log('Successfully uploaded image to R2:', headerImageUrl);
+        } else {
+          console.error('Invalid headerImage format:', headerImage);
+          return NextResponse.json({ error: "Invalid header image format" }, { status: 400 });
         }
-        
-        const filePath = path.join(uploadsDir, fileName)
-        console.log('Writing file to:', filePath);
-        
-        const buffer = Buffer.from(await headerImage.arrayBuffer())
-        await writeFile(filePath, buffer)
-        
-        headerImageUrl = `/uploads/${fileName}`
-        console.log('Successfully saved image to:', headerImageUrl);
       } catch (error) {
-        console.error('Error saving image:', error);
+        console.error('Error uploading image to R2:', error);
         console.error('Error details:', JSON.stringify(error, Object.getOwnPropertyNames(error)));
-        return NextResponse.json({ error: "Failed to save image" }, { status: 500 })
+        return NextResponse.json({ error: "Failed to upload image" }, { status: 500 })
       }
     }
 

@@ -2,22 +2,36 @@ import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import fs from "fs";
-import path from "path";
+import { deleteFromR2 } from "@/lib/cloudflare-r2";
+
+/**
+ * Extract storage key from image URL
+ */
+function extractKeyFromUrl(imageUrl: string): string | null {
+  try {
+    // For Cloudflare R2 URLs: https://public-url.com/events/eventId/userId-timestamp.ext
+    // We want: events/eventId/userId-timestamp.ext
+    const url = new URL(imageUrl);
+    return url.pathname.startsWith('/') ? url.pathname.substring(1) : url.pathname;
+  } catch (error) {
+    console.error("Failed to extract storage key from URL:", error);
+    return null;
+  }
+}
 
 // GET individual photo
-export async function GET(
-  request: Request, 
-) {
-  const { searchParams } = new URL(request.url);
-  const eventId = searchParams.get("id");
-  const photoId = searchParams.get("photoId");
-
-  if (!eventId || !photoId) {
-    return NextResponse.json({ error: "Missing event ID or photo ID" }, { status: 400 });
-  }
-
+export async function GET(request: Request) {
   try {
+    const { pathname } = new URL(request.url);
+    // Extract the eventId and photoId from the pathname
+    const parts = pathname.split('/');
+    const eventId = parts[parts.indexOf('events') + 1];
+    const photoId = parts[parts.length - 1];
+
+    if (!eventId || !photoId) {
+      return NextResponse.json({ error: "Missing event ID or photo ID" }, { status: 400 });
+    }
+
     // Find the event to make sure it exists
     const event = await prisma.event.findUnique({
       where: { id: eventId },
@@ -60,18 +74,18 @@ export async function GET(
 }
 
 // DELETE photo
-export async function DELETE(
-  request: Request,
-) {
-  const { searchParams } = new URL(request.url);
-  const eventId = searchParams.get("id");
-  const photoId = searchParams.get("photoId");
-
-  if (!eventId || !photoId) {
-    return NextResponse.json({ error: "Missing event ID or photo ID" }, { status: 400 });
-  }
-
+export async function DELETE(request: Request) {
   try {
+    const { pathname } = new URL(request.url);
+    // Extract the eventId and photoId from the pathname
+    const parts = pathname.split('/');
+    const eventId = parts[parts.indexOf('events') + 1];
+    const photoId = parts[parts.length - 1];
+
+    if (!eventId || !photoId) {
+      return NextResponse.json({ error: "Missing event ID or photo ID" }, { status: 400 });
+    }
+
     const session = await getServerSession(authOptions);
     
     // Check if user is logged in
@@ -94,7 +108,7 @@ export async function DELETE(
       return NextResponse.json({ error: "Event not found" }, { status: 404 });
     }
 
-    // Find the photo to get file path and check ownership
+    // Find the photo to get storage key and check ownership
     const photo = await prisma.eventPhoto.findUnique({
       where: {
         id: photoId,
@@ -124,22 +138,15 @@ export async function DELETE(
       },
     });
 
-    // Get filename from the image URL
-    const fileUrl = photo.imageUrl;
-    const urlParts = fileUrl.split("/");
-    const filename = urlParts[urlParts.length - 1];
-    
-    // Delete the file from disk
-    try {
-      const uploadDir = path.join(process.cwd(), "public", "uploads", "events", eventId);
-      const filePath = path.join(uploadDir, filename);
-      
-      if (fs.existsSync(filePath)) {
-        fs.unlinkSync(filePath);
+    // Extract storage key from the image URL and delete the file from R2
+    const storageKey = extractKeyFromUrl(photo.imageUrl);
+    if (storageKey) {
+      try {
+        await deleteFromR2(storageKey);
+      } catch (deleteError) {
+        // Log error but don't fail the request
+        console.error("Error deleting file from R2:", deleteError);
       }
-    } catch (fileError) {
-      console.error("Error deleting file:", fileError);
-      // We continue even if file deletion fails, as the database record is already removed
     }
 
     return NextResponse.json({ message: "Photo deleted successfully" });

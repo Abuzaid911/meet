@@ -102,6 +102,21 @@ export async function POST(
 }
 
 /**
+ * Extract storage key from image URL
+ */
+function extractKeyFromUrl(imageUrl: string): string | null {
+  try {
+    // For Cloudflare R2 URLs: https://public-url.com/event-headers/userId-timestamp.ext
+    // We want: event-headers/userId-timestamp.ext
+    const url = new URL(imageUrl);
+    return url.pathname.startsWith('/') ? url.pathname.substring(1) : url.pathname;
+  } catch (error) {
+    console.error("Failed to extract storage key from URL:", error);
+    return null;
+  }
+}
+
+/**
  * DELETE: Delete an event
  */
 export async function DELETE(
@@ -120,7 +135,11 @@ export async function DELETE(
 
     const event = await prisma.event.findUnique({
       where: { id: eventId },
-      select: { hostId: true },
+      select: { 
+        hostId: true,
+        headerType: true,
+        headerImageUrl: true
+      }
     });
 
     if (!event) {
@@ -132,6 +151,20 @@ export async function DELETE(
         { error: "You are not authorized to delete this event" },
         { status: 403 }
       );
+    }
+
+    // Delete the header image from R2 if it exists
+    if (event.headerType === "image" && event.headerImageUrl) {
+      try {
+        const { deleteFromR2 } = await import("@/lib/cloudflare-r2");
+        const key = extractKeyFromUrl(event.headerImageUrl);
+        if (key) {
+          await deleteFromR2(key);
+        }
+      } catch (deleteError) {
+        // Log but continue with event deletion
+        console.error("Error deleting event header image:", deleteError);
+      }
     }
 
     // Delete all related records first
@@ -174,12 +207,29 @@ export async function PUT(
     }
 
     const { id: eventId } = await context.params;
-    const body = await request.json();
     
-    // First check if the user is the event host
+    // Handle FormData for file uploads
+    const formData = await request.formData();
+    
+    // Extract fields from formData
+    const name = formData.get('name') as string;
+    const date = formData.get('date') as string;
+    const time = formData.get('time') as string;
+    const location = formData.get('location') as string;
+    const description = formData.get('description') as string || undefined;
+    const duration = parseInt(formData.get('duration') as string || '0');
+    const headerType = formData.get('headerType') as 'color' | 'image';
+    const headerColor = headerType === 'color' ? formData.get('headerColor') as string : undefined;
+    const headerImage = headerType === 'image' ? formData.get('headerImage') : null;
+    
+    // First check if the user is the event host and get current event data
     const event = await prisma.event.findUnique({
       where: { id: eventId },
-      select: { hostId: true },
+      select: { 
+        hostId: true,
+        headerType: true,
+        headerImageUrl: true 
+      },
     });
 
     if (!event) {
@@ -193,17 +243,82 @@ export async function PUT(
       );
     }
 
+    // Prepare update data
+    const updateData: {
+      name: string;
+      date?: Date;
+      time: string;
+      location: string;
+      description?: string;
+      duration: number;
+      headerType: 'color' | 'image';
+      headerColor?: string;
+      headerImageUrl?: string | null;
+    } = {
+      name,
+      date: date ? new Date(date) : undefined,
+      time,
+      location,
+      description,
+      duration,
+      headerType
+    };
+    
+    // Handle header color if needed
+    if (headerType === 'color') {
+      updateData.headerColor = headerColor;
+      updateData.headerImageUrl = null; // Clear image URL when switching to color
+    }
+
+    // Process new header image if provided
+    if (headerType === 'image' && headerImage) {
+      try {
+        // Check if it's a proper file object
+        if (headerImage && typeof headerImage === 'object' && 'arrayBuffer' in headerImage) {
+          // Delete old image if header type was already image
+          if (event.headerType === 'image' && event.headerImageUrl) {
+            try {
+              const { deleteFromR2 } = await import('@/lib/cloudflare-r2');
+              const oldKey = extractKeyFromUrl(event.headerImageUrl);
+              if (oldKey) {
+                await deleteFromR2(oldKey);
+              }
+            } catch (deleteError) {
+              console.error('Error deleting old header image:', deleteError);
+              // Continue with upload even if delete fails
+            }
+          }
+          
+          // Upload new image
+          const buffer = Buffer.from(await headerImage.arrayBuffer());
+          const { uploadToR2, generateFileKey } = await import('@/lib/cloudflare-r2');
+          
+          // Generate a unique key for the image
+          const key = generateFileKey('event-headers', session.user.id, 
+            (headerImage as File).name || `event-image-${Date.now()}.png`);
+          
+          // Upload to R2
+          const imageUrl = await uploadToR2(
+            buffer, 
+            key, 
+            (headerImage as File).type || 'image/png'
+          );
+          
+          updateData.headerImageUrl = imageUrl;
+        } else if (headerType === 'image' && !headerImage && event.headerImageUrl) {
+          // Keep existing image URL if no new image provided
+          updateData.headerImageUrl = event.headerImageUrl;
+        }
+      } catch (uploadError) {
+        console.error('Error uploading header image:', uploadError);
+        return NextResponse.json({ error: 'Failed to upload header image' }, { status: 500 });
+      }
+    }
+
     // Update the event
     const updatedEvent = await prisma.event.update({
       where: { id: eventId },
-      data: {
-        name: body.name,
-        date: body.date ? new Date(body.date) : undefined,
-        time: body.time,
-        location: body.location,
-        description: body.description,
-        duration: body.duration,
-      },
+      data: updateData,
     });
 
     return NextResponse.json(updatedEvent);
