@@ -49,7 +49,13 @@ export async function GET(request: Request) {
     try {
       const photos = await prisma.eventPhoto.findMany({
         where: { eventId },
-        include: {
+        select: {
+          id: true,
+          imageUrl: true,
+          caption: true,
+          uploadedAt: true,
+          userId: true,
+          eventId: true,
           user: {
             select: {
               id: true,
@@ -157,31 +163,77 @@ export async function POST(request: Request) {
     // Upload to R2
     const imageUrl = await uploadToR2(buffer, key, photo.type);
 
-    // Create photo record in database
-    const newPhoto = await prisma.eventPhoto.create({
-      data: {
-        imageUrl,
-        caption,
-        userId,
-        eventId,
-      },
-      include: {
-        user: {
-          select: {
-            id: true,
-            name: true,
-            image: true,
-            username: true,
+    // Create photo record in database with required fields
+    const createData = {
+      imageUrl,
+      caption,
+      userId,
+      eventId,
+    };
+    
+    // Only add storageKey if the schema supports it
+    try {
+      // Test if the field exists in the schema by creating a temporary record
+      await prisma.$executeRaw`SELECT "storageKey" FROM "EventPhoto" LIMIT 1`;
+      // If we get here, the field exists
+      const dataWithStorageKey = {
+        ...createData,
+        storageKey: key
+      };
+      
+      // Create photo record with storageKey
+      const newPhoto = await prisma.eventPhoto.create({
+        data: dataWithStorageKey,
+        select: {
+          id: true,
+          imageUrl: true,
+          caption: true,
+          uploadedAt: true,
+          userId: true,
+          eventId: true,
+          user: {
+            select: {
+              id: true,
+              name: true,
+              image: true,
+              username: true,
+            },
           },
         },
-      },
-    });
-
-    return NextResponse.json(newPhoto);
+      });
+      
+      return NextResponse.json(newPhoto);
+    } catch {
+      // Field doesn't exist in schema, create without storageKey
+      console.log('storageKey field not in schema, skipping');
+      
+      // Create photo record without storageKey
+      const newPhoto = await prisma.eventPhoto.create({
+        data: createData,
+        select: {
+          id: true,
+          imageUrl: true,
+          caption: true,
+          uploadedAt: true,
+          userId: true,
+          eventId: true,
+          user: {
+            select: {
+              id: true,
+              name: true,
+              image: true,
+              username: true,
+            },
+          },
+        },
+      });
+      
+      return NextResponse.json(newPhoto);
+    }
   } catch (error) {
     console.error("Error uploading photo:", error);
     return NextResponse.json(
-      { error: "Failed to upload photo" },
+      { error: "Failed to upload photo", details: error instanceof Error ? error.message : String(error) },
       { status: 500 }
     );
   }

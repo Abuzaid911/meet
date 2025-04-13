@@ -38,7 +38,11 @@ export async function GET(request: Request) {
     // 2. If event exists, try to get its photos
     const photos = await prisma.eventPhoto.findMany({
       where: { eventId },
-      include: {
+      select: {
+        id: true,
+        imageUrl: true,
+        caption: true,
+        userId: true,
         user: {
           select: {
             id: true,

@@ -3,21 +3,7 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { deleteFromR2 } from "@/lib/cloudflare-r2";
-
-/**
- * Extract storage key from image URL
- */
-function extractKeyFromUrl(imageUrl: string): string | null {
-  try {
-    // For Cloudflare R2 URLs: https://public-url.com/events/eventId/userId-timestamp.ext
-    // We want: events/eventId/userId-timestamp.ext
-    const url = new URL(imageUrl);
-    return url.pathname.startsWith('/') ? url.pathname.substring(1) : url.pathname;
-  } catch (error) {
-    console.error("Failed to extract storage key from URL:", error);
-    return null;
-  }
-}
+import { getStorageKey } from "@/lib/models/event-photo";
 
 // GET individual photo
 export async function GET(request: Request) {
@@ -138,8 +124,9 @@ export async function DELETE(request: Request) {
       },
     });
 
-    // Extract storage key from the image URL and delete the file from R2
-    const storageKey = extractKeyFromUrl(photo.imageUrl);
+    // Get storage key - either from the field or extract from URL
+    const storageKey = getStorageKey(photo);
+    
     if (storageKey) {
       try {
         await deleteFromR2(storageKey);
