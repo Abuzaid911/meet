@@ -44,7 +44,7 @@ import {
   Loader2,
   Globe,
   Lock,
-  UserCircle,
+  UserCircle
 } from "lucide-react";
 
 // Utilities
