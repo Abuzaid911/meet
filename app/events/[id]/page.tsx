@@ -23,12 +23,6 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/app/components/ui/alert-dialog";
-import { 
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger
-} from "@/app/components/ui/dropdown-menu";
 
 // App Components
 import { AddAttendeeModal } from "@/app/components/add-attendee-modal";
@@ -51,9 +45,6 @@ import {
   Globe,
   Lock,
   UserCircle,
-  Pencil,
-  Trash2,
-  MoreVertical,
 } from "lucide-react";
 
 // Utilities
