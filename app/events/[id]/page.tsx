@@ -28,19 +28,20 @@ import {
 import { AddAttendeeModal } from "@/app/components/add-attendee-modal";
 import { EditEventModal } from "@/app/components/edit-event-modal";
 import { EventPhotoGallery } from "@/app/components/event-photos";
+import { EventHostActions } from "@/app/components/event-host-actions";
 
 // Icons
 import {
-  Loader2,
   ArrowLeft,
-  AlertTriangle,
   Calendar,
-  MapPin,
-  Users,
   Clock,
-  Share,
+  MapPin,
   CalendarPlus,
+  Share,
   UserPlus,
+  Users,
+  AlertTriangle,
+  Loader2,
   Globe,
   Lock,
   UserCircle,
@@ -52,12 +53,21 @@ import { format } from "date-fns";
 // Animation variants
 const fadeIn = {
   hidden: { opacity: 0 },
-  visible: { opacity: 1, transition: { duration: 0.5 } }
+  visible: { 
+    opacity: 1, 
+    transition: { duration: 0.5 },
+    color: '#2c3e50' // Dark blue text color
+  }
 };
 
 const slideIn = {
   hidden: { opacity: 0, y: 20 },
-  visible: { opacity: 1, y: 0, transition: { duration: 0.5 } }
+  visible: { 
+    opacity: 1, 
+    y: 0, 
+    transition: { duration: 0.5 },
+    color: '#2c3e50' // Dark blue text color
+  }
 };
 
 // Interfaces
@@ -281,7 +291,7 @@ export default function EventPage() {
       };
     }
     return {
-      backgroundImage: 'linear-gradient(to right, #ff7e5f, #feb47b)',
+      backgroundImage: 'linear-gradient(to right, #2c3e50, #2c3e50, #bdc3c7)',
     };
   };
 
@@ -427,7 +437,7 @@ export default function EventPage() {
         <Button
           variant="ghost"
           onClick={() => router.back()}
-          className="bg-black/30 hover:bg-black/40 text-white h-8 sm:h-10 px-2 sm:px-4 text-xs sm:text-sm"
+          className="bg-[#2c3e50]/50 hover:bg-[#2c3e50]/60 text-white h-8 sm:h-10 px-2 sm:px-4 text-xs sm:text-sm"
         >
           <ArrowLeft className="h-3.5 w-3.5 sm:h-4 sm:w-4 mr-1 sm:mr-2" /> Back
         </Button>
@@ -435,70 +445,70 @@ export default function EventPage() {
 
       {/* Main Content */}
       <div className="flex min-h-screen items-center justify-center px-2 sm:px-4 py-10 sm:py-16 relative z-10">
-        <Card className="w-full max-w-3xl mx-auto rounded-xl overflow-hidden bg-black/70 backdrop-blur-md text-white border-0">
+        <Card className="w-full max-w-3xl mx-auto rounded-xl overflow-hidden bg-[#2c3e50]/80 backdrop-blur-md text-white border-0 shadow-xl">
           {/* Event Title */}
-          <div className="p-4 sm:p-6 md:p-8 text-center">
+          <div className="p-3 sm:p-4 md:p-6 lg:p-8 text-center">
             <motion.div 
               variants={fadeIn} 
               initial="hidden" 
               animate="visible"
-              className="mb-8"
+              className="mb-6 sm:mb-8"
             >
               {/* Event name */}
-              <h1 className="text-3xl font-bold mb-2">{event.name}</h1>
+              <h1 className="text-xl sm:text-2xl md:text-3xl font-bold mb-2">{event.name}</h1>
               
               {/* Privacy Badge */}
-              <div className="mb-6">
+              <div className="mb-4 sm:mb-6">
                 {(() => {
                   const { icon, label, description, color, bgColor } = getPrivacyDetails(event.privacyLevel);
                   return (
-                    <div className={`inline-flex items-center px-3 py-1 rounded-full text-sm ${color} ${bgColor}`}>
+                    <div className={`inline-flex items-center px-2 sm:px-3 py-1 rounded-full text-xs sm:text-sm ${color} ${bgColor}`}>
                       <span className="mr-1">{icon}</span>
                       <span className="font-medium">{label}</span>
-                      <span className="ml-2 text-xs opacity-75">{description}</span>
-                 </div>
+                      <span className="hidden sm:inline ml-2 text-xs opacity-75">{description}</span>
+                    </div>
                   );
                 })()}
-             </div>
+              </div>
 
               {/* Host info */}
-              <div className="flex items-center gap-2 mb-4">
-                <Avatar className="h-8 w-8 border border-border">
+              <div className="flex items-center justify-center gap-2 mb-4">
+                <Avatar className="h-7 w-7 sm:h-8 sm:w-8 border border-border">
                   <AvatarImage src={event.host.image || undefined} alt={event.host.name || "Host"} />
                   <AvatarFallback>{event.host.name?.[0] || "H"}</AvatarFallback>
-                    </Avatar>
+                </Avatar>
                 <div>
-                  <div className="text-sm text-muted-foreground">Hosted by</div>
-                  <div className="font-medium">{event.host.name || "Unknown Host"}</div>
+                  <div className="text-xs sm:text-sm text-muted-foreground">Hosted by</div>
+                  <div className="text-sm sm:text-base font-medium">{event.host.name || "Unknown Host"}</div>
                 </div>
-             </div>
-          </motion.div>
+              </div>
+            </motion.div>
 
-            <hr className="border-white/20 my-4 sm:my-6" />
+            <hr className="border-[#bdc3c7]/40 my-3 sm:my-4 md:my-6" />
 
             {/* Event Details */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-2 sm:gap-3 md:gap-4">
               {/* Date & Time Block */}
               <motion.div
-                className="flex items-center bg-white/10 hover:bg-white/20 backdrop-blur-md rounded-xl p-3 sm:p-5 transition-all duration-200 shadow-sm group cursor-pointer"
+                className="flex items-center bg-[#2c3e50]/50 hover:bg-[#2c3e50]/60 backdrop-blur-md rounded-xl p-2 sm:p-3 md:p-5 transition-all duration-200 shadow-sm group cursor-pointer border border-[#bdc3c7]/30"
                 whileHover={{ scale: 1.02, boxShadow: "0 10px 30px -15px rgba(0,0,0,0.3)" }}
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.3 }}
               >
-                <div className="bg-white/20 rounded-full p-2 sm:p-3 mr-3 sm:mr-4 group-hover:bg-white/30 transition-colors">
-                  <Calendar className="h-5 w-5 sm:h-6 sm:w-6 text-white flex-shrink-0" />
+                <div className="bg-[#bdc3c7]/70 rounded-full p-1.5 sm:p-2 md:p-3 mr-2 sm:mr-3 md:mr-4 group-hover:bg-[#bdc3c7]/80 transition-colors text-[#2c3e50]">
+                  <Calendar className="h-4 w-4 sm:h-5 sm:w-5 md:h-6 md:w-6 flex-shrink-0" />
                 </div>
                 <div className="text-left flex-1 min-w-0">
-                  <div className="text-base sm:text-lg md:text-xl font-semibold text-white group-hover:text-white/90 transition-colors truncate">{formatEventDate(event.date)}</div>
+                  <div className="text-sm sm:text-base md:text-lg lg:text-xl font-semibold text-white group-hover:text-white/90 transition-colors truncate">{formatEventDate(event.date)}</div>
                   <div className="flex items-center text-xs sm:text-sm text-white/70">
                     <Clock className="h-3 w-3 sm:h-3.5 sm:w-3.5 mr-1.5" />
                     <span className="truncate">
                       {formatEventTime(event.time)}
                       {event.duration && <span className="ml-1">· {event.duration} min</span>}
                     </span>
-                        </div>
-                    </div>
+                  </div>
+                </div>
               </motion.div>
 
               {/* Location Block */}
@@ -506,36 +516,36 @@ export default function EventPage() {
                 href={`https://maps.google.com/?q=${encodeURIComponent(event.location)}`}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="flex items-center bg-white/10 hover:bg-white/20 backdrop-blur-md rounded-xl p-3 sm:p-5 transition-all duration-200 shadow-sm group cursor-pointer"
+                className="flex items-center bg-[#2c3e50]/50 hover:bg-[#2c3e50]/60 backdrop-blur-md rounded-xl p-2 sm:p-3 md:p-5 transition-all duration-200 shadow-sm group cursor-pointer border border-[#bdc3c7]/30"
                 whileHover={{ scale: 1.02, boxShadow: "0 10px 30px -15px rgba(0,0,0,0.3)" }}
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.3, delay: 0.1 }}
               >
-                <div className="bg-white/20 rounded-full p-2 sm:p-3 mr-3 sm:mr-4 group-hover:bg-white/30 transition-colors">
-                  <MapPin className="h-5 w-5 sm:h-6 sm:w-6 text-white flex-shrink-0" />
+                <div className="bg-[#bdc3c7]/70 rounded-full p-1.5 sm:p-2 md:p-3 mr-2 sm:mr-3 md:mr-4 group-hover:bg-[#bdc3c7]/80 transition-colors text-[#2c3e50]">
+                  <MapPin className="h-4 w-4 sm:h-5 sm:w-5 md:h-6 md:w-6 flex-shrink-0" />
                 </div>
                 <div className="text-left overflow-hidden flex-1">
-                  <div className="text-base sm:text-lg md:text-xl font-semibold text-white group-hover:text-white/90 transition-colors truncate max-w-full">{event.location}</div>
+                  <div className="text-sm sm:text-base md:text-lg lg:text-xl font-semibold text-white group-hover:text-white/90 transition-colors truncate max-w-full">{event.location}</div>
                   <div className="flex items-center text-xs sm:text-sm text-white/70 group-hover:text-white/80 transition-colors">
                     <span>View on maps</span>
-                        </div>
-                    </div>
+                  </div>
+                </div>
               </motion.a>
             </div>
 
-            <hr className="border-white/20 my-4 sm:my-6" />
+            <hr className="border-[#bdc3c7]/40 my-3 sm:my-4 md:my-6" />
 
             {/* Attendees */}
-            <div className="mb-4 sm:mb-6">
-              <h3 className="text-xs sm:text-sm uppercase tracking-wide opacity-80 mb-3 sm:mb-4">ATTENDEES</h3>
+            <div className="mb-3 sm:mb-4 md:mb-6">
+              <h3 className="text-xs sm:text-sm uppercase tracking-wide text-[#bdc3c7] mb-2 sm:mb-3 md:mb-4">ATTENDEES</h3>
 
               {/* Attendee Avatars */}
               <div className="flex justify-center mb-3 sm:mb-4">
                 {event.attendees.filter(a => a.rsvp === "YES").slice(0, 5).map((attendee) => (
                   <Avatar
                     key={attendee.id}
-                    className="h-10 w-10 sm:h-12 sm:w-12 border-2 border-black/70 -ml-2 first:ml-0 cursor-pointer hover:scale-105 transition-transform"
+                    className="h-8 w-8 sm:h-10 sm:w-10 md:h-12 md:w-12 border-2 border-[#bdc3c7]/70 -ml-2 first:ml-0 cursor-pointer hover:scale-105 transition-transform"
                     onClick={() => router.push(`/users/${attendee.userId}`)}
                   >
                     <AvatarImage src={attendee.user.image || undefined} />
@@ -544,7 +554,7 @@ export default function EventPage() {
                 ))}
 
                 {event.attendees.filter(a => a.rsvp === "YES").length > 5 && (
-                  <div className="h-10 w-10 sm:h-12 sm:w-12 rounded-full bg-white/20 -ml-2 flex items-center justify-center text-xs sm:text-sm font-medium cursor-pointer hover:bg-white/30 transition-colors"
+                  <div className="h-8 w-8 sm:h-10 sm:w-10 md:h-12 md:w-12 rounded-full bg-[#bdc3c7]/20 -ml-2 flex items-center justify-center text-xs sm:text-sm font-medium cursor-pointer hover:bg-[#bdc3c7]/30 transition-colors"
                     onClick={() => setSelectedTab("attendees")}>
                     +{event.attendees.filter(a => a.rsvp === "YES").length - 5}
                   </div>
@@ -557,8 +567,8 @@ export default function EventPage() {
                   size="sm"
                   variant={getUserRsvp() === "YES" ? "default" : "outline"}
                   className={getUserRsvp() === "YES"
-                    ? "bg-green-600 hover:bg-green-700 text-xs sm:text-sm h-8"
-                    : "bg-transparent border-white/30 hover:bg-white/10 text-white text-xs sm:text-sm h-8"}
+                    ? "bg-green-600 hover:bg-green-700 text-xs sm:text-sm h-7 sm:h-8 px-2 sm:px-3"
+                    : "bg-transparent border-[#bdc3c7]/50 hover:bg-[#bdc3c7]/10 text-white text-xs sm:text-sm h-7 sm:h-8 px-2 sm:px-3"}
                   onClick={() => handleRSVP("YES")}
                 >
                   Going
@@ -567,8 +577,8 @@ export default function EventPage() {
                   size="sm"
                   variant={getUserRsvp() === "MAYBE" ? "default" : "outline"}
                   className={getUserRsvp() === "MAYBE"
-                    ? "bg-amber-600 hover:bg-amber-700 text-xs sm:text-sm h-8"
-                    : "bg-transparent border-white/30 hover:bg-white/10 text-white text-xs sm:text-sm h-8"}
+                    ? "bg-amber-600 hover:bg-amber-700 text-xs sm:text-sm h-7 sm:h-8 px-2 sm:px-3"
+                    : "bg-transparent border-[#bdc3c7]/50 hover:bg-[#bdc3c7]/10 text-white text-xs sm:text-sm h-7 sm:h-8 px-2 sm:px-3"}
                   onClick={() => handleRSVP("MAYBE")}
                 >
                   Maybe
@@ -577,33 +587,33 @@ export default function EventPage() {
                   size="sm"
                   variant={getUserRsvp() === "NO" ? "default" : "outline"}
                   className={getUserRsvp() === "NO"
-                    ? "bg-red-600 hover:bg-red-700 text-xs sm:text-sm h-8"
-                    : "bg-transparent border-white/30 hover:bg-white/10 text-white text-xs sm:text-sm h-8"}
+                    ? "bg-red-600 hover:bg-red-700 text-xs sm:text-sm h-7 sm:h-8 px-2 sm:px-3"
+                    : "bg-transparent border-[#bdc3c7]/50 hover:bg-[#bdc3c7]/10 text-white text-xs sm:text-sm h-7 sm:h-8 px-2 sm:px-3"}
                   onClick={() => handleRSVP("NO")}
                 >
                   Cant Go
                 </Button>
-                        </div>
-                    </div>
+              </div>
+            </div>
 
-            <hr className="border-white/20 my-4 sm:my-6" />
+            <hr className="border-[#bdc3c7]/40 my-3 sm:my-4 md:my-6" />
 
             {/* Action Buttons */}
-            <div className="flex flex-wrap justify-center gap-2 sm:gap-4">
+            <div className="grid grid-cols-2 sm:flex sm:flex-wrap justify-center gap-2 sm:gap-3 md:gap-4">
               <Button
                 size="sm"
                 variant="outline"
-                className="bg-transparent border-white/30 hover:bg-white/10 text-white text-xs sm:text-sm h-8"
+                className="bg-[#bdc3c7]/20 border-[#bdc3c7]/50 hover:bg-[#bdc3c7]/30 text-white text-xs sm:text-sm h-7 sm:h-8 px-2 sm:px-3"
                 onClick={addToCalendar}
               >
-                <CalendarPlus className="h-3.5 w-3.5 mr-1 sm:mr-2" />
+                <CalendarPlus className="h-3 w-3 sm:h-3.5 sm:w-3.5 mr-1 sm:mr-2" />
                 <span className="whitespace-nowrap">Add to Calendar</span>
               </Button>
 
               <Button
                 size="sm"
                 variant="outline"
-                className="bg-transparent border-white/30 hover:bg-white/10 text-white text-xs sm:text-sm h-8"
+                className="bg-[#bdc3c7]/20 border-[#bdc3c7]/50 hover:bg-[#bdc3c7]/30 text-white text-xs sm:text-sm h-7 sm:h-8 px-2 sm:px-3"
                 onClick={() => {
                   if (navigator.share) {
                     navigator.share({
@@ -620,109 +630,115 @@ export default function EventPage() {
                   }
                 }}
               >
-                <Share className="h-3.5 w-3.5 mr-1 sm:mr-2" />
+                <Share className="h-3 w-3 sm:h-3.5 sm:w-3.5 mr-1 sm:mr-2" />
                 Share
               </Button>
 
               {isHost && (
-                <Button
-                  size="sm"
-                  variant="outline"
-                  className="bg-transparent border-white/30 hover:bg-white/10 text-white text-xs sm:text-sm h-8"
-                  onClick={() => setShowAddAttendeeModal(true)}
-                >
-                  <UserPlus className="h-3.5 w-3.5 mr-1 sm:mr-2" />
-                  Invite
-                </Button>
+                <>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="bg-[#bdc3c7]/20 border-[#bdc3c7]/50 hover:bg-[#bdc3c7]/30 text-white text-xs sm:text-sm h-7 sm:h-8 px-2 sm:px-3 col-span-2 sm:col-span-1"
+                    onClick={() => setShowAddAttendeeModal(true)}
+                  >
+                    <UserPlus className="h-3 w-3 sm:h-3.5 sm:w-3.5 mr-1 sm:mr-2" />
+                    Invite
+                  </Button>
+                  
+                  <EventHostActions 
+                    onEdit={() => setShowEditEventModal(true)}
+                    onDelete={() => setShowDeleteDialog(true)}
+                  />
+                </>
               )}
-                            </div>
-                        </div>
+            </div>
+          </div>
 
           {/* Tabs for Extra Content */}
-          <Tabs value={selectedTab} onValueChange={setSelectedTab} className="p-4 sm:p-6 pt-0">
-            <TabsList className="bg-white/10 w-full flex">
+          <Tabs value={selectedTab} onValueChange={setSelectedTab} className="p-3 sm:p-4 md:p-6 pt-0">
+            <TabsList className="bg-[#2c3e50]/50 w-full flex h-auto py-1">
               <TabsTrigger
                 value="details"
-                className="flex-1 data-[state=active]:bg-white/20 text-white text-xs sm:text-sm"
+                className="flex-1 data-[state=active]:bg-[#bdc3c7] data-[state=active]:text-[#2c3e50] text-white text-xs sm:text-sm py-1 sm:py-1.5"
               >
                 Details
               </TabsTrigger>
               <TabsTrigger
                 value="attendees"
-                className="flex-1 data-[state=active]:bg-white/20 text-white text-xs sm:text-sm"
+                className="flex-1 data-[state=active]:bg-[#bdc3c7] data-[state=active]:text-[#2c3e50] text-white text-xs sm:text-sm py-1 sm:py-1.5"
               >
                 Attendees
-                        </TabsTrigger>
+              </TabsTrigger>
               <TabsTrigger
                 value="photos"
-                className="flex-1 data-[state=active]:bg-white/20 text-white text-xs sm:text-sm"
+                className="flex-1 data-[state=active]:bg-[#bdc3c7] data-[state=active]:text-[#2c3e50] text-white text-xs sm:text-sm py-1 sm:py-1.5"
               >
                 Photos
-                        </TabsTrigger>
-                    </TabsList>
+              </TabsTrigger>
+            </TabsList>
 
             {/* Details Tab */}
-            <TabsContent value="details" className="text-white mt-4">
-                        <motion.div
+            <TabsContent value="details" className="text-white mt-3 sm:mt-4">
+              <motion.div
                 variants={fadeIn}
                 initial="hidden"
                 animate="visible"
               >
-                <h3 className="text-lg sm:text-xl font-semibold mb-3">About This Event</h3>
-                                            {event.description ? (
-                  <p className="whitespace-pre-line text-sm sm:text-base">{event.description}</p>
+                <h3 className="text-base sm:text-lg md:text-xl font-semibold mb-2 sm:mb-3">About This Event</h3>
+                {event.description ? (
+                  <p className="whitespace-pre-line text-xs sm:text-sm md:text-base">{event.description}</p>
                 ) : (
-                  <p className="opacity-60 text-sm sm:text-base">No description provided.</p>
+                  <p className="opacity-60 text-xs sm:text-sm md:text-base">No description provided.</p>
                 )}
-
               </motion.div>
             </TabsContent>
 
             {/* Attendees Tab */}
-            <TabsContent value="attendees" className="text-white mt-4">
+            <TabsContent value="attendees" className="text-white mt-3 sm:mt-4">
               <motion.div
                 variants={slideIn}
                 initial="hidden"
                 animate="visible"
               >
-                <div className="flex flex-wrap gap-2 mb-4">
-                  <Badge className="bg-green-600 text-white text-xs">
+                <div className="flex flex-wrap gap-1 sm:gap-2 mb-3 sm:mb-4">
+                  <Badge className="bg-green-600 text-white text-xs px-1.5 sm:px-2">
                     {event.attendees.filter(a => a.rsvp === "YES").length} Going
                   </Badge>
-                  <Badge className="bg-amber-600 text-white text-xs">
+                  <Badge className="bg-amber-600 text-white text-xs px-1.5 sm:px-2">
                     {event.attendees.filter(a => a.rsvp === "MAYBE").length} Maybe
                   </Badge>
-                  <Badge className="bg-red-600 text-white text-xs">
+                  <Badge className="bg-red-600 text-white text-xs px-1.5 sm:px-2">
                     {event.attendees.filter(a => a.rsvp === "NO").length} Not Going
                   </Badge>
                 </div>
 
                 {event.attendees.length === 0 ? (
-                  <div className="text-center py-6 sm:py-8">
-                    <Users className="h-8 w-8 sm:h-10 sm:w-10 mx-auto mb-2 opacity-40" />
-                    <p className="opacity-70 text-sm">No attendees yet.</p>
-                    <p className="text-xs sm:text-sm opacity-50 mt-1">Be the first to RSVP!</p>
+                  <div className="text-center py-4 sm:py-6 md:py-8">
+                    <Users className="h-6 w-6 sm:h-8 sm:w-8 md:h-10 md:w-10 mx-auto mb-2 opacity-40" />
+                    <p className="opacity-70 text-xs sm:text-sm">No attendees yet.</p>
+                    <p className="text-xs opacity-50 mt-1">Be the first to RSVP!</p>
                   </div>
                 ) : (
-                  <div className="space-y-2 sm:space-y-3">
+                  <div className="space-y-1.5 sm:space-y-2 md:space-y-3">
                     {event.attendees.map((attendee) => (
                       <div
                         key={attendee.id}
-                        className="flex items-center justify-between p-2 rounded-lg hover:bg-white/10 cursor-pointer"
+                        className="flex items-center justify-between p-1.5 sm:p-2 rounded-lg hover:bg-white/10 cursor-pointer"
                         onClick={() => router.push(`/users/${attendee.userId}`)}
                       >
-                        <div className="flex items-center gap-2 sm:gap-3 min-w-0">
-                          <Avatar className="h-8 w-8 sm:h-10 sm:w-10 border border-white/30 flex-shrink-0">
+                        <div className="flex items-center gap-1.5 sm:gap-2 md:gap-3 min-w-0">
+                          <Avatar className="h-6 w-6 sm:h-8 sm:w-8 md:h-10 md:w-10 border border-white/30 flex-shrink-0">
                             <AvatarImage src={attendee.user.image || undefined} />
                             <AvatarFallback>{attendee.user.name?.[0] || '?'}</AvatarFallback>
                           </Avatar>
                           <div className="min-w-0">
-                            <p className="font-medium text-sm sm:text-base truncate">{attendee.user.name || 'Anonymous'}</p>
+                            <p className="font-medium text-xs sm:text-sm md:text-base truncate">{attendee.user.name || 'Anonymous'}</p>
                             {attendee.user.username && (
-                              <p className="text-xs opacity-70 truncate">@{attendee.user.username}</p>
-                                                    )}
-                                                </div>
-                                            </div>
+                              <p className="text-[10px] sm:text-xs opacity-70 truncate">@{attendee.user.username}</p>
+                            )}
+                          </div>
+                        </div>
                         <Badge
                           className={
                             attendee.rsvp === "YES" ? "bg-green-600" :
@@ -730,7 +746,7 @@ export default function EventPage() {
                                 "bg-red-600"
                           }
                         >
-                          <span className="text-xs whitespace-nowrap">
+                          <span className="text-[10px] sm:text-xs whitespace-nowrap px-1 sm:px-2">
                             {attendee.rsvp === "YES" ? "Going" :
                               attendee.rsvp === "MAYBE" ? "Maybe" : "Not Going"}
                           </span>
@@ -741,25 +757,25 @@ export default function EventPage() {
                 )}
 
                 {isHost && (
-                  <div className="mt-4 sm:mt-6 flex justify-center">
+                  <div className="mt-3 sm:mt-4 md:mt-6 flex justify-center">
                     <Button
                       size="sm"
                       onClick={() => setShowAddAttendeeModal(true)}
                       variant="outline"
-                      className="bg-transparent border-white/30 hover:bg-white/10 text-white text-xs sm:text-sm h-8"
+                      className="bg-transparent border-white/30 hover:bg-white/10 text-white text-xs sm:text-sm h-7 sm:h-8"
                     >
-                      <UserPlus className="h-3.5 w-3.5 mr-1 sm:mr-2" />
+                      <UserPlus className="h-3 w-3 sm:h-3.5 sm:w-3.5 mr-1 sm:mr-2" />
                       Invite People
                     </Button>
                   </div>
-                            )}
-                        </motion.div>
+                )}
+              </motion.div>
             </TabsContent>
 
             {/* Photos Tab */}
-            <TabsContent value="photos" className="text-white mt-4">
-        <motion.div
-            variants={fadeIn}
+            <TabsContent value="photos" className="text-white mt-3 sm:mt-4">
+              <motion.div
+                variants={fadeIn}
                 initial="hidden"
                 animate="visible"
               >
@@ -772,7 +788,7 @@ export default function EventPage() {
               </motion.div>
             </TabsContent>
           </Tabs>
-            </Card>
+        </Card>
       </div>
 
       {/* Modals */}
@@ -791,21 +807,21 @@ export default function EventPage() {
       />
 
       <AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
-        <AlertDialogContent className="max-w-[90vw] sm:max-w-md">
+        <AlertDialogContent className="max-w-[90vw] sm:max-w-md bg-[#2c3e50] border-[#bdc3c7]/50 text-white">
           <AlertDialogHeader>
-            <AlertDialogTitle className="text-lg sm:text-xl">Delete Event</AlertDialogTitle>
-            <AlertDialogDescription className="text-sm">
+            <AlertDialogTitle className="text-base sm:text-lg md:text-xl">Delete Event</AlertDialogTitle>
+            <AlertDialogDescription className="text-xs sm:text-sm text-gray-300">
               Are you sure you want to delete this event? This action cannot be undone.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter className="flex-col sm:flex-row gap-2 sm:gap-0">
-            <AlertDialogCancel className="mt-0 text-sm h-9">Cancel</AlertDialogCancel>
+            <AlertDialogCancel className="mt-0 text-xs sm:text-sm h-8 sm:h-9 bg-[#2c3e50]/70 border-[#bdc3c7]/50 text-white hover:bg-[#2c3e50] hover:text-[#bdc3c7]">Cancel</AlertDialogCancel>
             <AlertDialogAction
-              className="bg-destructive text-destructive-foreground hover:bg-destructive/90 text-sm h-9"
+              className="bg-red-600 text-white hover:bg-red-700 text-xs sm:text-sm h-8 sm:h-9"
               onClick={handleDelete}
               disabled={isDeleting}
             >
-              {isDeleting ? <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" /> : null}
+              {isDeleting ? <Loader2 className="mr-2 h-3 w-3 sm:h-3.5 sm:w-3.5 animate-spin" /> : null}
               {isDeleting ? "Deleting..." : "Delete"}
             </AlertDialogAction>
           </AlertDialogFooter>

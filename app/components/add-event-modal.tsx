@@ -7,7 +7,7 @@ import { Textarea } from "../components/ui/textarea"
 import { Label } from "../components/ui/label"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "../components/ui/dialog"
 import { useToast } from "../components/ui/use-toast"
-import { Loader2, Image as ImageIcon, Palette, Check, ChevronLeft, ChevronRight, Calendar as CalendarIcon, Clock, MapPin, Users, CheckCircle2, Eye, EyeOff, Globe, Lock } from "lucide-react"
+import { Loader2, Image as ImageIcon, Palette, Check, ChevronLeft, ChevronRight, Calendar as CalendarIcon, Clock, MapPin, Users, Info, CheckCircle2, Eye, EyeOff, Globe, Lock } from "lucide-react"
 import { useSession } from "next-auth/react"
 import { Avatar, AvatarFallback, AvatarImage } from "../components/ui/avatar"
 import { Tabs, TabsList, TabsTrigger } from "../components/ui/tabs"
@@ -38,7 +38,38 @@ interface Friend {
 type Step = "basicInfo" | "location" | "customization" | "invitations" | "preview";
 
 // Define step metadata for better organization
-const STEPS: Array<{id: Step, label: string, icon: React.ReactNode, description: string}> = [];
+const STEPS: Array<{id: Step, label: string, icon: React.ReactNode, description: string}> = [
+  { 
+    id: "basicInfo", 
+    label: "Basics", 
+    icon: <Info className="h-4 w-4" />,
+    description: "Event name, date and details"
+  },
+  { 
+    id: "location", 
+    label: "Location", 
+    icon: <MapPin className="h-4 w-4" />,
+    description: "Where will it take place?"
+  },
+  { 
+    id: "customization", 
+    label: "Style", 
+    icon: <Palette className="h-4 w-4" />,
+    description: "Make it look great"
+  },
+  { 
+    id: "invitations", 
+    label: "Invites", 
+    icon: <Users className="h-4 w-4" />,
+    description: "Who's coming?"
+  },
+  { 
+    id: "preview", 
+    label: "Preview", 
+    icon: <CheckCircle2 className="h-4 w-4" />,
+    description: "Review and create"
+  }
+];
 
 // Animation variants are defined but not used, removing to fix linter errors
 
