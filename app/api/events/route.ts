@@ -24,6 +24,7 @@ const createEventSchema = z.object({
   inviteFriends: z.array(z.string()).optional(),
   headerType: z.enum(["color", "image"]),
   headerColor: z.string().optional(),
+  // Make headerImageUrl optional since we process the image separately
   headerImageUrl: z.string().optional(),
   privacyLevel: z.enum(["PUBLIC", "FRIENDS_ONLY", "PRIVATE"]).default("PUBLIC")
 })
@@ -197,32 +198,6 @@ export async function POST(request: Request) {
     // Normalize time format for all-day events
     const normalizedTime = time === "ALL_DAY" ? "00:00" : time;
 
-    // Validate data using the schema
-    const dataToValidate = {
-      name,
-      date,
-      time: normalizedTime, // Use normalized time for validation
-      location,
-      description,
-      duration,
-      headerType,
-      headerColor,
-      headerImageUrl,
-      inviteFriends: inviteFriends || [],
-      rsvpDeadline: date, // Using event date as RSVP deadline for now
-      privacyLevel
-    }
-    
-    const validation = createEventSchema.safeParse(dataToValidate);
-    if (!validation.success) {
-      console.error("Validation error:", validation.error.format());
-      return NextResponse.json({ 
-        error: "Invalid event data", 
-        details: validation.error.format(),
-        data: dataToValidate // Include the data that was validated for easier debugging
-      }, { status: 400 })
-    }
-    
     // Process headerImage if present
     if (headerType === 'image' && headerImage) {
       try {
@@ -263,6 +238,41 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Event date must be in the future" }, { status: 400 })
     }
 
+    // Validate data using the schema
+    const dataToValidate = {
+      name,
+      date,
+      time: normalizedTime, // Use normalized time for validation
+      location,
+      description,
+      duration,
+      headerType,
+      headerColor,
+      // Only include headerImageUrl if headerType is "image"
+      ...(headerType === "image" ? { headerImageUrl } : {}),
+      inviteFriends: inviteFriends || [],
+      rsvpDeadline: date, // Using event date as RSVP deadline for now
+      privacyLevel
+    }
+
+    // Modified validation for event with image
+    if (headerType === "image" && !headerImageUrl) {
+      return NextResponse.json({ 
+        error: "Invalid event data", 
+        details: { headerImageUrl: "Header image is required for image type" }
+      }, { status: 400 });
+    }
+
+    const validation = createEventSchema.safeParse(dataToValidate);
+    if (!validation.success) {
+      console.error("Validation error:", validation.error.format());
+      return NextResponse.json({ 
+        error: "Invalid event data", 
+        details: validation.error.format(),
+        data: dataToValidate // Include the data that was validated for easier debugging
+      }, { status: 400 })
+    }
+    
     try {
       // Create the event with the header options
       const event = await prisma.event.create({
