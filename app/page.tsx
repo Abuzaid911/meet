@@ -34,17 +34,17 @@ const features = [
   {
     title: "Create Events",
     description: "Plan gatherings, meetings, and activities with ease.",
-    icon: <Calendar className="h-10 w-10 text-teal-400" />,
+    icon: <Calendar className="h-10 w-10 text-blue-400" />,
   },
   {
     title: "Invite Friends",
     description: "Bring your social circle together for memorable experiences.",
-    icon: <Users className="h-10 w-10 text-blue-500" />,
+    icon: <Users className="h-10 w-10 text-blue-600" />,
   },
   {
     title: "Real-time RSVPs",
     description: "Know who's coming with instant attendance updates.",
-    icon: <Clock className="h-10 w-10 text-indigo-500" />,
+    icon: <Clock className="h-10 w-10 text-blue-800" />,
   },
 ]
 
@@ -194,11 +194,11 @@ export default function Home() {
         ></motion.div>
         
         {/* Floating particles */}
-        <FloatingParticle left="10%" top="20%" delay={0} />
+        <FloatingParticle left="10%" top="20%" delay={0} color="blue-400" />
         <FloatingParticle left="20%" top="60%" delay={1.5} color="blue-400" />
-        <FloatingParticle left="70%" top="15%" delay={0.8} color="indigo-400" />
-        <FloatingParticle left="85%" top="50%" delay={2.2} size={4} />
-        <FloatingParticle left="40%" top="75%" delay={1.1} size={5} color="teal-400" />
+        <FloatingParticle left="70%" top="15%" delay={0.8} color="blue-700" />
+        <FloatingParticle left="85%" top="50%" delay={2.2} size={4} color="blue-900" />
+        <FloatingParticle left="40%" top="75%" delay={1.1} size={5} color="blue-900" />
       </div>
 
       {/* Hero Section */}
