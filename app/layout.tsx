@@ -20,6 +20,11 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en" className="h-full">
+      <head>
+        <link rel="manifest" href="/manifest.json" />
+        <meta name="theme-color" content="#10b981" />
+        {/* Add meta tags for iOS splash screens/icons if needed */}
+      </head>
       <body className={`${inter.className} flex flex-col min-h-full`}>
         <Providers>
           <ToastProvider>

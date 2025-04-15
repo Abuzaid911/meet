@@ -6,26 +6,28 @@ import { useState, useEffect, useRef } from "react"
 import { AddEventModal } from "./components/add-event-modal"
 import { useSession } from "next-auth/react"
 import { Button } from "./components/ui/button"
-import { 
-  Calendar, 
-  PlusCircle, 
-  Search, 
-  Users, 
-  Clock, 
-  ChevronDown,  
+import {
+  Calendar,
+  PlusCircle,
+  Search,
+  Users,
+  Clock,
+  ChevronDown,
   Sparkles,
   // Removing unused import
   // Star,
-  ArrowRight
+  ArrowRight,
+  ChevronLeft,
+  ChevronRight,
 } from "lucide-react"
 import { motion, AnimatePresence, useScroll, useTransform, useInView, useSpring } from "framer-motion"
 import { Input } from "./components/ui/input"
 import Link from "next/link"
-import { 
-  Card, 
-  CardContent, 
-  CardHeader, 
-  CardTitle 
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle
 } from "./components/ui/card"
 import { Tabs, TabsList, TabsTrigger } from "./components/ui/tabs"
 import { EventCarousel } from "./components/event-carousel"
@@ -83,26 +85,27 @@ const scaleIn = {
   }
 }
 
-const FloatingParticle = ({ delay = 0, left, top, size = 6, color = "primary" }: 
-  { delay?: number, left: string, top: string, size?: number, color?: string }) => {
-  return (
-    <motion.div 
-      className={`absolute w-${size} h-${size} rounded-full bg-${color} opacity-60 blur-sm`}
-      style={{ left, top }}
-      initial={{ y: 0 }}
-      animate={{ 
-        y: [0, -15, 0],
-        opacity: [0.6, 0.9, 0.6],
-        scale: [1, 1.2, 1]
-      }}
-      transition={{
-        duration: 3 + Math.random() * 2,
-        repeat: Infinity,
-        delay,
-        ease: "easeInOut"
-      }}
-    />
-  )
+const FloatingParticle = ({ delay = 0, left, top, color = "primary" }:
+  { delay?: number, left: string, top: string, color?: string }) => {
+    const size = 6; // Define size inside or pass it if it varies
+    return (
+      <motion.div
+        className={`absolute w-${size} h-${size} rounded-full bg-${color} opacity-60 blur-sm`}
+        style={{ left, top }}
+        initial={{ y: 0 }}
+        animate={{
+          y: [0, -15, 0],
+          opacity: [0.6, 0.9, 0.6],
+          scale: [1, 1.2, 1]
+        }}
+        transition={{
+          duration: 3 + Math.random() * 2,
+          repeat: Infinity,
+          delay,
+          ease: "easeInOut"
+        }}
+      />
+    )
 }
 
 export default function Home() {
@@ -113,15 +116,15 @@ export default function Home() {
   const [filter, setFilter] = useState("all")
   const [showScrollIndicator, setShowScrollIndicator] = useState(true)
   const isLoading = status === "loading"
-  
+
   const heroRef = useRef<HTMLDivElement>(null)
   const featuresRef = useRef<HTMLDivElement>(null)
   const eventsRef = useRef<HTMLDivElement>(null)
-  
+
   const heroInView = useInView(heroRef, { once: false, amount: 0.3 })
   const featuresInView = useInView(featuresRef, { once: false, amount: 0.2 })
   const eventsInView = useInView(eventsRef, { once: false, amount: 0.1 })
-  
+
   const { scrollYProgress } = useScroll()
   const headerScale = useTransform(scrollYProgress, [0, 0.2], [1, 0.95])
   const headerOpacity = useTransform(scrollYProgress, [0, 0.2], [1, 0.6])
@@ -154,7 +157,7 @@ export default function Home() {
     <div className="min-h-screen relative overflow-x-hidden">
       {/* Animated Background Elements */}
       <div className="absolute inset-0 w-full h-full overflow-hidden pointer-events-none z-0">
-        <motion.div 
+        <motion.div
           className="absolute top-0 -left-40 w-96 h-96 bg-white rounded-full mix-blend-multiply filter blur-3xl opacity-40"
           animate={{
             x: [0, 50, 0],
@@ -166,8 +169,8 @@ export default function Home() {
             repeatType: "reverse"
           }}
         ></motion.div>
-        
-        <motion.div 
+
+        <motion.div
           className="absolute top-60 -right-40 w-96 h-96 bg-white rounded-full mix-blend-multiply filter blur-3xl opacity-30"
           animate={{
             x: [0, -40, 0],
@@ -179,8 +182,8 @@ export default function Home() {
             repeatType: "reverse"
           }}
         ></motion.div>
-        
-        <motion.div 
+
+        <motion.div
           className="absolute bottom-0 left-1/4 w-96 h-96 bg-white rounded-full mix-blend-multiply filter blur-3xl opacity-30"
           animate={{
             x: [0, 60, 0],
@@ -192,23 +195,23 @@ export default function Home() {
             repeatType: "reverse"
           }}
         ></motion.div>
-        
+
         {/* Floating particles */}
         <FloatingParticle left="10%" top="20%" delay={0} color="blue-400" />
         <FloatingParticle left="20%" top="60%" delay={1.5} color="blue-400" />
         <FloatingParticle left="70%" top="15%" delay={0.8} color="blue-700" />
-        <FloatingParticle left="85%" top="50%" delay={2.2} size={4} color="blue-900" />
-        <FloatingParticle left="40%" top="75%" delay={1.1} size={5} color="blue-900" />
+        <FloatingParticle left="85%" top="50%" delay={2.2} color="blue-900" />
+        <FloatingParticle left="40%" top="75%" delay={1.1} color="blue-900" />
       </div>
 
       {/* Hero Section */}
-      <section 
-        ref={heroRef} 
+      <section
+        ref={heroRef}
         className="pt-20 pb-16 md:pt-28 md:pb-24 px-4 md:px-8 lg:px-16 relative z-10"
       >
         <div className="max-w-5xl mx-auto">
-          <motion.div 
-            style={{ 
+          <motion.div
+            style={{
               scale: springHeaderScale,
               opacity: springHeaderOpacity
             }}
@@ -220,7 +223,7 @@ export default function Home() {
               transition={{ duration: 0.8, ease: [0.22, 1, 0.36, 1] }}
             >
               <div className="flex justify-center mb-6">
-                <motion.div 
+                <motion.div
                   className="inline-flex items-center px-4 py-1.5 rounded-full bg-primary/10 text-primary text-sm font-medium"
                   initial={{ opacity: 0, scale: 0.8 }}
                   animate={{ opacity: 1, scale: 1 }}
@@ -230,11 +233,16 @@ export default function Home() {
                   <span>Your social calendar, reimagined</span>
                 </motion.div>
               </div>
-              
+
               <h1 className="text-4xl md:text-6xl font-extrabold mb-6 tracking-tight relative text-gray-400">
                 Welcome to{" "}
                 <span className="bg-gradient-to-r from-primary to-blue-500 bg-clip-text text-transparent relative">
                   MeetOn
+                  <motion.div
+                    className="absolute -top-3 -right-4 w-6 h-6 rounded-full bg-blue-300/50 blur-sm origin-center"
+                    animate={{ scale: [1, 1.1, 1] }}
+                    transition={{ duration: 1.5, repeat: Infinity, repeatType: "reverse", delay: 0.9 }}
+                  />
                   <div className="absolute -top-3 -right-4">
                     <motion.div
                       initial={{ rotate: -15, scale: 0 }}
@@ -249,18 +257,18 @@ export default function Home() {
                 Plan and manage events with friends, all in one place. Create, invite, and track RSVPs effortlessly.
               </p>
             </motion.div>
-            
+
             <div className="flex flex-wrap justify-center gap-4">
               {session ? (
-                <motion.div 
-                  whileHover={{ scale: 1.05 }} 
+                <motion.div
+                  whileHover={{ scale: 1.05 }}
                   whileTap={{ scale: 0.95 }}
                   initial={{ opacity: 0, y: 20 }}
                   animate={heroInView ? { opacity: 1, y: 0 } : { opacity: 0, y: 20 }}
                   transition={{ duration: 0.5, delay: 0.3 }}
                 >
-                  <Button 
-                    onClick={handleAddEvent} 
+                  <Button
+                    onClick={handleAddEvent}
                     size="lg"
                     className="text-base px-8 py-3 bg-gradient-to-r from-primary to-blue-500 text-white rounded-full hover:from-primary/90 hover:to-blue-500/90 shadow-lg hover:shadow-xl transition-all"
                     disabled={isLoading}
@@ -270,14 +278,14 @@ export default function Home() {
                   </Button>
                 </motion.div>
               ) : (
-                <motion.div 
-                  whileHover={{ scale: 1.05 }} 
+                <motion.div
+                  whileHover={{ scale: 1.05 }}
                   whileTap={{ scale: 0.95 }}
                   initial={{ opacity: 0, y: 20 }}
                   animate={heroInView ? { opacity: 1, y: 0 } : { opacity: 0, y: 20 }}
                   transition={{ duration: 0.5, delay: 0.3 }}
                 >
-                  <Button 
+                  <Button
                     asChild
                     size="lg"
                     className="text-base px-8 py-3 bg-gradient-to-r from-primary to-blue-500 text-white rounded-full hover:from-primary/90 hover:to-blue-500/90 shadow-lg hover:shadow-xl transition-all"
@@ -292,20 +300,20 @@ export default function Home() {
           {/* Scroll Indicator */}
           <AnimatePresence>
             {showScrollIndicator && (
-              <motion.div 
+              <motion.div
                 className="flex justify-center mt-8"
                 initial={{ opacity: 0, y: -10 }}
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0 }}
                 transition={{ duration: 0.3 }}
               >
-                <motion.div 
+                <motion.div
                   className="flex flex-col items-center"
                   animate={{ y: [0, 8, 0] }}
-                  transition={{ 
-                    duration: 1.5, 
+                  transition={{
+                    duration: 1.5,
                     repeat: Infinity,
-                    ease: "easeInOut" 
+                    ease: "easeInOut"
                   }}
                 >
                   <span className="text-sm text-gray-500 mb-1">Scroll for more</span>
@@ -316,7 +324,7 @@ export default function Home() {
           </AnimatePresence>
 
           {/* Feature Cards with staggered animation */}
-          <motion.div 
+          <motion.div
             ref={featuresRef}
             variants={staggerContainer}
             initial="hidden"
@@ -327,22 +335,25 @@ export default function Home() {
               <motion.div
                 key={feature.title}
                 variants={fadeInUp}
-                whileHover={{ 
+                className="group relative overflow-hidden"
+                whileHover={{
                   y: -8,
                   transition: { duration: 0.2 }
                 }}
               >
                 <Card className="h-full border border-border/50 dark:border-border/50 relative overflow-hidden group">
-                  <motion.div 
+                  <motion.div
                     className="absolute inset-0 bg-gradient-to-br from-primary/5 to-blue-500/5 opacity-0 group-hover:opacity-100 transition-opacity duration-500"
                   />
                   <CardHeader className="flex flex-col items-center text-center pb-2 relative z-10">
                     <motion.div
                       whileHover={{ rotate: [0, -10, 10, -5, 0], scale: 1.1 }}
                       transition={{ duration: 0.6 }}
-                      className="rounded-full bg-gray-100 dark:bg-gray-800 p-3 mb-4"
+                      className="rounded-full bg-gray-100 dark:bg-gray-800 p-3 mb-4 group-hover:bg-primary/20 transition-colors duration-300"
                     >
-                      {feature.icon}
+                      <motion.div className="transition-colors duration-300 group-hover:text-primary">
+                        {feature.icon}
+                      </motion.div>
                     </motion.div>
                     <CardTitle className="text-xl">{feature.title}</CardTitle>
                   </CardHeader>
@@ -355,9 +366,9 @@ export default function Home() {
           </motion.div>
         </div>
       </section>
-      
+
       {/* Event Feed Section with enhanced animations */}
-      <motion.section 
+      <motion.section
         ref={eventsRef}
         initial={{ opacity: 0 }}
         animate={eventsInView ? { opacity: 1 } : { opacity: 0 }}
@@ -365,15 +376,14 @@ export default function Home() {
         className="py-16 md:py-20 px-4 md:px-8 lg:px-16 bg-background border-t border-border rounded-t-3xl relative z-10 min-h-screen"
       >
         <div className="max-w-6xl mx-auto">
-          <motion.div 
+          <motion.div
             variants={staggerContainer}
             initial="hidden"
             animate={eventsInView ? "visible" : "hidden"}
-            className="flex flex-col md:flex-row justify-between items-start md:items-center mb-10 gap-4"
-          >
-            <motion.h2 
+            className="flex flex-col md:flex-row justify-between items-start md:items-center mb-10 gap-4">
+            <motion.h2
               variants={fadeInUp}
-              className="text-3xl md:text-4xl font-bold tracking-tight flex items-center"
+              className="text-3xl md:text-4xl font-bold tracking-tight flex items-center relative"
             >
               <motion.div
                 initial={{ scale: 0.5, opacity: 0 }}
@@ -383,13 +393,18 @@ export default function Home() {
                 <Sparkles className="mr-3 h-7 w-7 text-primary" />
               </motion.div>
               Upcoming Events
+              {/* Subtle Carousel Navigation Indicators (CSS-based for better integration) */}
+              <div className="absolute right-0 top-1/2 transform -translate-y-1/2 flex gap-2 text-gray-400 opacity-0 group-hover:opacity-50 transition-opacity duration-300">
+                <ChevronLeft className="h-5 w-5 hover:opacity-100 cursor-pointer" />
+                <ChevronRight className="h-5 w-5 hover:opacity-100 cursor-pointer" />
+              </div>
             </motion.h2>
-            
+
             <motion.div
               variants={fadeInUp}
               className="flex flex-col sm:flex-row gap-4 w-full md:w-auto"
             >
-              <motion.div 
+              <motion.div
                 className="relative flex-grow sm:max-w-xs"
                 whileFocus={{ scale: 1.02 }}
                 transition={{ duration: 0.2 }}
@@ -419,7 +434,7 @@ export default function Home() {
               </TabsList>
             </Tabs>
           </motion.div>
-          
+
           {/* Enhanced Event Feed with sliding animations */}
           <AnimatePresence mode="wait">
             <motion.div
@@ -428,12 +443,12 @@ export default function Home() {
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -20 }}
               transition={{ duration: 0.5 }}
-              className="relative overflow-hidden"
+              className="relative overflow-hidden group" // Added group for carousel indicators
             >
               {/* Animated gradient overlay on edges for scroll indication */}
               <div className="absolute left-0 top-0 bottom-0 w-12 bg-gradient-to-r from-background to-transparent z-10 pointer-events-none"></div>
               <div className="absolute right-0 top-0 bottom-0 w-12 bg-gradient-to-l from-background to-transparent z-10 pointer-events-none"></div>
-              
+
               {/* Event Feed with animated carousel */}
               <motion.div
                 initial={{ x: 20 }}
@@ -449,7 +464,7 @@ export default function Home() {
 
       {/* Logged Out CTA Section with enhanced animations */}
       {!session && status !== 'loading' && (
-        <motion.section 
+        <motion.section
           initial={{ opacity: 0 }}
           whileInView={{ opacity: 1 }}
           transition={{ duration: 0.8 }}
@@ -457,7 +472,7 @@ export default function Home() {
           className="py-16 md:py-24 bg-gradient-to-r from-primary/90 to-blue-500/90 text-primary-foreground relative z-10 mt-[-1px] overflow-hidden"
         >
           {/* Animated background shapes */}
-          <motion.div 
+          <motion.div
             className="absolute top-0 right-0 w-64 h-64 bg-white/10 rounded-full blur-3xl"
             animate={{
               x: [50, 150, 50],
@@ -470,7 +485,7 @@ export default function Home() {
               repeatType: "reverse",
             }}
           />
-          <motion.div 
+          <motion.div
             className="absolute bottom-0 left-0 w-96 h-96 bg-white/5 rounded-full blur-3xl"
             animate={{
               x: [0, 100, 0],
@@ -483,9 +498,9 @@ export default function Home() {
               repeatType: "reverse",
             }}
           />
-           
+
           <div className="container mx-auto px-6 text-center relative z-10">
-            <motion.div 
+            <motion.div
               initial={{ opacity: 0, y: 30 }}
               whileInView={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.6, delay: 0.2 }}
@@ -500,8 +515,8 @@ export default function Home() {
                 whileTap={{ scale: 0.95 }}
                 transition={{ duration: 0.2 }}
               >
-                <Button 
-                  asChild 
+                <Button
+                  asChild
                   size="lg"
                   variant="secondary"
                   className="text-base px-8 py-3 rounded-full shadow-lg hover:shadow-xl transition-all bg-white text-primary hover:bg-white/90 group"

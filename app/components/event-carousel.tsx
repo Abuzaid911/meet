@@ -1,75 +1,74 @@
 "use client"
 
-import { useEffect, useState, useCallback, useRef } from 'react'
-import Link from 'next/link'
-import Image from 'next/image'
+import { useEffect, useState, useCallback, memo } from 'react';
+import Link from 'next/link';
+import Image from 'next/image';
 import {
   Card,
   CardContent
-} from './ui/card'
+} from './ui/card';
 import {
   CalendarIcon,
   MapPin,
   Users,
   Clock,
-  ChevronLeft,
-  ChevronRight,
   TrendingUp,
   AlertTriangle,
   Search,
   X,
-  Filter
-} from 'lucide-react'
-import { format, isThisWeek, isThisMonth, isPast, formatDistance } from 'date-fns'
-import { motion } from 'framer-motion'
-import { Badge } from './ui/badge'
-import { Skeleton } from './ui/skeleton'
-import { Button } from './ui/button'
-import { Input } from './ui/input'
+  Filter,
+  ChevronDown,
+} from 'lucide-react';
+import { format, isThisWeek, isThisMonth, isPast, formatDistance } from 'date-fns';
+import { motion } from 'framer-motion';
+import { Badge } from './ui/badge';
+import { Skeleton } from './ui/skeleton';
+import { Button } from './ui/button';
+import { Input } from './ui/input';
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
-} from "./ui/dropdown-menu"
-import { cn } from '@/lib/utils'
-import { useMediaQuery } from '@/lib/hooks/use-media-query'
+} from "./ui/dropdown-menu";
+import { useMediaQuery } from '@/lib/hooks/use-media-query';
+import { debounce } from 'lodash';
 
-// --- Interfaces ---
+// --- Interfaces (Same as before) ---
 interface Attendee {
   user: {
-    id: string
-    name: string | null
-    image: string | null
-  }
-  rsvp: string
+    id: string;
+    name: string | null;
+    image: string | null;
+  };
+  rsvp: string;
 }
 
 interface Event {
-  id: string
-  name: string
-  date: string
-  time: string
-  location: string
-  description?: string
-  duration: number
+  id: string;
+  name: string;
+  date: string;
+  time: string;
+  location: string;
+  description?: string;
+  duration: number;
   host: {
-    id: string
-    name: string | null
-    image: string | null
-  }
-  attendees: Attendee[]
-  headerType?: "color" | "image"
-  headerColor?: string
-  headerImageUrl?: string
+    id: string;
+    name: string | null;
+    image: string | null;
+  };
+  attendees: Attendee[];
+  headerType?: "color" | "image";
+  headerColor?: string;
+  headerImageUrl?: string;
 }
 
 interface EventCarouselProps {
-  searchTerm?: string
-  filter?: string
+  searchTerm?: string;
+  filter?: string;
 }
 
-// --- Helper Functions ---
+// --- Helper Functions (Same as before) ---
 const getConfirmedAttendees = (attendees: Attendee[]) => {
   return attendees.filter(a => a.rsvp === 'YES').length;
 };
@@ -78,7 +77,6 @@ const getRelativeTimeLabel = (dateStr: string) => {
   try {
     const eventDate = new Date(dateStr);
     if (isNaN(eventDate.getTime())) return "";
-
     return formatDistance(eventDate, new Date(), { addSuffix: true });
   } catch (e) {
     console.error("Error parsing date:", e);
@@ -91,7 +89,6 @@ const isEventSoon = (date: string) => {
     const eventDate = new Date(date);
     if (isNaN(eventDate.getTime())) return false;
     if (isPast(eventDate)) return false;
-
     const now = new Date();
     const diffTime = eventDate.getTime() - now.getTime();
     const diffDays = diffTime / (1000 * 60 * 60 * 24);
@@ -116,34 +113,25 @@ const formatEventTime = (timeStr: string): string => {
 };
 
 // --- Main Component ---
-export function EventCarousel({ searchTerm = "", filter = "all" }: EventCarouselProps) {
-  const [events, setEvents] = useState<Event[]>([])
-  const [filteredEvents, setFilteredEvents] = useState<Event[]>([])
-  const [isLoading, setIsLoading] = useState(true)
-  const [fetchError, setFetchError] = useState<string | null>(null)
-  const [currentIndex, setCurrentIndex] = useState(0)
-  const [localSearchTerm, setLocalSearchTerm] = useState(searchTerm)
-  const [localFilter, setLocalFilter] = useState(filter)
-  const [isMounted, setIsMounted] = useState(false)
-  const [isAnimating, setIsAnimating] = useState(false)
+export const EventCarousel = memo(({ searchTerm = "", filter = "all" }: EventCarouselProps) => {
+  const [events, setEvents] = useState<Event[]>([]);
+  const [filteredEvents, setFilteredEvents] = useState<Event[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [fetchError, setFetchError] = useState<string | null>(null);
+  const [currentIndex, setCurrentIndex] = useState(0);
+  const [localSearchTerm, setLocalSearchTerm] = useState(searchTerm);
+  const [localFilter, setLocalFilter] = useState(filter);
 
-  const isSmallScreen = useMediaQuery("(max-width: 640px)")
-  const isMediumScreen = useMediaQuery("(max-width: 1024px)")
-  const cardsPerView = isSmallScreen ? 1 : isMediumScreen ? 2 : 3
+  const isSmallScreen = useMediaQuery("(max-width: 768px)");
 
-  // Auto-rotation timer
-  const autoRotateTimerRef = useRef<NodeJS.Timeout | null>(null)
-
-  // --- Data Fetching ---
+  // --- Data Fetching --- // Changed to use /api/events/public
   const fetchEvents = useCallback(async () => {
     try {
       setIsLoading(true);
       setFetchError(null);
-
       const response = await fetch('/api/events/public');
       if (!response.ok) throw new Error('Failed to fetch events');
       const data = await response.json();
-
       setEvents(data);
     } catch (err) {
       console.error('Error fetching events:', err);
@@ -151,170 +139,75 @@ export function EventCarousel({ searchTerm = "", filter = "all" }: EventCarousel
     } finally {
       setIsLoading(false);
     }
-  }, []);
+  }, []); // Removed dependency array
 
-  // --- Auto-rotate function ---
-  const startAutoRotate = useCallback(() => {
-    if (autoRotateTimerRef.current) {
-      clearTimeout(autoRotateTimerRef.current);
-    }
-
-    if (filteredEvents.length <= cardsPerView) return;
-
-    autoRotateTimerRef.current = setTimeout(() => {
-      if (!isAnimating) {
-        setIsAnimating(true);
-        setCurrentIndex(prevIndex =>
-          prevIndex === filteredEvents.length - cardsPerView ? 0 : prevIndex + 1
-        );
-
-        // Clear animation flag after transition completes
-        setTimeout(() => setIsAnimating(false), 500);
-      }
-      startAutoRotate();
-    }, 6000); // Slightly longer interval for better user experience
-  }, [filteredEvents.length, cardsPerView, isAnimating]);
-
-  const stopAutoRotate = useCallback(() => {
-    if (autoRotateTimerRef.current) {
-      clearTimeout(autoRotateTimerRef.current);
-      autoRotateTimerRef.current = null;
-    }
-  }, []);
-
-  // --- Navigation functions ---
-  const handlePrevious = useCallback(() => {
-    if (isAnimating) return;
-
-    setIsAnimating(true);
-    stopAutoRotate();
-    setCurrentIndex(prevIndex => (prevIndex === 0 ? 0 : prevIndex - 1));
-
-    // Clear animation flag after transition completes  
-    setTimeout(() => {
-      setIsAnimating(false);
-      startAutoRotate();
-    }, 500);
-  }, [stopAutoRotate, startAutoRotate, isAnimating]);
-
-  const handleNext = useCallback(() => {
-    if (isAnimating) return;
-
-    setIsAnimating(true);
-    stopAutoRotate();
-    setCurrentIndex(prevIndex => {
-      const maxIndex = Math.max(0, filteredEvents.length - cardsPerView);
-      return prevIndex >= maxIndex ? maxIndex : prevIndex + 1;
-    });
-
-    // Clear animation flag after transition completes
-    setTimeout(() => {
-      setIsAnimating(false);
-      startAutoRotate();
-    }, 500);
-  }, [filteredEvents.length, cardsPerView, stopAutoRotate, startAutoRotate, isAnimating]);
-
-  // --- Apply filters using local state ---
-  const applyFilters = useCallback(() => {
-    if (events.length === 0) return;
-
-    let filtered = [...events];
-
-    // Apply search term filtering
-    if (localSearchTerm.trim() !== '') {
-      const searchLower = localSearchTerm.toLowerCase();
-      filtered = filtered.filter(event =>
-        event.name.toLowerCase().includes(searchLower) ||
-        event.location.toLowerCase().includes(searchLower) ||
-        event.host.name?.toLowerCase().includes(searchLower) ||
-        event.description?.toLowerCase().includes(searchLower)
-      );
-    }
-
-    // Apply time-based filtering
-    try {
-      if (localFilter === 'thisWeek') {
+  const applyFilters = useCallback(
+    debounce(() => {
+      if (events.length === 0) return;
+      let filtered = [...events];
+      if (localSearchTerm.trim() !== '') {
+        const searchLower = localSearchTerm.toLowerCase();
         filtered = filtered.filter(event =>
-          !isPast(new Date(event.date)) &&
-          isThisWeek(new Date(event.date), { weekStartsOn: 1 })
-        );
-      } else if (localFilter === 'thisMonth') {
-        filtered = filtered.filter(event =>
-          !isPast(new Date(event.date)) &&
-          isThisMonth(new Date(event.date))
+          event.name.toLowerCase().includes(searchLower) ||
+          event.location.toLowerCase().includes(searchLower) ||
+          event.host.name?.toLowerCase().includes(searchLower) ||
+          event.description?.toLowerCase().includes(searchLower)
         );
       }
-    } catch (e) {
-      console.error("Date filtering error:", e);
-    }
+      try {
+        if (localFilter === 'thisWeek') {
+          filtered = filtered.filter(event =>
+            !isPast(new Date(event.date)) &&
+            isThisWeek(new Date(event.date), { weekStartsOn: 1 })
+          );
+        } else if (localFilter === 'thisMonth') {
+          filtered = filtered.filter(event =>
+            !isPast(new Date(event.date)) &&
+            isThisMonth(new Date(event.date))
+          );
+        }
+      } catch (e) {
+        console.error("Date filtering error:", e);
+      }
+      setFilteredEvents(filtered);
+      setCurrentIndex(0);
+    }, 300),
+    [events, localSearchTerm, localFilter]
+  );
 
-    setFilteredEvents(filtered);
-    // Reset to first card when filters change
-    setCurrentIndex(0);
-  }, [events, localSearchTerm, localFilter]);
-
-  // --- Initial data fetch ---
-  useEffect(() => {
-    fetchEvents();
-  }, [fetchEvents]);
-
-  // --- Filter application ---
-  useEffect(() => {
-    // Update local state when props change
-    setLocalSearchTerm(searchTerm);
-    setLocalFilter(filter);
-  }, [searchTerm, filter]);
-
-  useEffect(() => {
+  const handleSearchInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setLocalSearchTerm(e.target.value);
     applyFilters();
-  }, [applyFilters, events, localSearchTerm, localFilter]);
+  };
 
-  // --- Auto-rotation ---
-  useEffect(() => {
-    if (!isLoading && filteredEvents.length > 0) {
-      startAutoRotate();
-    }
-    return () => stopAutoRotate();
-  }, [filteredEvents, isLoading, startAutoRotate, stopAutoRotate]);
-
-  // --- Check if component is mounted ---
-  useEffect(() => {
-    setIsMounted(true);
-    return () => setIsMounted(false);
-  }, []);
-
-  // --- Clear search ---
   const handleClearSearch = () => {
     setLocalSearchTerm("");
   };
 
+  useEffect(() => { fetchEvents(); }, [fetchEvents]);
+  useEffect(() => { setLocalSearchTerm(searchTerm); setLocalFilter(filter); }, [searchTerm, filter]);
+  useEffect(() => { applyFilters(); }, [applyFilters]);
+
   // --- Loading State ---
   if (isLoading) {
     return (
-      <div className="space-y-6">
-        <div className="flex justify-between items-center mb-8">
-          <h2 className="text-2xl font-bold bg-gradient-to-r from-primary to-blue-500 bg-clip-text text-transparent">
-            Discovering Events
+      <div className="space-y-4 p-4 sm:p-6 md:p-8">
+        <div className="flex justify-between items-center mb-6">
+          <h2 className="text-lg font-semibold bg-gradient-to-r from-primary to-blue-500 bg-clip-text text-transparent">
+            Loading Events
           </h2>
-          <Skeleton className="h-10 w-32" />
+          <Skeleton className="h-8 w-24" />
         </div>
-
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
-          {[...Array(cardsPerView)].map((_, i) => (
-            <Card key={i} className="overflow-hidden border shadow-sm">
-              <div className="relative">
-                <Skeleton className="h-52 w-full" />
-                <div className="absolute top-3 left-3">
-                  <Skeleton className="h-12 w-16 rounded-md" />
-                </div>
-              </div>
-              <CardContent className="p-5">
-                <Skeleton className="h-7 w-3/4 mb-3" />
-                <Skeleton className="h-4 w-1/2 mb-6" />
-                <div className="space-y-3">
-                  <Skeleton className="h-4 w-full" />
-                  <Skeleton className="h-4 w-full" />
-                  <Skeleton className="h-4 w-2/3" />
+        <div className="flex flex-col gap-4">
+          {[...Array(3)].map((_, i) => (
+            <Card key={i} className="shadow-md border">
+              <div className="relative h-64 overflow-hidden rounded-md bg-gray-100 animate-pulse" />
+              <CardContent className="p-4">
+                <Skeleton className="h-5 w-3/4 mb-2" />
+                <Skeleton className="h-3 w-1/2 mb-4" />
+                <div className="space-y-2">
+                  <Skeleton className="h-3 w-full" />
+                  <Skeleton className="h-3 w-2/3" />
                 </div>
               </CardContent>
             </Card>
@@ -327,44 +220,37 @@ export function EventCarousel({ searchTerm = "", filter = "all" }: EventCarousel
   // --- Error State ---
   if (fetchError) {
     return (
-      <Card className="bg-destructive/10 border-destructive/30">
+      <Card className="bg-destructive/10 border-destructive/30 m-4">
         <CardContent className="pt-6">
-          <div className="text-center py-12 max-w-md mx-auto">
-            <AlertTriangle className="h-14 w-14 text-destructive mx-auto mb-6 opacity-80" />
-            <h3 className="text-xl font-semibold text-destructive mb-3">Unable to Load Events</h3>
-            <p className="text-muted-foreground mb-6">{fetchError}</p>
-            <Button
-              onClick={() => fetchEvents()}
-              variant="destructive"
-              size="lg"
-              className="px-8"
-            >
-              Try Again
-            </Button>
+          <div className="text-center py-8">
+            <AlertTriangle className="h-10 w-10 text-destructive mx-auto mb-4 opacity-80" />
+            <h3 className="text-lg font-semibold text-destructive mb-2">Error Loading Events</h3>
+            <p className="text-muted-foreground mb-4">{fetchError}</p>
+            <Button onClick={fetchEvents} variant="destructive" size="sm">Try Again</Button>
           </div>
         </CardContent>
       </Card>
     );
   }
 
-  // --- No Results State ---
   if (filteredEvents.length === 0) {
     return (
-      <div className="space-y-6">
+      <div className="space-y-4 p-4 sm:p-6 md:p-8">
         {/* Search and Filter Controls */}
-        <div className="flex flex-col sm:flex-row gap-4 mb-8">
+        <div className="flex flex-col sm:flex-row gap-2 mb-6">
+          {/* ... (Same Search and Filter UI as before) ... */}
           <div className="relative flex-1">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <Input
               placeholder="Search events..."
               value={localSearchTerm}
-              onChange={(e) => setLocalSearchTerm(e.target.value)}
-              className="pl-9 pr-9 h-11 bg-background/80 backdrop-blur-sm border-border/50 focus:border-primary transition-all"
+              onChange={handleSearchInputChange}
+              className="pl-8 pr-8 h-10 bg-background/80 backdrop-blur-sm border-border/50 focus:border-primary transition-all text-sm"
             />
             {localSearchTerm && (
               <button
                 onClick={handleClearSearch}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+                className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
               >
                 <X className="h-4 w-4" />
               </button>
@@ -373,23 +259,24 @@ export function EventCarousel({ searchTerm = "", filter = "all" }: EventCarousel
 
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant="outline" className="gap-2 h-11 min-w-[150px] border-border/50 bg-background/80 backdrop-blur-sm">
+              <Button variant="outline" className="gap-2 h-10 min-w-[100px] border-border/50 bg-background/80 backdrop-blur-sm text-sm">
                 <Filter className="h-4 w-4" />
                 <span>
-                  {localFilter === "all" && "All Events"}
-                  {localFilter === "thisWeek" && "This Week"}
-                  {localFilter === "thisMonth" && "This Month"}
+                  {localFilter === "all" && "All"}
+                  {localFilter === "thisWeek" && "Week"}
+                  {localFilter === "thisMonth" && "Month"}
                 </span>
+                <ChevronDown className="h-4 w-4 opacity-70" />
               </Button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-[180px]">
-              <DropdownMenuItem onClick={() => setLocalFilter("all")} className="cursor-pointer">
+            <DropdownMenuContent align="end" className="w-[150px]">
+              <DropdownMenuItem onClick={() => setLocalFilter("all")} className="cursor-pointer text-sm">
                 All Events
               </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => setLocalFilter("thisWeek")} className="cursor-pointer">
+              <DropdownMenuItem onClick={() => setLocalFilter("thisWeek")} className="cursor-pointer text-sm">
                 This Week
               </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => setLocalFilter("thisMonth")} className="cursor-pointer">
+              <DropdownMenuItem onClick={() => setLocalFilter("thisMonth")} className="cursor-pointer text-sm">
                 This Month
               </DropdownMenuItem>
             </DropdownMenuContent>
@@ -398,14 +285,14 @@ export function EventCarousel({ searchTerm = "", filter = "all" }: EventCarousel
 
         <Card className="border-border/40 overflow-hidden">
           <CardContent className="p-0">
-            <div className="flex flex-col items-center py-16 px-4 bg-gradient-to-b from-background to-muted/30">
+            <div className="flex flex-col items-center py-12 px-4 bg-gradient-to-b from-background to-muted/30">
               <motion.div
                 initial={{ opacity: 0, scale: 0.9 }}
                 animate={{ opacity: 1, scale: 1 }}
                 transition={{ duration: 0.4 }}
               >
-                <div className="rounded-full bg-muted/60 p-6 mb-6">
-                  <CalendarIcon className="h-16 w-16 text-muted-foreground/70" />
+                <div className="rounded-full bg-muted/60 p-4 mb-4">
+                  <CalendarIcon className="h-10 w-10 text-muted-foreground/70" />
                 </div>
               </motion.div>
 
@@ -415,13 +302,14 @@ export function EventCarousel({ searchTerm = "", filter = "all" }: EventCarousel
                 transition={{ duration: 0.4, delay: 0.2 }}
                 className="text-center"
               >
-                <h3 className="text-2xl font-semibold mb-3">
+                <h3 className="text-xl font-semibold mb-2">
                   {localSearchTerm || localFilter !== 'all' ? "No Events Found" : "No Upcoming Events"}
                 </h3>
-                <p className="text-muted-foreground max-w-md mx-auto mb-8">
+                <p className="text-muted-foreground max-w-md mx-auto mb-6 text-sm">
                   {localSearchTerm && `We couldn't find events matching "${localSearchTerm}"`}
                   {localSearchTerm && localFilter !== 'all' && ' with the current filter.'}
-                  {!localSearchTerm && localFilter !== 'all' && 'There are no events matching the current filter.'}
+                  {!localSearchTerm && localFilter !== 'all' &&
+                    'There are no events matching the current filter.'}
                   {!localSearchTerm && localFilter === 'all' && 'Check back later or create a new event to get started!'}
                 </p>
 
@@ -432,8 +320,8 @@ export function EventCarousel({ searchTerm = "", filter = "all" }: EventCarousel
                       setLocalFilter("all");
                     }}
                     variant="outline"
-                    size="lg"
-                    className="px-6"
+                    size="sm"
+                    className="px-4 text-sm"
                   >
                     <X className="h-4 w-4 mr-2" />
                     Clear Filters
@@ -448,22 +336,25 @@ export function EventCarousel({ searchTerm = "", filter = "all" }: EventCarousel
   }
 
   // --- Main Carousel Render ---
+
   return (
-    <div className="space-y-6">
+    <div className="space-y-4 p-4 sm:p-6 md:p-8 relative overflow-hidden">
       {/* Search and Filter Controls */}
-      <div className="flex flex-col sm:flex-row gap-4 mb-8">
+      <div className="flex flex-col sm:flex-row gap-2 mb-6">
+        {/* Search Input */}
         <div className="relative flex-1">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input
             placeholder="Search events..."
             value={localSearchTerm}
-            onChange={(e) => setLocalSearchTerm(e.target.value)}
-            className="pl-9 pr-9 h-11 bg-background/80 backdrop-blur-sm border-border/50 focus:border-primary transition-all"
+            onChange={handleSearchInputChange}
+            className="pl-8 pr-8 h-10 bg-background/80 backdrop-blur-sm border-border/50 focus:border-primary transition-all text-sm"
           />
           {localSearchTerm && (
             <button
               onClick={handleClearSearch}
-              className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+              className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+              aria-label="Clear search"
             >
               <X className="h-4 w-4" />
             </button>
@@ -472,235 +363,150 @@ export function EventCarousel({ searchTerm = "", filter = "all" }: EventCarousel
 
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <Button variant="outline" className="gap-2 h-11 min-w-[150px] border-border/50 bg-background/80 backdrop-blur-sm">
+            <Button variant="outline" className="gap-2 h-10 min-w-[100px] border-border/50 bg-background/80 backdrop-blur-sm text-sm">
               <Filter className="h-4 w-4" />
               <span>
-                {localFilter === "all" && "All Events"}
-                {localFilter === "thisWeek" && "This Week"}
-                {localFilter === "thisMonth" && "This Month"}
+                {localFilter === "all" && "All"}
+                {localFilter === "thisWeek" && "Week"}
+                {localFilter === "thisMonth" && "Month"}
               </span>
+              <ChevronDown className="h-4 w-4 opacity-70" />
             </Button>
           </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" className="w-[180px]">
-            <DropdownMenuItem onClick={() => setLocalFilter("all")} className="cursor-pointer">
+          <DropdownMenuContent align="end" className="w-[150px]">
+            <DropdownMenuItem onClick={() => setLocalFilter("all")} className="cursor-pointer text-sm">
               All Events
             </DropdownMenuItem>
-            <DropdownMenuItem onClick={() => setLocalFilter("thisWeek")} className="cursor-pointer">
+            <DropdownMenuItem onClick={() => setLocalFilter("thisWeek")} className="cursor-pointer text-sm">
               This Week
             </DropdownMenuItem>
-            <DropdownMenuItem onClick={() => setLocalFilter("thisMonth")} className="cursor-pointer">
+            <DropdownMenuItem onClick={() => setLocalFilter("thisMonth")} className="cursor-pointer text-sm">
               This Month
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
       </div>
 
-      {/* Carousel */}
-      <div className="relative group">
-        <div className="overflow-hidden rounded-xl">
-          <div
-            className="flex transition-all duration-500 ease-out"
-            style={{
-              transform: `translateX(-${currentIndex * (100 / cardsPerView)}%)`,
-              width: `${(filteredEvents.length / cardsPerView) * 100}%`
-            }}
+      <div className="flex flex-col gap-4">
+        {filteredEvents.slice(currentIndex, currentIndex + (isSmallScreen ? 2 : 3)).map((event, index) => (
+          <Link
+            key={event.id}
+            href={`/events/${event.id}`}
+            className="block focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 rounded-md"
           >
-            {isMounted && filteredEvents.map((event, index) => (
-              <div
-                key={event.id}
-                className="px-2"
-                style={{ width: `${100 / filteredEvents.length}%` }}
-              >
-                <Link href={`/events/${event.id}`} className="block h-full focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 rounded-xl">
-                  <motion.div
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{
-                      duration: 0.5,
-                      delay: Math.min(index * 0.1, 0.3),
-                      ease: [0.22, 1, 0.36, 1]
-                    }}
-                    whileHover={{
-                      y: -10,
-                      transition: {
-                        duration: 0.2,
-                        ease: "easeOut"
-                      }
-                    }}
-                    className="h-full"
-                  >
-                    <Card className="overflow-hidden border border-border/50 shadow-md h-full hover:shadow-xl hover:border-border/80 transition-all duration-300">
-                      <div className="relative h-52 sm:h-56 overflow-hidden">
-                        {/* Event Header Image or Color */}
-                        {event.headerType === 'image' && event.headerImageUrl ? (
-                          <Image
-                            src={event.headerImageUrl}
-                            alt={event.name}
-                            fill
-                            className="object-cover transition-all duration-1000 ease-in-out group-hover:scale-105 hover:scale-110"
-                            sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
-                            priority={index < cardsPerView}
-                          />
-                        ) : (
-                          <div
-                            className="w-full h-full transition-all duration-300"
-                            style={{ backgroundColor: event.headerColor || '#10b981' }}
-                          />
-                        )}
+            <motion.div
+              className="relative w-full rounded-md shadow-md border border-border/50 overflow-hidden bg-card"
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.3, delay: index * 0.05 }}
+            >
+              {/* Event Header */}
+              <div className="relative h-40 sm:h-48 overflow-hidden">
+                {event.headerType === 'image' && event.headerImageUrl ? (
+                  <Image
+                    src={event.headerImageUrl}
+                    alt={`Header image for ${event.name}`}
+                    fill
+                    className="object-cover"
+                    sizes="(max-width: 768px) 100vw, 50vw"
+                    priority={index < 2}
+                  />
+                ) : (
+                  <div
+                    className="w-full h-full"
+                    style={{ backgroundColor: event.headerColor || '#10b981' }}
+                  />
+                )}
+                {/* Date Badge */}
+                <div className="absolute top-2 left-2 bg-black/60 backdrop-blur-md text-white p-1 rounded-md shadow-sm text-xs sm:text-sm">
+                  <div>{format(new Date(event.date), 'MMM dd')}</div>
+                  <div className="font-bold">{formatEventTime(event.time)}</div>
+                </div>
 
-                        {/* Date Badge */}
-                        <div className="absolute top-3 left-3 bg-black/60 backdrop-blur-md text-white p-2 rounded-lg shadow-lg">
-                          <div className="text-xs font-medium">
-                            {format(new Date(event.date), 'MMM dd')}
-                          </div>
-                          <div className="text-sm font-bold">
-                            {formatEventTime(event.time)}
-                          </div>
-                        </div>
+                {/* Status Badges */}
+                <div className="absolute top-2 right-2 flex flex-col gap-1">
+                  {isEventSoon(event.date) && (
+                    <Badge className="bg-gradient-to-r from-orange-500 to-amber-500 text-white border-none shadow-sm text-xs sm:text-sm" aria-label="Event is soon">
+                      Soon
+                    </Badge>
+                  )}
+                  {isEventPopular(event.attendees) && (
+                    <Badge className="bg-gradient-to-r from-purple-500 to-pink-500 text-white border-none flex items-center gap-1 shadow-sm text-xs sm:text-sm" aria-label="Popular event">
+                      <TrendingUp className="h-3 w-3" /> Popular
+                    </Badge>
+                  )}
+                </div>
 
-                        {/* Status Badges */}
-                        <div className="absolute top-3 right-3 flex flex-col gap-2">
-                          {isEventSoon(event.date) && (
-                            <Badge className="bg-gradient-to-r from-orange-500 to-amber-500 text-white border-none shadow-md">
-                              Soon
-                            </Badge>
-                          )}
-                          {isEventPopular(event.attendees) && (
-                            <Badge className="bg-gradient-to-r from-purple-500 to-pink-500 text-white border-none flex items-center gap-1 shadow-md">
-                              <TrendingUp className="h-3 w-3" /> Popular
-                            </Badge>
-                          )}
-                        </div>
+                {/* Gradient Overlay */}
+                <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/40 to-transparent" aria-hidden="true" />
 
-                        {/* Gradient Overlay */}
-                        <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/40 to-black/10" />
-
-                        {/* Event Title */}
-                        <div className="absolute bottom-0 left-0 right-0 p-4">
-                          <h3 className="text-white font-bold text-lg sm:text-xl line-clamp-2 group-hover:text-primary-foreground transition-colors">
-                            {event.name}
-                          </h3>
-                          <p className="text-white/90 text-sm mt-1 flex items-center">
-                            by {event.host.name || 'Unknown Host'}
-                          </p>
-                        </div>
-                      </div>
-
-                      <CardContent className="p-5">
-                        <div className="space-y-3 text-sm">
-                          {/* Relative Time */}
-                          <div className="text-xs font-medium text-primary mb-2">
-                            {getRelativeTimeLabel(event.date)}
-                          </div>
-
-                          {/* Location */}
-                          <div className="flex items-start">
-                            <MapPin className="h-4 w-4 mr-2 mt-0.5 text-muted-foreground" />
-                            <span className="line-clamp-1 flex-1">{event.location}</span>
-                          </div>
-
-                          {/* Duration */}
-                          <div className="flex items-start">
-                            <Clock className="h-4 w-4 mr-2 mt-0.5 text-muted-foreground" />
-                            {event.duration >= 60 ? (
-                              <span>{Math.floor(event.duration / 60)} hour{Math.floor(event.duration / 60) !== 1 ? 's' : ''}</span>
-                            ) : (
-                              <span>{event.duration} minute{event.duration !== 1 ? 's' : ''}</span>
-                            )}
-                          </div>
-
-                          {/* Attendees */}
-                          <div className="flex items-start">
-                            <Users className="h-4 w-4 mr-2 mt-0.5 text-muted-foreground" />
-                            <span>
-                              {getConfirmedAttendees(event.attendees)}
-                              {getConfirmedAttendees(event.attendees) === 1 ? ' person' : ' people'} going
-                            </span>
-                          </div>
-                        </div>
-                      </CardContent>
-                    </Card>
-                  </motion.div>
-                </Link>
+                {/* Event Title */}
+                <div className="absolute bottom-0 left-0 right-0 p-2 sm:p-3">
+                  <h3 className="text-white font-semibold text-sm sm:text-lg line-clamp-2 group-hover:text-primary-foreground transition-colors">
+                    {event.name}
+                  </h3>
+                  <p className="text-white/80 text-xs sm:text-sm mt-0.5">
+                    by {event.host.name || 'Unknown Host'}
+                  </p>
+                </div>
               </div>
-            ))}
-          </div>
-        </div>
 
-        {/* Navigation Arrows - Only show if needed */}
-        {filteredEvents.length > cardsPerView && (
-          <>
-            <Button
-              variant="default"
-              size="icon"
-              className={cn(
-                "absolute left-0 top-1/2 -translate-y-1/2 -translate-x-1/2 rounded-full duration-300 backdrop-blur-md shadow-md h-10 w-10 sm:h-12 sm:w-12 z-10 border border-border/50",
-                currentIndex === 0 && "opacity-0 cursor-default pointer-events-none",
-                isAnimating && "cursor-wait"
-              )}
-              onClick={handlePrevious}
-              disabled={currentIndex === 0 || isAnimating}
-            >
-              <ChevronLeft className="h-5 w-5 sm:h-6 sm:w-6" />
-            </Button>
+              <CardContent className="p-3 sm:p-4">
+                <div className="space-y-1 text-xs sm:text-sm">
+                  {/* Relative Time */}
+                  <div className="font-medium text-primary mb-1">{getRelativeTimeLabel(event.date)}</div>
 
-            <Button
-              variant="default"
-              size="icon"
-              className={cn(
-                "absolute right-0 top-1/2 -translate-y-1/2 translate-x-1/2 rounded-full duration-300 backdrop-blur-md shadow-md h-10 w-10 sm:h-12 sm:w-12 z-10 border border-border/50",
-                currentIndex >= filteredEvents.length - cardsPerView && "opacity-0 cursor-default pointer-events-none",
-                isAnimating && "cursor-wait"
-              )}
-              onClick={handleNext}
-              disabled={currentIndex >= filteredEvents.length - cardsPerView || isAnimating}
-            >
-              <ChevronRight className="h-5 w-5 sm:h-6 sm:w-6" />
-            </Button>
-          </>
-        )}
+                  {/* Location */}
+                  <div className="flex items-start">
+                    <MapPin className="h-3 w-3 mr-1 mt-0.5 text-muted-foreground" aria-hidden="true" />
+                    <span className="line-clamp-1 flex-1">{event.location}</span>
+                  </div>
+
+                  {/* Duration */}
+                  <div className="flex items-start">
+                    <Clock className="h-3 w-3 mr-1 mt-0.5 text-muted-foreground" aria-hidden="true" />
+                    {event.duration >= 60 ? (
+                      <span>{Math.floor(event.duration / 60)} hr{Math.floor(event.duration / 60) !== 1 ? 's' : ''}</span>
+                    ) : (
+                      <span>{event.duration} min{event.duration !== 1 ? 's' : ''}</span>
+                    )}
+                  </div>
+
+                  {/* Attendees */}
+                  <div className="flex items-start">
+                    <Users className="h-3 w-3 mr-1 mt-0.5 text-muted-foreground" aria-hidden="true" />
+                    <span>
+                      {getConfirmedAttendees(event.attendees)} going
+                    </span>
+                  </div>
+                </div>
+              </CardContent>
+            </motion.div>
+          </Link>
+        ))}
       </div>
 
-      {/* Pagination Indicators */}
-      {filteredEvents.length > cardsPerView && (
-        <div className="flex justify-center gap-2 mt-8 flex-wrap">
-          {Array.from({ length: Math.ceil(filteredEvents.length / cardsPerView) }).map((_, index) => {
-            const isActive = index * cardsPerView === currentIndex;
-            const isVisible = Math.abs(index * cardsPerView - currentIndex) <= cardsPerView;
-
-            const handleClick = () => {
-              if (isAnimating) return;
-              setIsAnimating(true);
-              stopAutoRotate();
-              setCurrentIndex(index * cardsPerView);
-              setTimeout(() => {
-                setIsAnimating(false);
-                startAutoRotate();
-              }, 500);
-            };
-
-            return isVisible ? (
-              <motion.button
-                key={index}
-                onClick={handleClick}
-                disabled={isAnimating}
-                aria-label={`Go to page ${index + 1}`}
-                className={cn(
-                  "rounded-full transition-all duration-300 ease-in-out",
-                  isActive
-                    ? "w-2 h-2 bg-gradient-to-r from-primary to-blue-500"
-                    : "w-2 h-2 bg-gray-300"
-                )}
-                whileTap={{ scale: 0.95 }}
-                initial={{ opacity: 0, scale: 0.7 }}
-                animate={{ opacity: 1, scale: 1 }}
-                transition={{ duration: 0.25, delay: index * 0.04 }}
-              />
-            ) : null;
-          })}
+      {/* Simple Pagination (Optional) */}
+      {filteredEvents.length > 3 && (
+        <div className="flex justify-center mt-4 space-x-2">
+          <Button
+            variant="outline" size="sm"
+            onClick={() => setCurrentIndex(prev => Math.max(0, prev - 3))}
+            disabled={currentIndex === 0}
+          >
+            Previous
+          </Button>
+          <Button
+            variant="outline" size="sm"
+            onClick={() => setCurrentIndex(prev => Math.min(filteredEvents.length - 3, prev + 3))}
+            disabled={currentIndex >= filteredEvents.length - 3}
+          >
+            Next
+          </Button>
         </div>
       )}
     </div>
-  )
-}
+  );
+});
 
+EventCarousel.displayName = "EventCarousel";

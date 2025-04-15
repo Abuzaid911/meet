@@ -4,126 +4,145 @@ import { useState, useCallback, useEffect } from "react";
 import { motion } from "framer-motion";
 import { Container } from "@/app/components/ui/container";
 import { Button } from "@/app/components/ui/button";
-import { ChevronLeft, ChevronRight, AlertTriangle } from "lucide-react";
+import { AlertTriangle, Loader2 } from "lucide-react";
 import { useSession } from "next-auth/react";
 import { Alert, AlertDescription } from "@/app/components/ui/alert";
 import MiniCalendar from "@/app/components/mini-calendar";
 import { EventsHeader } from "@/app/components/events-header";
+import { Card, CardContent } from "@/app/components/ui/card";
+import { AddEventModal } from "@/app/components/add-event-modal";
 
 function EventContent() {
   const { status } = useSession();
-  const [currentMonth, setCurrentMonth] = useState(new Date());
   const [isLoadingCalendar, setIsLoadingCalendar] = useState(false);
   const [calendarError, setCalendarError] = useState<string | null>(null);
+  const [isAddEventModalOpen, setIsAddEventModalOpen] = useState(false);
+  const [selectedDate, setSelectedDate] = useState<Date | null>(null);
+  const [refreshKey, setRefreshKey] = useState(0);
 
-  // Calendar navigation functions
-  const goToPreviousMonth = () => {
-    setCurrentMonth(prev => new Date(prev.getFullYear(), prev.getMonth() - 1));
-  };
-
-  const goToNextMonth = () => {
-    setCurrentMonth(prev => new Date(prev.getFullYear(), prev.getMonth() + 1));
-  };
-
-  const getCurrentMonthDisplay = () => {
-    return currentMonth.toLocaleString("default", { month: "long", year: "numeric" });
-  };
-
-  // Fetch calendar events
+  // Fetch calendar events (dummy fetch for loading/error state)
   const fetchCalendarEvents = useCallback(async () => {
     setIsLoadingCalendar(true);
     setCalendarError(null);
     
     try {
-      // Calculate date range (whole month)
-      const start = new Date(currentMonth.getFullYear(), currentMonth.getMonth(), 1);
-      const end = new Date(currentMonth.getFullYear(), currentMonth.getMonth() + 1, 0);
-      
-      // Format dates for API
-      const startStr = start.toISOString().split('T')[0];
-      const endStr = end.toISOString().split('T')[0];
-      
-      // Fetch only events user is invited to or has RSVPed Yes/Maybe to
-      const appEventsRes = await fetch(`/api/events/calendar?startDate=${startStr}&endDate=${endStr}&filter=invited-rsvp`);
-      
-      if (!appEventsRes.ok) {
-        throw new Error("Failed to fetch calendar events");
-      }
-      
-      // We fetch the events but don't need to store them since MiniCalendar fetches its own events
-      await appEventsRes.json();
-      
+      // Simulate API call
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      // MiniCalendar fetches its own data
     } catch (error) {
       console.error("Error fetching calendar events:", error);
       setCalendarError("Failed to load events. Please try again.");
     } finally {
       setIsLoadingCalendar(false);
     }
-  }, [currentMonth]);
+  }, []);
 
-  // Fetch events when month changes
+  // Fetch events when month changes or refresh key changes
   useEffect(() => {
-    fetchCalendarEvents();
-  }, [fetchCalendarEvents, currentMonth]);
+    if (status === "authenticated") {
+      fetchCalendarEvents();
+    }
+  }, [fetchCalendarEvents, status, refreshKey]);
+
+  // --- Modal Handling Functions ---
+  const handleOpenAddEventModal = (date?: Date) => {
+    setSelectedDate(date || null);
+    setIsAddEventModalOpen(true);
+  };
+
+  const handleCloseEventModal = () => {
+    setIsAddEventModalOpen(false);
+    setSelectedDate(null);
+  };
+
+  const handleEventAdded = () => {
+    setRefreshKey(prev => prev + 1);
+    handleCloseEventModal();
+  };
+  // --- End Modal Handling ---
 
   return (
-    <div className="space-y-6">
-      <div className="flex justify-between items-center">
-        <h3 className="text-md font-medium">{getCurrentMonthDisplay()}</h3>
-        <div className="flex items-center gap-1">
-          <Button 
-            className="h-8 w-8 bg-gradient-to-r from-primary to-blue-500 text-white hover:from-primary/90 hover:to-blue-500/90 rounded-full p-0"
-            onClick={goToPreviousMonth}
-          >
-            <ChevronLeft className="h-4 w-4" />
-          </Button>
-          <Button 
-            className="h-8 w-8 bg-gradient-to-r from-primary to-blue-500 text-white hover:from-primary/90 hover:to-blue-500/90 rounded-full p-0"
-            onClick={goToNextMonth}
-          >
-            <ChevronRight className="h-4 w-4" />
-          </Button>
-        </div>
-      </div>
-      {status === "unauthenticated" ? (
-        <Alert>
-          <AlertTriangle className="h-4 w-4" />
-          <AlertDescription>
-            Please sign in to see your events and invites
-          </AlertDescription>
-        </Alert>
-      ) : isLoadingCalendar ? (
-        <div className="p-4 text-center">Loading calendar events...</div>
-      ) : calendarError ? (
-        <Alert>
-          <AlertTriangle className="h-4 w-4" />
-          <AlertDescription>{calendarError}</AlertDescription>
-        </Alert>
-      ) : (
-        <MiniCalendar
-          onDateSelect={() => {
-            // Date selection is handled by the MiniCalendar component
-          }}
+    <>
+      <Card className="overflow-hidden shadow-sm border border-border/40">
+        <CardContent className="p-4 sm:p-6">
+          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-4 gap-4">
+            <div className="flex items-center gap-2">
+              <h3 className="text-lg font-semibold text-foreground">
+                Calendar View
+              </h3>
+            </div>
+            {status === "authenticated" && (
+              <Button 
+                className="w-full sm:w-auto bg-gradient-to-r from-primary to-blue-500 text-white hover:from-primary/90 hover:to-blue-500/90 shadow-md hover:shadow-lg transition-all h-9 px-4 rounded-full"
+                onClick={() => handleOpenAddEventModal()}
+              >
+                Create Event
+              </Button>
+            )}
+          </div>
+          
+          {status === "unauthenticated" ? (
+            <Alert className="bg-yellow-50 border border-yellow-200 text-yellow-800">
+              <AlertTriangle className="h-5 w-5 !text-yellow-600" />
+              <AlertDescription>
+                Please sign in to view your personalized calendar.
+              </AlertDescription>
+            </Alert>
+          ) : status === "loading" || isLoadingCalendar ? (
+            <div className="flex items-center justify-center h-60 text-muted-foreground">
+              <Loader2 className="h-6 w-6 mr-2 animate-spin" />
+              Loading your calendar...
+            </div>
+          ) : calendarError ? (
+            <Alert variant="destructive">
+              <AlertTriangle className="h-5 w-5" />
+              <AlertDescription>
+                {calendarError} 
+                <Button 
+                  variant="link"
+                  className="p-0 h-auto ml-1 text-destructive underline"
+                  onClick={fetchCalendarEvents}
+                >
+                  Try again?
+                </Button>
+              </AlertDescription>
+            </Alert>
+          ) : (
+            <MiniCalendar
+              onDateSelect={(date) => {
+                if (date) {
+                  handleOpenAddEventModal(date);
+                }
+              }}
+            />
+          )}
+        </CardContent>
+      </Card>
+
+      {isAddEventModalOpen && (
+        <AddEventModal 
+          isOpen={isAddEventModalOpen} 
+          onClose={handleCloseEventModal} 
+          onEventAdded={handleEventAdded} 
+          initialDate={selectedDate || undefined} 
         />
       )}
-    </div>
+    </>
   );
 }
 
 export default function EventsPage() {
   return (
-    <Container>
+    <Container className="py-8 md:py-12">
       <motion.div
         variants={{ hidden: { opacity: 0, y: 20 }, show: { opacity: 1, y: 0 } }}
         initial="hidden"
         animate="show"
         transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
-        className="max-w-5xl mx-auto py-8 md:py-12"
+        className="max-w-5xl mx-auto space-y-8"
       >
         <EventsHeader />
-        <div className="mt-8">
-          <EventContent />
-        </div>
+        <EventContent />
       </motion.div>
     </Container>
   );
