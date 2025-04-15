@@ -26,6 +26,7 @@ import {
   DropdownMenuTrigger,
 } from "./ui/dropdown-menu"
 import { Avatar, AvatarFallback, AvatarImage } from "./ui/avatar"
+import { InstallPwaButton } from "./install-pwa-button"
 
 interface NavItemProps {
   href: string
@@ -112,6 +113,8 @@ export function NavBar() {
           </div>
 
           <div className="flex items-center gap-2">
+            <InstallPwaButton />
+            
             {session && <NotificationBell />}
 
             {status === 'loading' ? (
