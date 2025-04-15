@@ -3,15 +3,15 @@
 import { useEffect, useState, useCallback, useRef } from 'react'
 import Link from 'next/link'
 import Image from 'next/image'
-import { 
-  Card, 
+import {
+  Card,
   CardContent
 } from './ui/card'
-import { 
-  CalendarIcon, 
-  MapPin, 
-  Users, 
-  Clock, 
+import {
+  CalendarIcon,
+  MapPin,
+  Users,
+  Clock,
   ChevronLeft,
   ChevronRight,
   TrendingUp,
@@ -61,7 +61,7 @@ interface Event {
   attendees: Attendee[]
   headerType?: "color" | "image"
   headerColor?: string
-  headerImageUrl?: string 
+  headerImageUrl?: string
 }
 
 interface EventCarouselProps {
@@ -78,7 +78,7 @@ const getRelativeTimeLabel = (dateStr: string) => {
   try {
     const eventDate = new Date(dateStr);
     if (isNaN(eventDate.getTime())) return "";
-    
+
     return formatDistance(eventDate, new Date(), { addSuffix: true });
   } catch (e) {
     console.error("Error parsing date:", e);
@@ -126,24 +126,24 @@ export function EventCarousel({ searchTerm = "", filter = "all" }: EventCarousel
   const [localFilter, setLocalFilter] = useState(filter)
   const [isMounted, setIsMounted] = useState(false)
   const [isAnimating, setIsAnimating] = useState(false)
-  
+
   const isSmallScreen = useMediaQuery("(max-width: 640px)")
   const isMediumScreen = useMediaQuery("(max-width: 1024px)")
   const cardsPerView = isSmallScreen ? 1 : isMediumScreen ? 2 : 3
-  
+
   // Auto-rotation timer
   const autoRotateTimerRef = useRef<NodeJS.Timeout | null>(null)
-  
+
   // --- Data Fetching ---
   const fetchEvents = useCallback(async () => {
     try {
       setIsLoading(true);
       setFetchError(null);
-      
+
       const response = await fetch('/api/events/public');
       if (!response.ok) throw new Error('Failed to fetch events');
       const data = await response.json();
-      
+
       setEvents(data);
     } catch (err) {
       console.error('Error fetching events:', err);
@@ -158,117 +158,117 @@ export function EventCarousel({ searchTerm = "", filter = "all" }: EventCarousel
     if (autoRotateTimerRef.current) {
       clearTimeout(autoRotateTimerRef.current);
     }
-    
+
     if (filteredEvents.length <= cardsPerView) return;
-    
+
     autoRotateTimerRef.current = setTimeout(() => {
       if (!isAnimating) {
         setIsAnimating(true);
-        setCurrentIndex(prevIndex => 
+        setCurrentIndex(prevIndex =>
           prevIndex === filteredEvents.length - cardsPerView ? 0 : prevIndex + 1
         );
-        
+
         // Clear animation flag after transition completes
         setTimeout(() => setIsAnimating(false), 500);
       }
       startAutoRotate();
     }, 6000); // Slightly longer interval for better user experience
   }, [filteredEvents.length, cardsPerView, isAnimating]);
-  
+
   const stopAutoRotate = useCallback(() => {
     if (autoRotateTimerRef.current) {
       clearTimeout(autoRotateTimerRef.current);
       autoRotateTimerRef.current = null;
     }
   }, []);
-  
+
   // --- Navigation functions ---
   const handlePrevious = useCallback(() => {
     if (isAnimating) return;
-    
+
     setIsAnimating(true);
     stopAutoRotate();
     setCurrentIndex(prevIndex => (prevIndex === 0 ? 0 : prevIndex - 1));
-    
+
     // Clear animation flag after transition completes  
     setTimeout(() => {
       setIsAnimating(false);
       startAutoRotate();
     }, 500);
   }, [stopAutoRotate, startAutoRotate, isAnimating]);
-  
+
   const handleNext = useCallback(() => {
     if (isAnimating) return;
-    
+
     setIsAnimating(true);
     stopAutoRotate();
     setCurrentIndex(prevIndex => {
       const maxIndex = Math.max(0, filteredEvents.length - cardsPerView);
       return prevIndex >= maxIndex ? maxIndex : prevIndex + 1;
     });
-    
+
     // Clear animation flag after transition completes
     setTimeout(() => {
       setIsAnimating(false);
       startAutoRotate();
     }, 500);
   }, [filteredEvents.length, cardsPerView, stopAutoRotate, startAutoRotate, isAnimating]);
-  
+
   // --- Apply filters using local state ---
   const applyFilters = useCallback(() => {
     if (events.length === 0) return;
-    
+
     let filtered = [...events];
-    
+
     // Apply search term filtering
     if (localSearchTerm.trim() !== '') {
       const searchLower = localSearchTerm.toLowerCase();
       filtered = filtered.filter(event =>
         event.name.toLowerCase().includes(searchLower) ||
         event.location.toLowerCase().includes(searchLower) ||
-        event.host.name?.toLowerCase().includes(searchLower) || 
+        event.host.name?.toLowerCase().includes(searchLower) ||
         event.description?.toLowerCase().includes(searchLower)
       );
     }
-    
+
     // Apply time-based filtering
     try {
       if (localFilter === 'thisWeek') {
-        filtered = filtered.filter(event => 
-          !isPast(new Date(event.date)) && 
+        filtered = filtered.filter(event =>
+          !isPast(new Date(event.date)) &&
           isThisWeek(new Date(event.date), { weekStartsOn: 1 })
         );
       } else if (localFilter === 'thisMonth') {
-        filtered = filtered.filter(event => 
-          !isPast(new Date(event.date)) && 
+        filtered = filtered.filter(event =>
+          !isPast(new Date(event.date)) &&
           isThisMonth(new Date(event.date))
         );
       }
-    } catch(e) {
+    } catch (e) {
       console.error("Date filtering error:", e);
     }
-    
+
     setFilteredEvents(filtered);
     // Reset to first card when filters change
     setCurrentIndex(0);
   }, [events, localSearchTerm, localFilter]);
-  
+
   // --- Initial data fetch ---
   useEffect(() => {
     fetchEvents();
   }, [fetchEvents]);
-  
+
   // --- Filter application ---
   useEffect(() => {
     // Update local state when props change
     setLocalSearchTerm(searchTerm);
     setLocalFilter(filter);
   }, [searchTerm, filter]);
-  
+
   useEffect(() => {
     applyFilters();
   }, [applyFilters, events, localSearchTerm, localFilter]);
-  
+
   // --- Auto-rotation ---
   useEffect(() => {
     if (!isLoading && filteredEvents.length > 0) {
@@ -276,18 +276,18 @@ export function EventCarousel({ searchTerm = "", filter = "all" }: EventCarousel
     }
     return () => stopAutoRotate();
   }, [filteredEvents, isLoading, startAutoRotate, stopAutoRotate]);
-  
+
   // --- Check if component is mounted ---
   useEffect(() => {
     setIsMounted(true);
     return () => setIsMounted(false);
   }, []);
-  
+
   // --- Clear search ---
   const handleClearSearch = () => {
     setLocalSearchTerm("");
   };
-  
+
   // --- Loading State ---
   if (isLoading) {
     return (
@@ -298,7 +298,7 @@ export function EventCarousel({ searchTerm = "", filter = "all" }: EventCarousel
           </h2>
           <Skeleton className="h-10 w-32" />
         </div>
-        
+
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
           {[...Array(cardsPerView)].map((_, i) => (
             <Card key={i} className="overflow-hidden border shadow-sm">
@@ -323,7 +323,7 @@ export function EventCarousel({ searchTerm = "", filter = "all" }: EventCarousel
       </div>
     );
   }
-  
+
   // --- Error State ---
   if (fetchError) {
     return (
@@ -346,7 +346,7 @@ export function EventCarousel({ searchTerm = "", filter = "all" }: EventCarousel
       </Card>
     );
   }
-  
+
   // --- No Results State ---
   if (filteredEvents.length === 0) {
     return (
@@ -362,7 +362,7 @@ export function EventCarousel({ searchTerm = "", filter = "all" }: EventCarousel
               className="pl-9 pr-9 h-11 bg-background/80 backdrop-blur-sm border-border/50 focus:border-primary transition-all"
             />
             {localSearchTerm && (
-              <button 
+              <button
                 onClick={handleClearSearch}
                 className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
               >
@@ -370,7 +370,7 @@ export function EventCarousel({ searchTerm = "", filter = "all" }: EventCarousel
               </button>
             )}
           </div>
-          
+
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button variant="outline" className="gap-2 h-11 min-w-[150px] border-border/50 bg-background/80 backdrop-blur-sm">
@@ -395,7 +395,7 @@ export function EventCarousel({ searchTerm = "", filter = "all" }: EventCarousel
             </DropdownMenuContent>
           </DropdownMenu>
         </div>
-        
+
         <Card className="border-border/40 overflow-hidden">
           <CardContent className="p-0">
             <div className="flex flex-col items-center py-16 px-4 bg-gradient-to-b from-background to-muted/30">
@@ -408,7 +408,7 @@ export function EventCarousel({ searchTerm = "", filter = "all" }: EventCarousel
                   <CalendarIcon className="h-16 w-16 text-muted-foreground/70" />
                 </div>
               </motion.div>
-              
+
               <motion.div
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
@@ -424,7 +424,7 @@ export function EventCarousel({ searchTerm = "", filter = "all" }: EventCarousel
                   {!localSearchTerm && localFilter !== 'all' && 'There are no events matching the current filter.'}
                   {!localSearchTerm && localFilter === 'all' && 'Check back later or create a new event to get started!'}
                 </p>
-                
+
                 {(localSearchTerm || localFilter !== 'all') && (
                   <Button
                     onClick={() => {
@@ -446,7 +446,7 @@ export function EventCarousel({ searchTerm = "", filter = "all" }: EventCarousel
       </div>
     );
   }
-  
+
   // --- Main Carousel Render ---
   return (
     <div className="space-y-6">
@@ -461,7 +461,7 @@ export function EventCarousel({ searchTerm = "", filter = "all" }: EventCarousel
             className="pl-9 pr-9 h-11 bg-background/80 backdrop-blur-sm border-border/50 focus:border-primary transition-all"
           />
           {localSearchTerm && (
-            <button 
+            <button
               onClick={handleClearSearch}
               className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
             >
@@ -469,7 +469,7 @@ export function EventCarousel({ searchTerm = "", filter = "all" }: EventCarousel
             </button>
           )}
         </div>
-        
+
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <Button variant="outline" className="gap-2 h-11 min-w-[150px] border-border/50 bg-background/80 backdrop-blur-sm">
@@ -494,19 +494,19 @@ export function EventCarousel({ searchTerm = "", filter = "all" }: EventCarousel
           </DropdownMenuContent>
         </DropdownMenu>
       </div>
-      
+
       {/* Carousel */}
       <div className="relative group">
         <div className="overflow-hidden rounded-xl">
-          <div 
+          <div
             className="flex transition-all duration-500 ease-out"
-            style={{ 
+            style={{
               transform: `translateX(-${currentIndex * (100 / cardsPerView)}%)`,
               width: `${(filteredEvents.length / cardsPerView) * 100}%`
             }}
           >
             {isMounted && filteredEvents.map((event, index) => (
-              <div 
+              <div
                 key={event.id}
                 className="px-2"
                 style={{ width: `${100 / filteredEvents.length}%` }}
@@ -515,17 +515,17 @@ export function EventCarousel({ searchTerm = "", filter = "all" }: EventCarousel
                   <motion.div
                     initial={{ opacity: 0, y: 20 }}
                     animate={{ opacity: 1, y: 0 }}
-                    transition={{ 
-                      duration: 0.5, 
+                    transition={{
+                      duration: 0.5,
                       delay: Math.min(index * 0.1, 0.3),
                       ease: [0.22, 1, 0.36, 1]
                     }}
-                    whileHover={{ 
-                      y: -10, 
-                      transition: { 
+                    whileHover={{
+                      y: -10,
+                      transition: {
                         duration: 0.2,
                         ease: "easeOut"
-                      } 
+                      }
                     }}
                     className="h-full"
                   >
@@ -542,12 +542,12 @@ export function EventCarousel({ searchTerm = "", filter = "all" }: EventCarousel
                             priority={index < cardsPerView}
                           />
                         ) : (
-                          <div 
+                          <div
                             className="w-full h-full transition-all duration-300"
                             style={{ backgroundColor: event.headerColor || '#10b981' }}
                           />
                         )}
-                        
+
                         {/* Date Badge */}
                         <div className="absolute top-3 left-3 bg-black/60 backdrop-blur-md text-white p-2 rounded-lg shadow-lg">
                           <div className="text-xs font-medium">
@@ -557,7 +557,7 @@ export function EventCarousel({ searchTerm = "", filter = "all" }: EventCarousel
                             {formatEventTime(event.time)}
                           </div>
                         </div>
-                        
+
                         {/* Status Badges */}
                         <div className="absolute top-3 right-3 flex flex-col gap-2">
                           {isEventSoon(event.date) && (
@@ -571,10 +571,10 @@ export function EventCarousel({ searchTerm = "", filter = "all" }: EventCarousel
                             </Badge>
                           )}
                         </div>
-                        
+
                         {/* Gradient Overlay */}
                         <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/40 to-black/10" />
-                        
+
                         {/* Event Title */}
                         <div className="absolute bottom-0 left-0 right-0 p-4">
                           <h3 className="text-white font-bold text-lg sm:text-xl line-clamp-2 group-hover:text-primary-foreground transition-colors">
@@ -585,20 +585,20 @@ export function EventCarousel({ searchTerm = "", filter = "all" }: EventCarousel
                           </p>
                         </div>
                       </div>
-                      
+
                       <CardContent className="p-5">
                         <div className="space-y-3 text-sm">
                           {/* Relative Time */}
                           <div className="text-xs font-medium text-primary mb-2">
                             {getRelativeTimeLabel(event.date)}
                           </div>
-                          
+
                           {/* Location */}
                           <div className="flex items-start">
                             <MapPin className="h-4 w-4 mr-2 mt-0.5 text-muted-foreground" />
                             <span className="line-clamp-1 flex-1">{event.location}</span>
                           </div>
-                          
+
                           {/* Duration */}
                           <div className="flex items-start">
                             <Clock className="h-4 w-4 mr-2 mt-0.5 text-muted-foreground" />
@@ -608,12 +608,12 @@ export function EventCarousel({ searchTerm = "", filter = "all" }: EventCarousel
                               <span>{event.duration} minute{event.duration !== 1 ? 's' : ''}</span>
                             )}
                           </div>
-                          
+
                           {/* Attendees */}
                           <div className="flex items-start">
                             <Users className="h-4 w-4 mr-2 mt-0.5 text-muted-foreground" />
                             <span>
-                              {getConfirmedAttendees(event.attendees)} 
+                              {getConfirmedAttendees(event.attendees)}
                               {getConfirmedAttendees(event.attendees) === 1 ? ' person' : ' people'} going
                             </span>
                           </div>
@@ -626,7 +626,7 @@ export function EventCarousel({ searchTerm = "", filter = "all" }: EventCarousel
             ))}
           </div>
         </div>
-        
+
         {/* Navigation Arrows - Only show if needed */}
         {filteredEvents.length > cardsPerView && (
           <>
@@ -634,7 +634,7 @@ export function EventCarousel({ searchTerm = "", filter = "all" }: EventCarousel
               variant="default"
               size="icon"
               className={cn(
-                "absolute left-0 top-1/2 -translate-y-1/2 -translate-x-1/2 rounded-full opacity-0 group-hover:opacity-100 transition-opacity duration-300 bg-background/90 backdrop-blur-md shadow-md h-10 w-10 sm:h-12 sm:w-12 z-10 border border-border/50",
+                "absolute left-0 top-1/2 -translate-y-1/2 -translate-x-1/2 rounded-full duration-300 backdrop-blur-md shadow-md h-10 w-10 sm:h-12 sm:w-12 z-10 border border-border/50",
                 currentIndex === 0 && "opacity-0 cursor-default pointer-events-none",
                 isAnimating && "cursor-wait"
               )}
@@ -643,12 +643,12 @@ export function EventCarousel({ searchTerm = "", filter = "all" }: EventCarousel
             >
               <ChevronLeft className="h-5 w-5 sm:h-6 sm:w-6" />
             </Button>
-            
+
             <Button
               variant="default"
               size="icon"
               className={cn(
-                "absolute right-0 top-1/2 -translate-y-1/2 translate-x-1/2 rounded-full opacity-0 group-hover:opacity-100 transition-opacity duration-300 bg-background/90 backdrop-blur-md shadow-md h-10 w-10 sm:h-12 sm:w-12 z-10 border border-border/50",
+                "absolute right-0 top-1/2 -translate-y-1/2 translate-x-1/2 rounded-full duration-300 backdrop-blur-md shadow-md h-10 w-10 sm:h-12 sm:w-12 z-10 border border-border/50",
                 currentIndex >= filteredEvents.length - cardsPerView && "opacity-0 cursor-default pointer-events-none",
                 isAnimating && "cursor-wait"
               )}
@@ -660,65 +660,47 @@ export function EventCarousel({ searchTerm = "", filter = "all" }: EventCarousel
           </>
         )}
       </div>
-      
+
       {/* Pagination Indicators */}
       {filteredEvents.length > cardsPerView && (
-        <div className="flex justify-center gap-1.5 mt-8">
+        <div className="flex justify-center gap-2 mt-8 flex-wrap">
           {Array.from({ length: Math.ceil(filteredEvents.length / cardsPerView) }).map((_, index) => {
             const isActive = index * cardsPerView === currentIndex;
-            const isNearby = Math.abs(index * cardsPerView - currentIndex) <= cardsPerView;
-            
-            return isNearby ? (
-              <motion.button 
+            const isVisible = Math.abs(index * cardsPerView - currentIndex) <= cardsPerView;
+
+            const handleClick = () => {
+              if (isAnimating) return;
+              setIsAnimating(true);
+              stopAutoRotate();
+              setCurrentIndex(index * cardsPerView);
+              setTimeout(() => {
+                setIsAnimating(false);
+                startAutoRotate();
+              }, 500);
+            };
+
+            return isVisible ? (
+              <motion.button
                 key={index}
-                onClick={() => {
-                  if (isAnimating) return;
-                  setIsAnimating(true);
-                  stopAutoRotate();
-                  setCurrentIndex(index * cardsPerView);
-                  setTimeout(() => {
-                    setIsAnimating(false);
-                    startAutoRotate();
-                  }, 500);
-                }}
+                onClick={handleClick}
                 disabled={isAnimating}
+                aria-label={`Go to page ${index + 1}`}
                 className={cn(
-                  "h-2 rounded-full transition-all duration-300 ease-in-out",
-                  isActive 
-                    ? "w-8 bg-gradient-to-r from-primary to-blue-500" 
-                    : "w-2 bg-muted hover:bg-muted-foreground/50"
+                  "rounded-full transition-all duration-300 ease-in-out",
+                  isActive
+                    ? "w-2 h-2 bg-gradient-to-r from-primary to-blue-500"
+                    : "w-2 h-2 bg-gray-300"
                 )}
-                aria-label={`Go to page ${index + 1}`}
-                whileTap={{ scale: 0.9 }}
-                initial={{ opacity: 0, scale: 0.5 }}
+                whileTap={{ scale: 0.95 }}
+                initial={{ opacity: 0, scale: 0.7 }}
                 animate={{ opacity: 1, scale: 1 }}
-                transition={{ duration: 0.2, delay: index * 0.05 }}
-              />
-            ) : index === 0 || index === Math.ceil(filteredEvents.length / cardsPerView) - 1 ? (
-              <motion.button 
-                key={index}
-                onClick={() => {
-                  if (isAnimating) return;
-                  setIsAnimating(true);
-                  stopAutoRotate();
-                  setCurrentIndex(index * cardsPerView);
-                  setTimeout(() => {
-                    setIsAnimating(false);
-                    startAutoRotate();
-                  }, 500);
-                }}
-                disabled={isAnimating}
-                className="w-2 h-2 rounded-full bg-muted hover:bg-muted-foreground/50 transition-all duration-300 ease-in-out"
-                aria-label={`Go to page ${index + 1}`}
-                whileTap={{ scale: 0.9 }}
-                initial={{ opacity: 0, scale: 0.5 }}
-                animate={{ opacity: 1, scale: 1 }}
-                transition={{ duration: 0.2, delay: 0.05 }}
+                transition={{ duration: 0.25, delay: index * 0.04 }}
               />
             ) : null;
           })}
         </div>
       )}
     </div>
-  );
+  )
 }
+

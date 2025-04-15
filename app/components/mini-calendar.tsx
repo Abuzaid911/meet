@@ -4,7 +4,6 @@ import { useState, useEffect } from "react"
 import { Calendar } from "./ui/calendar"
 import { Button } from "./ui/button"
 import { Card, CardContent } from "./ui/card"
-import { Tabs, TabsList, TabsTrigger } from "./ui/tabs"
 import { Alert, AlertDescription } from "./ui/alert"
 import { Skeleton } from "./ui/skeleton"
 import { CalendarIcon, RefreshCcw, Plus } from "lucide-react"
@@ -43,24 +42,12 @@ interface AppEvent {
   colorId?: string
 }
 
-// Type for personal calendar events from API
-interface PersonalEvent {
-  id: string
-  title: string
-  name?: string
-  date: string
-  time?: string
-  location?: string
-  source?: string
-  colorId?: string
-}
 
 export default function MiniCalendar({ onDateSelect }: MiniCalendarProps) {
   const { data: session } = useSession()
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(new Date())
   const [month, setMonth] = useState<Date>(new Date())
   const [events, setEvents] = useState<CalendarEvent[]>([])
-  const [calendarView, setCalendarView] = useState<"app" | "all">("all")
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -82,52 +69,20 @@ export default function MiniCalendar({ onDateSelect }: MiniCalendarProps) {
       const endDateStr = endDate.toISOString().split('T')[0]
       
       try {
-        // Fetch app events
-        const appEventsPromise = fetch(`/api/events/calendar?startDate=${startDateStr}&endDate=${endDateStr}`)
-          .then(res => {
-            if (!res.ok) throw new Error('Failed to fetch app events')
-            return res.json()
-          })
-          .catch(err => {
-            console.error('Error fetching app events:', err)
-            return []
-          })
+        // Fetch app events with invited-rsvp filter
+        const response = await fetch(`/api/events/calendar?startDate=${startDateStr}&endDate=${endDateStr}&filter=invited-rsvp`)
         
-        // Fetch personal calendar events from Google/Apple if authenticated
-        const personalEventsPromise = session?.user ? 
-          fetch(`/api/calendar/events?startDate=${startDateStr}&endDate=${endDateStr}`)
-            .then(res => {
-              if (!res.ok) throw new Error('Failed to fetch personal calendar events')
-              return res.json()
-            })
-            .catch(err => {
-              console.error('Error fetching personal calendar events:', err)
-              return []
-            })
-          : Promise.resolve([])
+        if (!response.ok) throw new Error('Failed to fetch events')
+        const appEvents = await response.json()
         
-        // Wait for both requests to complete
-        const [appEvents, personalEvents] = await Promise.all([appEventsPromise, personalEventsPromise])
-        
-        // Format and merge events
-        const formattedAppEvents = (appEvents as AppEvent[]).map((event) => ({
+        // Format events
+        const formattedEvents = (appEvents as AppEvent[]).map((event) => ({
           ...event,
           source: 'app',
           name: event.name || event.title
         }))
         
-        const formattedPersonalEvents = (personalEvents as PersonalEvent[]).map((event) => ({
-          ...event,
-          name: event.title || event.name,
-          source: event.source || 'personal'
-        }))
-        
-        // Set events based on selected view
-        if (calendarView === 'app') {
-          setEvents(formattedAppEvents)
-        } else {
-          setEvents([...formattedAppEvents, ...formattedPersonalEvents])
-        }
+        setEvents(formattedEvents)
       } catch (err) {
         console.error('Error fetching calendar events:', err)
         setError('Failed to load calendar events')
@@ -137,7 +92,7 @@ export default function MiniCalendar({ onDateSelect }: MiniCalendarProps) {
     }
     
     fetchEvents()
-  }, [month, calendarView, session?.user])
+  }, [month, session?.user])
 
   // Get events for a specific date
   const getEventsForDate = (date: Date) => {
@@ -203,16 +158,8 @@ export default function MiniCalendar({ onDateSelect }: MiniCalendarProps) {
           <h2 className="text-xl font-medium">Calendar</h2>
         </div>
         <div className="flex items-center gap-2">
-          <Tabs value={calendarView} onValueChange={(v) => setCalendarView(v as "app" | "all")}>
-            <TabsList className="h-8">
-              <TabsTrigger value="all" className="text-xs px-2 h-6">All Calendars</TabsTrigger>
-              <TabsTrigger value="app" className="text-xs px-2 h-6">App Events</TabsTrigger>
-            </TabsList>
-          </Tabs>
           <Button 
-            variant="outline" 
-            size="icon" 
-            className="h-8 w-8"
+            className="h-8 w-8 bg-gradient-to-r from-primary to-blue-500 text-white hover:from-primary/90 hover:to-blue-500/90 rounded-full p-0"
             onClick={() => setMonth(new Date())}
           >
             <RefreshCcw className="h-4 w-4" />

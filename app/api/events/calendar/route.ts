@@ -148,7 +148,15 @@ export async function GET(request: NextRequest) {
             ...event,
             userRsvp: userAttendee?.rsvp || null,
             attendingCount: yesCount,
-            attendees: undefined, // Remove attendees array to reduce payload size
+            // Keep the attendees array for the event carousel
+            attendees: event.attendees.map(a => ({
+              user: {
+                id: a.userId,
+                name: null,
+                image: null
+              },
+              rsvp: a.rsvp
+            }))
           };
         });
         
