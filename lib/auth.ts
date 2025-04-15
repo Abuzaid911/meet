@@ -2,6 +2,7 @@ import { PrismaAdapter } from "@auth/prisma-adapter"
 import GoogleProvider from "next-auth/providers/google"
 import type { NextAuthOptions } from "next-auth"
 import { prisma } from "@/lib/prisma"
+import GithubProvider from "next-auth/providers/github"
 
 /**
  * Extending NextAuth's Session type to include user.id
@@ -45,15 +46,20 @@ export const authOptions: NextAuthOptions = {
   adapter: PrismaAdapter(prisma),
   providers: [
     GoogleProvider({
-      clientId: process.env.GOOGLE_CLIENT_ID,
-      clientSecret: process.env.GOOGLE_CLIENT_SECRET,
+      clientId: process.env.GOOGLE_CLIENT_ID as string,
+      clientSecret: process.env.GOOGLE_CLIENT_SECRET as string,
       authorization: {
         params: {
-          prompt: "select_account",
+          scope: "openid email profile https://www.googleapis.com/auth/calendar.readonly",
+          prompt: "consent",
           access_type: "offline",
-          response_type: "code",
-        },
-      },
+          response_type: "code"
+        }
+      }
+    }),
+    GithubProvider({
+      clientId: process.env.GITHUB_ID as string,
+      clientSecret: process.env.GITHUB_SECRET as string,
     }),
   ],
   callbacks: {
@@ -133,31 +139,65 @@ export const authOptions: NextAuthOptions = {
     /**
      * Manages JWT token behavior
      */
-    async jwt({ token, user }) {
-      if (user) {
-        token.sub = user.id
+    async jwt({ token, user, account }) {
+      const dbUser = await prisma.user.findFirst({
+        where: {
+          email: token.email,
+        },
+      });
+
+      if (!dbUser) {
+        token.id = user!.id;
+        return token;
       }
-      return token
+
+      if (!dbUser.username) {
+        await prisma.user.update({
+          where: {
+            id: dbUser.id,
+          },
+          data: {
+            username: dbUser.name?.split(" ").join("").toLowerCase(),
+          },
+        });
+      }
+      
+      // Store access token for Google Calendar access
+      if (account && account.provider === 'google') {
+        token.accessToken = account.access_token;
+        token.refreshToken = account.refresh_token;
+        token.accessTokenExpires = account.expires_at;
+      }
+
+      return {
+        id: dbUser.id,
+        name: dbUser.name,
+        email: dbUser.email,
+        picture: dbUser.image,
+        username: dbUser.username,
+        accessToken: token.accessToken,
+        refreshToken: token.refreshToken,
+        accessTokenExpires: token.accessTokenExpires
+      };
     },
 
     /**
      * Handles session updates
      */
     async session({ session, token }) {
-      if (session.user && token.sub) {
-        session.user.id = token.sub
-
-        // Ensure username is always available in the session
-        const dbUser = await prisma.user.findUnique({
-          where: { id: token.sub },
-          select: { username: true },
-        })
-
-        if (dbUser) {
-          session.user.username = dbUser.username
+      if (token) {
+        session.user.id = token.id;
+        session.user.name = token.name;
+        session.user.email = token.email;
+        session.user.image = token.picture;
+        session.user.username = token.username;
+        
+        // Add Google calendar token if available
+        if (token.accessToken) {
+          session.accessToken = token.accessToken;
         }
       }
-      return session
+      return session;
     },
   },
 

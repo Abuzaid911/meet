@@ -49,4 +49,20 @@
 /* Make sure days are easily tappable on mobile */
 .rdp-cell {
   padding: 5px 0 !important;
+}
+
+/* Style for event indicators */
+.day-events-indicator {
+  position: absolute;
+  bottom: 2px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  gap: 1px;
+}
+
+.event-dot {
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
 } 

@@ -28,9 +28,8 @@ import {
 } from "./ui/dialog";
 import { Textarea } from "./ui/textarea";
 import { format } from "date-fns";
-// Remove unused import
-// import { cn } from "@/lib/utils";
 import { Label } from "./ui/label";
+import { motion } from "framer-motion";
 
 interface EventPhoto {
   id: string;
@@ -54,6 +53,26 @@ interface EventPhotoGalleryProps {
   isAttending: boolean;
 }
 
+// Switch component for filtering photos
+const Switch = ({ 
+  checked, 
+  onCheckedChange 
+}: { 
+  checked: boolean; 
+  onCheckedChange: (checked: boolean) => void;
+}) => {
+  return (
+    <div 
+      className={`w-9 h-5 rounded-full p-0.5 cursor-pointer transition-colors ${checked ? 'bg-primary' : 'bg-muted'}`}
+      onClick={() => onCheckedChange(!checked)}
+    >
+      <div 
+        className={`h-4 w-4 rounded-full bg-white transition-transform ${checked ? 'translate-x-4' : 'translate-x-0'}`} 
+      />
+    </div>
+  );
+};
+
 export function EventPhotoGallery({
   eventId,
   isHost,
@@ -75,6 +94,7 @@ export function EventPhotoGallery({
   const [error, setError] = useState<string | null>(null);
   const [selectedPhoto, setSelectedPhoto] = useState<EventPhoto | null>(null);
   const [showUploadModal, setShowUploadModal] = useState(false);
+  const [showOnlyMyPhotos, setShowOnlyMyPhotos] = useState(false);
   
   const fetchPhotos = useCallback(async () => {
     try {
@@ -279,6 +299,33 @@ export function EventPhotoGallery({
     );
   }
 
+  const filteredPhotos = showOnlyMyPhotos && session?.user?.id
+    ? photos.filter(photo => photo.userId === session.user.id)
+    : photos;
+
+  const staggerContainer = {
+    hidden: { opacity: 0 },
+    show: {
+      opacity: 1,
+      transition: {
+        staggerChildren: 0.1
+      }
+    }
+  };
+
+  const photoVariants = {
+    hidden: { opacity: 0, y: 20 },
+    show: { 
+      opacity: 1, 
+      y: 0,
+      transition: { 
+        type: "spring",
+        stiffness: 260,
+        damping: 20
+      }
+    }
+  };
+
   return (
     <div className="space-y-4">
       {/* Header with upload button */}
@@ -333,55 +380,59 @@ export function EventPhotoGallery({
 
       {/* Photo grid */}
       {photos.length > 0 && (
-        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
-          {photos.map((photo) => (
-            <div 
+        <div className="flex items-center gap-2 text-sm">
+          <Switch
+            checked={showOnlyMyPhotos}
+            onCheckedChange={setShowOnlyMyPhotos}
+          />
+          <Label htmlFor="show-my-photos">Show only my photos</Label>
+        </div>
+      )}
+
+      {photos.length > 0 && (
+        <motion.div 
+          className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4"
+          variants={staggerContainer}
+          initial="hidden"
+          animate="show"
+        >
+          {filteredPhotos.map((photo) => (
+            <motion.div 
               key={photo.id} 
-              className="aspect-square relative group rounded-md overflow-hidden cursor-pointer hover:opacity-95 transition-opacity border"
+              className="relative aspect-square rounded-md overflow-hidden group cursor-pointer"
+              variants={photoVariants}
               onClick={() => openLightbox(photo)}
             >
               <Image
                 src={photo.imageUrl}
                 alt={photo.caption || "Event photo"}
                 fill
-                className="object-cover"
+                className="object-cover transition-transform duration-300 group-hover:scale-105"
                 sizes="(max-width: 640px) 50vw, (max-width: 768px) 33vw, 25vw"
               />
               
-              {/* User & delete overlay */}
-              <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col justify-between p-2">
-                <div className="flex justify-end">
-                  {(isHost || session?.user?.id === photo.userId) && (
-                    <Button
-                      size="icon"
-                      variant="destructive"
-                      className="h-7 w-7 rounded-full"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleDeletePhoto(photo.id);
-                      }}
-                    >
-                      <Trash2 className="h-3.5 w-3.5" />
-                    </Button>
-                  )}
+              {(isHost || photo.userId === session?.user?.id) && (
+                <motion.button
+                  className="absolute top-2 right-2 bg-black/60 rounded-full p-1 text-white opacity-0 group-hover:opacity-100 transition-opacity"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleDeletePhoto(photo.id);
+                  }}
+                  whileHover={{ scale: 1.1 }}
+                  whileTap={{ scale: 0.95 }}
+                >
+                  <Trash2 className="h-4 w-4" />
+                </motion.button>
+              )}
+              
+              {photo.caption && (
+                <div className="absolute bottom-0 left-0 right-0 bg-black/60 p-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                  <p className="text-xs text-white line-clamp-2">{photo.caption}</p>
                 </div>
-                
-                <div className="flex items-center gap-2 text-white text-xs">
-                  <Image 
-                    src={photo.user.image || `/images/default-avatar.png`} 
-                    alt={photo.user.name || photo.user.username || "User"} 
-                    width={20}
-                    height={20}
-                    className="rounded-full object-cover border border-white/30"
-                  />
-                  <span className="truncate">
-                    {photo.user.name || photo.user.username}
-                  </span>
-                </div>
-              </div>
-            </div>
+              )}
+            </motion.div>
           ))}
-        </div>
+        </motion.div>
       )}
 
       {/* Upload Modal */}
@@ -542,12 +593,12 @@ export function EventPhotoGallery({
 
       {/* Lightbox */}
       <Dialog open={showLightbox} onOpenChange={setShowLightbox}>
-        <DialogContent className="max-w-3xl w-[95vw] p-1 sm:p-2 bg-background/95 backdrop-blur-sm">
-          <DialogHeader className="absolute top-0 right-0 z-10">
+        <DialogContent className="max-w-5xl w-[95vw] p-1 sm:p-2 bg-black/95 backdrop-blur-sm">
+          <DialogHeader className="absolute top-2 right-2 z-10">
             <Button 
               size="icon" 
               variant="ghost" 
-              className="h-8 w-8 bg-black/20 text-white hover:bg-black/40 rounded-full"
+              className="h-8 w-8 bg-black/50 text-white hover:bg-black/70 rounded-full"
               onClick={() => setShowLightbox(false)}
             >
               <X className="h-4 w-4" />
@@ -555,36 +606,52 @@ export function EventPhotoGallery({
           </DialogHeader>
           
           {selectedPhoto && (
-            <div className="flex flex-col h-full">
+            <motion.div 
+              className="flex flex-col h-full"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ duration: 0.3 }}
+            >
               <div className="relative overflow-hidden flex-1 flex items-center justify-center">
-                <div className="relative h-[80vh] w-full">
+                <motion.div 
+                  className="relative h-[80vh] w-full"
+                  initial={{ scale: 0.9 }}
+                  animate={{ scale: 1 }}
+                  transition={{ type: "spring", damping: 20, stiffness: 300 }}
+                >
                   <Image
                     src={selectedPhoto.imageUrl}
                     alt={selectedPhoto.caption || "Event photo"}
                     fill
                     className="object-contain"
-                    sizes="80vw"
+                    sizes="90vw"
                     priority
                   />
-                </div>
+                </motion.div>
               </div>
               
               {/* Info bar */}
-              <div className="p-3 flex justify-between items-center bg-muted/50 rounded-b-lg mt-1">
+              <motion.div 
+                className="p-3 flex justify-between items-center bg-background/80 backdrop-blur-sm rounded-lg mt-1"
+                initial={{ y: 20, opacity: 0 }}
+                animate={{ y: 0, opacity: 1 }}
+                transition={{ delay: 0.2 }}
+              >
                 <div className="flex items-center gap-2">
-                  <Image 
-                    src={selectedPhoto.user.image || `/images/default-avatar.png`} 
-                    alt={selectedPhoto.user.name || selectedPhoto.user.username || "User"} 
-                    width={24}
-                    height={24}
-                    className="rounded-full object-cover border border-border"
-                  />
+                  <Avatar className="h-8 w-8 border border-border">
+                    <AvatarImage src={selectedPhoto.user.image || undefined} />
+                    <AvatarFallback>
+                      <User className="h-4 w-4" />
+                    </AvatarFallback>
+                  </Avatar>
                   <div>
                     <p className="text-sm font-medium">
                       {selectedPhoto.user.name || selectedPhoto.user.username}
                     </p>
                     {selectedPhoto.caption && (
-                      <p className="text-xs text-muted-foreground">{selectedPhoto.caption}</p>
+                      <p className="text-xs text-muted-foreground truncate max-w-[200px] sm:max-w-[300px]">
+                        {selectedPhoto.caption}
+                      </p>
                     )}
                   </div>
                 </div>
@@ -602,8 +669,8 @@ export function EventPhotoGallery({
                     <Trash2 className="h-3.5 w-3.5" /> Delete
                   </Button>
                 )}
-              </div>
-            </div>
+              </motion.div>
+            </motion.div>
           )}
         </DialogContent>
       </Dialog>

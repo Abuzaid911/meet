@@ -13,7 +13,6 @@ import {
   Users, 
   Clock, 
   ChevronDown,  
-  TrendingUp,
   Sparkles,
   // Removing unused import
   // Star,
@@ -381,7 +380,7 @@ export default function Home() {
                 animate={{ scale: 1, opacity: 1 }}
                 transition={{ duration: 0.5, delay: 0.3 }}
               >
-                <TrendingUp className="mr-3 h-7 w-7 text-primary" />
+                <Sparkles className="mr-3 h-7 w-7 text-primary" />
               </motion.div>
               Upcoming Events
             </motion.h2>

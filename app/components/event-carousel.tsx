@@ -5,7 +5,6 @@ import Link from 'next/link'
 import Image from 'next/image'
 import { 
   Card, 
-  CardHeader, 
   CardContent
 } from './ui/card'
 import { 
@@ -16,19 +15,31 @@ import {
   ChevronLeft,
   ChevronRight,
   TrendingUp,
-  AlertTriangle
+  AlertTriangle,
+  Search,
+  X,
+  Filter
 } from 'lucide-react'
-import { format, isThisWeek, isThisMonth, isPast } from 'date-fns'
-import { motion, useAnimation, useMotionValue, PanInfo } from 'framer-motion'
+import { format, isThisWeek, isThisMonth, isPast, formatDistance } from 'date-fns'
+import { motion } from 'framer-motion'
 import { Badge } from './ui/badge'
 import { Skeleton } from './ui/skeleton'
 import { Button } from './ui/button'
+import { Input } from './ui/input'
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "./ui/dropdown-menu"
+import { cn } from '@/lib/utils'
+import { useMediaQuery } from '@/lib/hooks/use-media-query'
 
 // --- Interfaces ---
 interface Attendee {
   user: {
     id: string
-    name: string | null // Allow null name
+    name: string | null
     image: string | null
   }
   rsvp: string
@@ -41,10 +52,10 @@ interface Event {
   time: string
   location: string
   description?: string
-  duration: number // Assuming duration is in hours
+  duration: number
   host: {
     id: string
-    name: string | null // Allow null name
+    name: string | null
     image: string | null
   }
   attendees: Attendee[]
@@ -63,24 +74,45 @@ const getConfirmedAttendees = (attendees: Attendee[]) => {
   return attendees.filter(a => a.rsvp === 'YES').length;
 };
 
+const getRelativeTimeLabel = (dateStr: string) => {
+  try {
+    const eventDate = new Date(dateStr);
+    if (isNaN(eventDate.getTime())) return "";
+    
+    return formatDistance(eventDate, new Date(), { addSuffix: true });
+  } catch (e) {
+    console.error("Error parsing date:", e);
+    return "";
+  }
+};
+
 const isEventSoon = (date: string) => {
   try {
     const eventDate = new Date(date);
-    if (isNaN(eventDate.getTime())) return false; // Invalid date
-    if (isPast(eventDate)) return false; // Don't mark past events as soon
+    if (isNaN(eventDate.getTime())) return false;
+    if (isPast(eventDate)) return false;
 
     const now = new Date();
     const diffTime = eventDate.getTime() - now.getTime();
     const diffDays = diffTime / (1000 * 60 * 60 * 24);
-    return diffDays <= 3 && diffDays >= 0; // Within the next 3 days
+    return diffDays <= 3 && diffDays >= 0;
   } catch (e) {
-    console.error("Error parsing date for isEventSoon:", e);
+    console.error("Error parsing date:", e);
     return false;
   }
 };
 
 const isEventPopular = (attendees: Attendee[]) => {
-  return getConfirmedAttendees(attendees) >= 10; // Example threshold
+  return getConfirmedAttendees(attendees) >= 10;
+};
+
+const formatEventTime = (timeStr: string): string => {
+  try {
+    return timeStr; // Already in HH:MM format
+  } catch (e) {
+    console.error("Error formatting time:", e);
+    return timeStr;
+  }
 };
 
 // --- Main Component ---
@@ -89,49 +121,19 @@ export function EventCarousel({ searchTerm = "", filter = "all" }: EventCarousel
   const [filteredEvents, setFilteredEvents] = useState<Event[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [fetchError, setFetchError] = useState<string | null>(null)
-  const [currentPage, setCurrentPage] = useState(0)
-  const carouselRef = useRef<HTMLDivElement>(null)
-  const carouselControls = useAnimation()
-  const autoplayRef = useRef<NodeJS.Timeout | null>(null)
-  const isDragging = useRef(false)
-  const dragX = useMotionValue(0)
+  const [currentIndex, setCurrentIndex] = useState(0)
+  const [localSearchTerm, setLocalSearchTerm] = useState(searchTerm)
+  const [localFilter, setLocalFilter] = useState(filter)
+  const [isMounted, setIsMounted] = useState(false)
+  const [isAnimating, setIsAnimating] = useState(false)
   
-  // Number of cards to show per page based on viewport width
-  const getCardsPerPage = () => {
-    if (typeof window === "undefined") return 3
-    if (window.innerWidth < 640) return 1
-    if (window.innerWidth < 1024) return 2
-    return 3
-  }
+  const isSmallScreen = useMediaQuery("(max-width: 640px)")
+  const isMediumScreen = useMediaQuery("(max-width: 1024px)")
+  const cardsPerView = isSmallScreen ? 1 : isMediumScreen ? 2 : 3
   
-  const cardsPerPage = getCardsPerPage()
-  const totalPages = Math.ceil(filteredEvents.length / cardsPerPage)
-
-  // --- Autoplay Logic ---
-  const stopAutoplay = useCallback(() => {
-    if (autoplayRef.current) {
-      clearTimeout(autoplayRef.current);
-      autoplayRef.current = null;
-    }
-  }, []);
-
-  const startAutoplay = useCallback(() => {
-    stopAutoplay(); // Clear existing timer before starting a new one
-    if (filteredEvents.length <= cardsPerPage) return; // No autoplay if not enough cards
-
-    autoplayRef.current = setTimeout(() => {
-      if (!isDragging.current) { // Only advance if not currently dragging
-        const nextPage = (currentPage + 1) % totalPages;
-        setCurrentPage(nextPage);
-        carouselControls.start({
-          x: -nextPage * (cardsPerPage * (320 + 16)), // Card width (320px) + gap (16px = gap-4)
-          transition: { duration: 0.7, ease: [0.4, 0, 0.2, 1] } // Smoother ease
-        });
-      }
-      startAutoplay(); // Schedule next autoplay cycle
-    }, 5000); // Autoplay interval: 5 seconds
-  }, [currentPage, totalPages, cardsPerPage, filteredEvents.length, carouselControls, stopAutoplay]);
-
+  // Auto-rotation timer
+  const autoRotateTimerRef = useRef<NodeJS.Timeout | null>(null)
+  
   // --- Data Fetching ---
   const fetchEvents = useCallback(async () => {
     try {
@@ -151,140 +153,168 @@ export function EventCarousel({ searchTerm = "", filter = "all" }: EventCarousel
     }
   }, []);
 
-  // --- Effects ---
-
-  // Handle window resize
-  useEffect(() => {
-    const handleResize = () => {
-      // Update current page if the window resize would cause the current page to be invalid
-      if (currentPage >= totalPages && totalPages > 0) {
-        setCurrentPage(Math.max(0, totalPages - 1))
-      }
+  // --- Auto-rotate function ---
+  const startAutoRotate = useCallback(() => {
+    if (autoRotateTimerRef.current) {
+      clearTimeout(autoRotateTimerRef.current);
     }
-    window.addEventListener('resize', handleResize)
-    return () => window.removeEventListener('resize', handleResize)
-  }, [currentPage, totalPages])
-
-  // Initial fetch
-  useEffect(() => {
-    fetchEvents()
-  }, [fetchEvents])
-
-  // Start/Stop autoplay based on events and interaction
-  useEffect(() => {
-    startAutoplay();
-    return () => stopAutoplay(); // Cleanup timer on unmount
-  }, [startAutoplay, stopAutoplay, filteredEvents]); // Rerun when events change
-
-  // Apply filtering logic
-  useEffect(() => {
-    if (isLoading) return; // Don't filter while loading initial data
-
+    
+    if (filteredEvents.length <= cardsPerView) return;
+    
+    autoRotateTimerRef.current = setTimeout(() => {
+      if (!isAnimating) {
+        setIsAnimating(true);
+        setCurrentIndex(prevIndex => 
+          prevIndex === filteredEvents.length - cardsPerView ? 0 : prevIndex + 1
+        );
+        
+        // Clear animation flag after transition completes
+        setTimeout(() => setIsAnimating(false), 500);
+      }
+      startAutoRotate();
+    }, 6000); // Slightly longer interval for better user experience
+  }, [filteredEvents.length, cardsPerView, isAnimating]);
+  
+  const stopAutoRotate = useCallback(() => {
+    if (autoRotateTimerRef.current) {
+      clearTimeout(autoRotateTimerRef.current);
+      autoRotateTimerRef.current = null;
+    }
+  }, []);
+  
+  // --- Navigation functions ---
+  const handlePrevious = useCallback(() => {
+    if (isAnimating) return;
+    
+    setIsAnimating(true);
+    stopAutoRotate();
+    setCurrentIndex(prevIndex => (prevIndex === 0 ? 0 : prevIndex - 1));
+    
+    // Clear animation flag after transition completes  
+    setTimeout(() => {
+      setIsAnimating(false);
+      startAutoRotate();
+    }, 500);
+  }, [stopAutoRotate, startAutoRotate, isAnimating]);
+  
+  const handleNext = useCallback(() => {
+    if (isAnimating) return;
+    
+    setIsAnimating(true);
+    stopAutoRotate();
+    setCurrentIndex(prevIndex => {
+      const maxIndex = Math.max(0, filteredEvents.length - cardsPerView);
+      return prevIndex >= maxIndex ? maxIndex : prevIndex + 1;
+    });
+    
+    // Clear animation flag after transition completes
+    setTimeout(() => {
+      setIsAnimating(false);
+      startAutoRotate();
+    }, 500);
+  }, [filteredEvents.length, cardsPerView, stopAutoRotate, startAutoRotate, isAnimating]);
+  
+  // --- Apply filters using local state ---
+  const applyFilters = useCallback(() => {
+    if (events.length === 0) return;
+    
     let filtered = [...events];
-
+    
     // Apply search term filtering
-    if (searchTerm.trim() !== '') {
-      const lowercasedSearch = searchTerm.toLowerCase();
+    if (localSearchTerm.trim() !== '') {
+      const searchLower = localSearchTerm.toLowerCase();
       filtered = filtered.filter(event =>
-        event.name.toLowerCase().includes(lowercasedSearch) ||
-        event.location.toLowerCase().includes(lowercasedSearch) ||
-        event.host.name?.toLowerCase().includes(lowercasedSearch) || // Search host name
-        event.description?.toLowerCase().includes(lowercasedSearch)
+        event.name.toLowerCase().includes(searchLower) ||
+        event.location.toLowerCase().includes(searchLower) ||
+        event.host.name?.toLowerCase().includes(searchLower) || 
+        event.description?.toLowerCase().includes(searchLower)
       );
     }
-
+    
     // Apply time-based filtering
     try {
-        if (filter === 'thisWeek') {
-            filtered = filtered.filter(event => !isPast(new Date(event.date)) && isThisWeek(new Date(event.date), { weekStartsOn: 1 })); // Monday start
-        } else if (filter === 'thisMonth') {
-            filtered = filtered.filter(event => !isPast(new Date(event.date)) && isThisMonth(new Date(event.date)));
-        }
+      if (localFilter === 'thisWeek') {
+        filtered = filtered.filter(event => 
+          !isPast(new Date(event.date)) && 
+          isThisWeek(new Date(event.date), { weekStartsOn: 1 })
+        );
+      } else if (localFilter === 'thisMonth') {
+        filtered = filtered.filter(event => 
+          !isPast(new Date(event.date)) && 
+          isThisMonth(new Date(event.date))
+        );
+      }
     } catch(e) {
-        console.error("Date filtering error:", e);
-        // Optionally handle date parsing errors, maybe show all events
+      console.error("Date filtering error:", e);
     }
-
-
+    
     setFilteredEvents(filtered);
-    // Reset to first page only if the page becomes invalid or if filters *meaningfully* change
-    // This prevents jarring jumps if the filter results still contain the current view
-    const newTotalPages = Math.ceil(filtered.length / cardsPerPage);
-    if (currentPage >= newTotalPages) {
-        setCurrentPage(0);
-        carouselControls.start({ x: 0, transition: { duration: 0.3 } });
+    // Reset to first card when filters change
+    setCurrentIndex(0);
+  }, [events, localSearchTerm, localFilter]);
+  
+  // --- Initial data fetch ---
+  useEffect(() => {
+    fetchEvents();
+  }, [fetchEvents]);
+  
+  // --- Filter application ---
+  useEffect(() => {
+    // Update local state when props change
+    setLocalSearchTerm(searchTerm);
+    setLocalFilter(filter);
+  }, [searchTerm, filter]);
+  
+  useEffect(() => {
+    applyFilters();
+  }, [applyFilters, events, localSearchTerm, localFilter]);
+  
+  // --- Auto-rotation ---
+  useEffect(() => {
+    if (!isLoading && filteredEvents.length > 0) {
+      startAutoRotate();
     }
-
-  }, [searchTerm, filter, events, isLoading, cardsPerPage, currentPage, carouselControls]); // Added dependencies
-
-
-  // --- Carousel Navigation Function ---
-  const navigate = (direction: 'next' | 'prev') => {
-    if (autoplayRef.current) clearTimeout(autoplayRef.current)
-    
-    let nextPage = currentPage
-    if (direction === 'next') {
-      nextPage = (currentPage + 1) % totalPages
-    } else {
-      nextPage = currentPage === 0 ? totalPages - 1 : currentPage - 1
-    }
-    
-    setCurrentPage(nextPage)
-    carouselControls.start({
-      x: -nextPage * (cardsPerPage * (320 + 16)), // Card width + gap
-      transition: { duration: 0.5, ease: "easeInOut" }
-    })
-    
-    startAutoplay()
-  }
-
-  // --- Drag End Logic ---
-  const handleDragEnd = (_: MouseEvent | TouchEvent | PointerEvent, info: PanInfo) => {
-    isDragging.current = false
-    
-    const swipeThreshold = 50
-    if (Math.abs(info.offset.x) > swipeThreshold) {
-      const direction = info.offset.x < 0 ? 'next' : 'prev'
-      navigate(direction)
-    } else {
-      // Snap back to current page
-      carouselControls.start({ 
-        x: -currentPage * (cardsPerPage * (320 + 16)),
-        transition: { duration: 0.3 } 
-      })
-      startAutoplay()
-    }
-  }
-
-
-  // --- Render Logic ---
-
-  // Loading State Skeleton
+    return () => stopAutoRotate();
+  }, [filteredEvents, isLoading, startAutoRotate, stopAutoRotate]);
+  
+  // --- Check if component is mounted ---
+  useEffect(() => {
+    setIsMounted(true);
+    return () => setIsMounted(false);
+  }, []);
+  
+  // --- Clear search ---
+  const handleClearSearch = () => {
+    setLocalSearchTerm("");
+  };
+  
+  // --- Loading State ---
   if (isLoading) {
     return (
-      <div className="overflow-hidden">
-        <div className="flex gap-4 pl-1 animate-pulse"> {/* Added pulse animation */}
-          {[...Array(cardsPerPage)].map((_, i) => ( // Show skeletons based on cardsPerPage
-            <Card key={i} className="flex-shrink-0 w-full sm:w-[320px] h-[320px] overflow-hidden border bg-card">
-              <CardHeader className="pb-2"> {/* Adjusted padding */}
-                <Skeleton className="h-5 w-3/5 mb-2" />
-                <Skeleton className="h-4 w-2/5" />
-              </CardHeader>
-              <CardContent className="pb-4">
-                <div className="space-y-3 mt-4">
-                  <div className="flex items-center gap-2">
-                    <Skeleton className="h-4 w-4 rounded-full" /> <Skeleton className="h-3 w-1/2" />
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <Skeleton className="h-4 w-4 rounded-full" /> <Skeleton className="h-3 w-1/3" />
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <Skeleton className="h-4 w-4 rounded-full" /> <Skeleton className="h-3 w-2/3" />
-                  </div>
-                  <div className="flex items-center gap-2 mt-3">
-                    <Skeleton className="h-4 w-4 rounded-full" /> <Skeleton className="h-3 w-1/2" />
-                  </div>
-                  <Skeleton className="h-16 w-full mt-4" /> {/* Description Placeholder */}
+      <div className="space-y-6">
+        <div className="flex justify-between items-center mb-8">
+          <h2 className="text-2xl font-bold bg-gradient-to-r from-primary to-blue-500 bg-clip-text text-transparent">
+            Discovering Events
+          </h2>
+          <Skeleton className="h-10 w-32" />
+        </div>
+        
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
+          {[...Array(cardsPerView)].map((_, i) => (
+            <Card key={i} className="overflow-hidden border shadow-sm">
+              <div className="relative">
+                <Skeleton className="h-52 w-full" />
+                <div className="absolute top-3 left-3">
+                  <Skeleton className="h-12 w-16 rounded-md" />
+                </div>
+              </div>
+              <CardContent className="p-5">
+                <Skeleton className="h-7 w-3/4 mb-3" />
+                <Skeleton className="h-4 w-1/2 mb-6" />
+                <div className="space-y-3">
+                  <Skeleton className="h-4 w-full" />
+                  <Skeleton className="h-4 w-full" />
+                  <Skeleton className="h-4 w-2/3" />
                 </div>
               </CardContent>
             </Card>
@@ -293,20 +323,21 @@ export function EventCarousel({ searchTerm = "", filter = "all" }: EventCarousel
       </div>
     );
   }
-
-  // Error State
+  
+  // --- Error State ---
   if (fetchError) {
     return (
       <Card className="bg-destructive/10 border-destructive/30">
-        <CardContent className="pt-6 flex items-center justify-center">
-          <div className="text-center py-8">
-            <AlertTriangle className="h-12 w-12 text-destructive mx-auto mb-4" />
-            <p className="text-destructive text-lg mb-4">{fetchError}</p>
-            {/* Use Button component for consistency */}
+        <CardContent className="pt-6">
+          <div className="text-center py-12 max-w-md mx-auto">
+            <AlertTriangle className="h-14 w-14 text-destructive mx-auto mb-6 opacity-80" />
+            <h3 className="text-xl font-semibold text-destructive mb-3">Unable to Load Events</h3>
+            <p className="text-muted-foreground mb-6">{fetchError}</p>
             <Button
               onClick={() => fetchEvents()}
               variant="destructive"
-              size="sm"
+              size="lg"
+              className="px-8"
             >
               Try Again
             </Button>
@@ -315,212 +346,377 @@ export function EventCarousel({ searchTerm = "", filter = "all" }: EventCarousel
       </Card>
     );
   }
-
-  // Empty State
+  
+  // --- No Results State ---
   if (filteredEvents.length === 0) {
     return (
-      <Card>
-        <CardContent className="pt-6 text-center">
-          <div className="flex flex-col items-center py-12 min-h-[250px] justify-center"> {/* Added min-height */}
-            <CalendarIcon className="h-16 w-16 text-muted-foreground/50 mb-5" /> {/* Increased size/margin */}
-            <p className="text-muted-foreground text-lg mb-2 font-medium">
-              {searchTerm || filter !== 'all' ? "No Events Found" : "No Upcoming Events"}
-            </p>
-            <p className="text-sm text-muted-foreground max-w-sm mx-auto mb-5">
-              {searchTerm && `We couldn't find events matching "${searchTerm}"`}
-              {searchTerm && filter !== 'all' && ' with the current filter.'}
-              {!searchTerm && filter !== 'all' && 'There are no events matching the current filter.'}
-              {!searchTerm && filter === 'all' && 'Check back later or create a new event!'}
-            </p>
-             {/* Use Button component for consistency */}
-            {(searchTerm || filter !== 'all') && (
-                 <Button
-                     onClick={() => window.location.reload()} // Consider resetting state instead of reload
-                     variant="ghost"
-                     size="sm"
-                     className="text-primary hover:text-primary/80"
-                 >
-                     Clear Search & Filters
-                 </Button>
-             )}
+      <div className="space-y-6">
+        {/* Search and Filter Controls */}
+        <div className="flex flex-col sm:flex-row gap-4 mb-8">
+          <div className="relative flex-1">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Input
+              placeholder="Search events..."
+              value={localSearchTerm}
+              onChange={(e) => setLocalSearchTerm(e.target.value)}
+              className="pl-9 pr-9 h-11 bg-background/80 backdrop-blur-sm border-border/50 focus:border-primary transition-all"
+            />
+            {localSearchTerm && (
+              <button 
+                onClick={handleClearSearch}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            )}
           </div>
-        </CardContent>
-      </Card>
+          
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="outline" className="gap-2 h-11 min-w-[150px] border-border/50 bg-background/80 backdrop-blur-sm">
+                <Filter className="h-4 w-4" />
+                <span>
+                  {localFilter === "all" && "All Events"}
+                  {localFilter === "thisWeek" && "This Week"}
+                  {localFilter === "thisMonth" && "This Month"}
+                </span>
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-[180px]">
+              <DropdownMenuItem onClick={() => setLocalFilter("all")} className="cursor-pointer">
+                All Events
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => setLocalFilter("thisWeek")} className="cursor-pointer">
+                This Week
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => setLocalFilter("thisMonth")} className="cursor-pointer">
+                This Month
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
+        
+        <Card className="border-border/40 overflow-hidden">
+          <CardContent className="p-0">
+            <div className="flex flex-col items-center py-16 px-4 bg-gradient-to-b from-background to-muted/30">
+              <motion.div
+                initial={{ opacity: 0, scale: 0.9 }}
+                animate={{ opacity: 1, scale: 1 }}
+                transition={{ duration: 0.4 }}
+              >
+                <div className="rounded-full bg-muted/60 p-6 mb-6">
+                  <CalendarIcon className="h-16 w-16 text-muted-foreground/70" />
+                </div>
+              </motion.div>
+              
+              <motion.div
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.4, delay: 0.2 }}
+                className="text-center"
+              >
+                <h3 className="text-2xl font-semibold mb-3">
+                  {localSearchTerm || localFilter !== 'all' ? "No Events Found" : "No Upcoming Events"}
+                </h3>
+                <p className="text-muted-foreground max-w-md mx-auto mb-8">
+                  {localSearchTerm && `We couldn't find events matching "${localSearchTerm}"`}
+                  {localSearchTerm && localFilter !== 'all' && ' with the current filter.'}
+                  {!localSearchTerm && localFilter !== 'all' && 'There are no events matching the current filter.'}
+                  {!localSearchTerm && localFilter === 'all' && 'Check back later or create a new event to get started!'}
+                </p>
+                
+                {(localSearchTerm || localFilter !== 'all') && (
+                  <Button
+                    onClick={() => {
+                      setLocalSearchTerm("");
+                      setLocalFilter("all");
+                    }}
+                    variant="outline"
+                    size="lg"
+                    className="px-6"
+                  >
+                    <X className="h-4 w-4 mr-2" />
+                    Clear Filters
+                  </Button>
+                )}
+              </motion.div>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
     );
   }
-
-  // --- Render Carousel ---
+  
+  // --- Main Carousel Render ---
   return (
-    <div className="relative pb-12">
-      {/* Carousel Container with Mouse Enter/Leave for Autoplay Pause */}
-      <div
-        className="overflow-hidden cursor-grab active:cursor-grabbing" // Add grab cursors
-        ref={carouselRef}
-        onMouseEnter={stopAutoplay}
-        onMouseLeave={startAutoplay}
-      >
-        <motion.div
-          className="flex gap-4 pl-1"
-          animate={carouselControls}
-          initial={{ x: 0 }}
-          drag="x"
-          dragConstraints={{ left: -(filteredEvents.length * 336 - cardsPerPage * 336), right: 0 }}
-          style={{ x: dragX }}
-          onDragStart={() => {
-            isDragging.current = true
-            if (autoplayRef.current) clearTimeout(autoplayRef.current)
-          }}
-          onDragEnd={handleDragEnd}
-        >
-          {/* Map through filtered events to render cards */}
-          {filteredEvents.map((event, index) => (
-            <motion.div
-              key={event.id + '-' + index}
-              className="flex-shrink-0 w-full sm:w-[320px]"
-              initial={{ opacity: 0, y: 30, scale: 0.95 }}
-              animate={{
-                opacity: 1,
-                y: 0,
-                scale: 1,
-              }}
-              transition={{
-                duration: 0.5,
-                delay: 0.08 * (index % cardsPerPage),
-                ease: [0.25, 1, 0.5, 1]
-              }}
-              whileHover={{
-                y: -6,
-                scale: 1.02,
-                boxShadow: "0 8px 25px rgba(0, 0, 0, 0.08)",
-                transition: { duration: 0.25, ease: "easeOut" }
-              }}
+    <div className="space-y-6">
+      {/* Search and Filter Controls */}
+      <div className="flex flex-col sm:flex-row gap-4 mb-8">
+        <div className="relative flex-1">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <Input
+            placeholder="Search events..."
+            value={localSearchTerm}
+            onChange={(e) => setLocalSearchTerm(e.target.value)}
+            className="pl-9 pr-9 h-11 bg-background/80 backdrop-blur-sm border-border/50 focus:border-primary transition-all"
+          />
+          {localSearchTerm && (
+            <button 
+              onClick={handleClearSearch}
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
             >
-              <Link href={`/events/${event.id}`} className="block h-full">
-                <Card className="h-full transition-all hover:shadow-lg overflow-hidden border border-gray-200 dark:border-gray-800 group relative">
-                  {/* Full-size header with content overlay */}
-                  <div className="relative h-full">
-                    {/* Header background - either image or color */}
-                    {event.headerType === "image" && event.headerImageUrl ? (
-                      <div className="absolute inset-0 w-full h-full">
-                        <Image 
-                          src={event.headerImageUrl} 
-                          alt={event.name} 
-                          fill
-                          className="object-cover"
-                          sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
-                          priority={index === 0}
-                        />
-                        <div className="absolute inset-0 bg-gradient-to-b from-black/30 via-black/20 to-black/70"></div>
-                      </div>
-                    ) : (
-                      <div 
-                        className="absolute inset-0 w-full h-full"
-                        style={{ 
-                          backgroundColor: event.headerColor || "#10b981"
-                        }}
-                      >
-                        <div className="absolute inset-0 bg-gradient-to-b from-black/10 via-transparent to-black/60"></div>
-                      </div>
-                    )}
-                    
-                    {/* Badges positioned at top-right */}
-                    <div className="absolute top-2 right-2 flex gap-2 z-10">
-                      {isEventSoon(event.date) && (
-                        <Badge className="bg-orange-500 text-white border-none">Soon</Badge>
-                      )}
-                      {isEventPopular(event.attendees) && (
-                        <Badge className="bg-purple-500 text-white border-none flex items-center gap-1">
-                          <TrendingUp className="h-3 w-3" /> Popular
-                        </Badge>
-                      )}
-                    </div>
-                    
-                    {/* Content overlaid on the header */}
-                    <div className="relative h-full flex flex-col pt-12 pb-4 px-4 text-white">
-                      {/* Push content to bottom with flex */}
-                      <div className="mt-auto">
-                        <h3 className="text-xl font-bold mb-1 line-clamp-1 group-hover:text-teal-300 transition-colors">
-                          {event.name}
-                        </h3>
-                        <p className="text-sm text-white/80 mb-4 line-clamp-1">
-                          Hosted by {event.host.name}
-                        </p>
+              <X className="h-4 w-4" />
+            </button>
+          )}
+        </div>
+        
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button variant="outline" className="gap-2 h-11 min-w-[150px] border-border/50 bg-background/80 backdrop-blur-sm">
+              <Filter className="h-4 w-4" />
+              <span>
+                {localFilter === "all" && "All Events"}
+                {localFilter === "thisWeek" && "This Week"}
+                {localFilter === "thisMonth" && "This Month"}
+              </span>
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" className="w-[180px]">
+            <DropdownMenuItem onClick={() => setLocalFilter("all")} className="cursor-pointer">
+              All Events
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={() => setLocalFilter("thisWeek")} className="cursor-pointer">
+              This Week
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={() => setLocalFilter("thisMonth")} className="cursor-pointer">
+              This Month
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+      </div>
+      
+      {/* Carousel */}
+      <div className="relative group">
+        <div className="overflow-hidden rounded-xl">
+          <div 
+            className="flex transition-all duration-500 ease-out"
+            style={{ 
+              transform: `translateX(-${currentIndex * (100 / cardsPerView)}%)`,
+              width: `${(filteredEvents.length / cardsPerView) * 100}%`
+            }}
+          >
+            {isMounted && filteredEvents.map((event, index) => (
+              <div 
+                key={event.id}
+                className="px-2"
+                style={{ width: `${100 / filteredEvents.length}%` }}
+              >
+                <Link href={`/events/${event.id}`} className="block h-full focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 rounded-xl">
+                  <motion.div
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ 
+                      duration: 0.5, 
+                      delay: Math.min(index * 0.1, 0.3),
+                      ease: [0.22, 1, 0.36, 1]
+                    }}
+                    whileHover={{ 
+                      y: -10, 
+                      transition: { 
+                        duration: 0.2,
+                        ease: "easeOut"
+                      } 
+                    }}
+                    className="h-full"
+                  >
+                    <Card className="overflow-hidden border border-border/50 shadow-md h-full hover:shadow-xl hover:border-border/80 transition-all duration-300">
+                      <div className="relative h-52 sm:h-56 overflow-hidden">
+                        {/* Event Header Image or Color */}
+                        {event.headerType === 'image' && event.headerImageUrl ? (
+                          <Image
+                            src={event.headerImageUrl}
+                            alt={event.name}
+                            fill
+                            className="object-cover transition-all duration-1000 ease-in-out group-hover:scale-105 hover:scale-110"
+                            sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
+                            priority={index < cardsPerView}
+                          />
+                        ) : (
+                          <div 
+                            className="w-full h-full transition-all duration-300"
+                            style={{ backgroundColor: event.headerColor || '#10b981' }}
+                          />
+                        )}
                         
-                        <div className="space-y-2 text-sm backdrop-blur-sm bg-black/30 p-3 rounded-lg">
-                          <div className="flex items-center">
-                            <CalendarIcon className="h-4 w-4 mr-2 text-teal-300" />
-                            <span>{format(new Date(event.date), 'EEE, MMM d')}</span>
+                        {/* Date Badge */}
+                        <div className="absolute top-3 left-3 bg-black/60 backdrop-blur-md text-white p-2 rounded-lg shadow-lg">
+                          <div className="text-xs font-medium">
+                            {format(new Date(event.date), 'MMM dd')}
                           </div>
-                          <div className="flex items-center">
-                            <Clock className="h-4 w-4 mr-2 text-teal-300" />
-                            <span>{event.time} · {event.duration}h</span>
-                          </div>
-                          <div className="flex items-center">
-                            <MapPin className="h-4 w-4 mr-2 text-teal-300" />
-                            <span className="line-clamp-1">{event.location}</span>
-                          </div>
-                          <div className="flex items-center">
-                            <Users className="h-4 w-4 mr-2 text-teal-300" />
-                            <span>{getConfirmedAttendees(event.attendees)} attending</span>
+                          <div className="text-sm font-bold">
+                            {formatEventTime(event.time)}
                           </div>
                         </div>
+                        
+                        {/* Status Badges */}
+                        <div className="absolute top-3 right-3 flex flex-col gap-2">
+                          {isEventSoon(event.date) && (
+                            <Badge className="bg-gradient-to-r from-orange-500 to-amber-500 text-white border-none shadow-md">
+                              Soon
+                            </Badge>
+                          )}
+                          {isEventPopular(event.attendees) && (
+                            <Badge className="bg-gradient-to-r from-purple-500 to-pink-500 text-white border-none flex items-center gap-1 shadow-md">
+                              <TrendingUp className="h-3 w-3" /> Popular
+                            </Badge>
+                          )}
+                        </div>
+                        
+                        {/* Gradient Overlay */}
+                        <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/40 to-black/10" />
+                        
+                        {/* Event Title */}
+                        <div className="absolute bottom-0 left-0 right-0 p-4">
+                          <h3 className="text-white font-bold text-lg sm:text-xl line-clamp-2 group-hover:text-primary-foreground transition-colors">
+                            {event.name}
+                          </h3>
+                          <p className="text-white/90 text-sm mt-1 flex items-center">
+                            by {event.host.name || 'Unknown Host'}
+                          </p>
+                        </div>
                       </div>
-                    </div>
-                  </div>
-                </Card>
-              </Link>
-            </motion.div>
-          ))}
-        </motion.div>
-      </div>
-
-      {/* Navigation Controls - Enhanced Styling */}
-      {totalPages > 1 && ( // Only show controls if needed
-        <div className="flex items-center justify-center gap-4 mt-8"> {/* Increased top margin */}
-          {/* Previous Button */}
-          <Button
-            variant="outline"
-            size="icon"
-            onClick={() => navigate('prev')}
-            className="rounded-full h-8 w-8 border-primary/30 text-primary hover:bg-primary/10 disabled:opacity-50"
-            aria-label="Previous events page"
-            disabled={currentPage === 0} // Disable if on first page
-          >
-            <ChevronLeft className="h-5 w-5" />
-          </Button>
-
-          {/* Pagination Dots */}
-          <div className="flex gap-2 items-center">
-            {Array.from({ length: totalPages }).map((_, i) => (
-              <button
-                key={i}
-                onClick={() => {
-                  setCurrentPage(i);
-                  carouselControls.start({
-                    x: -i * (cardsPerPage * (320 + 16)),
-                    transition: { duration: 0.6, ease: [0.4, 0, 0.2, 1] }
-                  });
-                  stopAutoplay();
-                  startAutoplay();
-                }}
-                className={`h-2.5 w-2.5 rounded-full transition-all duration-300 ease-in-out ${currentPage === i ? 'bg-primary scale-125' : 'bg-muted hover:bg-muted-foreground/50 scale-100'}`} // Enhanced styling
-                aria-label={`Go to page ${i + 1}`}
-                style={{ transitionDelay: `${i * 0.02}s` }} // Subtle delay effect
-              />
+                      
+                      <CardContent className="p-5">
+                        <div className="space-y-3 text-sm">
+                          {/* Relative Time */}
+                          <div className="text-xs font-medium text-primary mb-2">
+                            {getRelativeTimeLabel(event.date)}
+                          </div>
+                          
+                          {/* Location */}
+                          <div className="flex items-start">
+                            <MapPin className="h-4 w-4 mr-2 mt-0.5 text-muted-foreground" />
+                            <span className="line-clamp-1 flex-1">{event.location}</span>
+                          </div>
+                          
+                          {/* Duration */}
+                          <div className="flex items-start">
+                            <Clock className="h-4 w-4 mr-2 mt-0.5 text-muted-foreground" />
+                            {event.duration >= 60 ? (
+                              <span>{Math.floor(event.duration / 60)} hour{Math.floor(event.duration / 60) !== 1 ? 's' : ''}</span>
+                            ) : (
+                              <span>{event.duration} minute{event.duration !== 1 ? 's' : ''}</span>
+                            )}
+                          </div>
+                          
+                          {/* Attendees */}
+                          <div className="flex items-start">
+                            <Users className="h-4 w-4 mr-2 mt-0.5 text-muted-foreground" />
+                            <span>
+                              {getConfirmedAttendees(event.attendees)} 
+                              {getConfirmedAttendees(event.attendees) === 1 ? ' person' : ' people'} going
+                            </span>
+                          </div>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  </motion.div>
+                </Link>
+              </div>
             ))}
           </div>
-
-          {/* Next Button */}
-          <Button
-            variant="outline"
-            size="icon"
-            onClick={() => navigate('next')}
-            className="rounded-full h-8 w-8 border-primary/30 text-primary hover:bg-primary/10 disabled:opacity-50"
-            aria-label="Next events page"
-            disabled={currentPage === totalPages - 1} // Disable if on last page
-          >
-            <ChevronRight className="h-5 w-5" />
-          </Button>
+        </div>
+        
+        {/* Navigation Arrows - Only show if needed */}
+        {filteredEvents.length > cardsPerView && (
+          <>
+            <Button
+              variant="default"
+              size="icon"
+              className={cn(
+                "absolute left-0 top-1/2 -translate-y-1/2 -translate-x-1/2 rounded-full opacity-0 group-hover:opacity-100 transition-opacity duration-300 bg-background/90 backdrop-blur-md shadow-md h-10 w-10 sm:h-12 sm:w-12 z-10 border border-border/50",
+                currentIndex === 0 && "opacity-0 cursor-default pointer-events-none",
+                isAnimating && "cursor-wait"
+              )}
+              onClick={handlePrevious}
+              disabled={currentIndex === 0 || isAnimating}
+            >
+              <ChevronLeft className="h-5 w-5 sm:h-6 sm:w-6" />
+            </Button>
+            
+            <Button
+              variant="default"
+              size="icon"
+              className={cn(
+                "absolute right-0 top-1/2 -translate-y-1/2 translate-x-1/2 rounded-full opacity-0 group-hover:opacity-100 transition-opacity duration-300 bg-background/90 backdrop-blur-md shadow-md h-10 w-10 sm:h-12 sm:w-12 z-10 border border-border/50",
+                currentIndex >= filteredEvents.length - cardsPerView && "opacity-0 cursor-default pointer-events-none",
+                isAnimating && "cursor-wait"
+              )}
+              onClick={handleNext}
+              disabled={currentIndex >= filteredEvents.length - cardsPerView || isAnimating}
+            >
+              <ChevronRight className="h-5 w-5 sm:h-6 sm:w-6" />
+            </Button>
+          </>
+        )}
+      </div>
+      
+      {/* Pagination Indicators */}
+      {filteredEvents.length > cardsPerView && (
+        <div className="flex justify-center gap-1.5 mt-8">
+          {Array.from({ length: Math.ceil(filteredEvents.length / cardsPerView) }).map((_, index) => {
+            const isActive = index * cardsPerView === currentIndex;
+            const isNearby = Math.abs(index * cardsPerView - currentIndex) <= cardsPerView;
+            
+            return isNearby ? (
+              <motion.button 
+                key={index}
+                onClick={() => {
+                  if (isAnimating) return;
+                  setIsAnimating(true);
+                  stopAutoRotate();
+                  setCurrentIndex(index * cardsPerView);
+                  setTimeout(() => {
+                    setIsAnimating(false);
+                    startAutoRotate();
+                  }, 500);
+                }}
+                disabled={isAnimating}
+                className={cn(
+                  "h-2 rounded-full transition-all duration-300 ease-in-out",
+                  isActive 
+                    ? "w-8 bg-gradient-to-r from-primary to-blue-500" 
+                    : "w-2 bg-muted hover:bg-muted-foreground/50"
+                )}
+                aria-label={`Go to page ${index + 1}`}
+                whileTap={{ scale: 0.9 }}
+                initial={{ opacity: 0, scale: 0.5 }}
+                animate={{ opacity: 1, scale: 1 }}
+                transition={{ duration: 0.2, delay: index * 0.05 }}
+              />
+            ) : index === 0 || index === Math.ceil(filteredEvents.length / cardsPerView) - 1 ? (
+              <motion.button 
+                key={index}
+                onClick={() => {
+                  if (isAnimating) return;
+                  setIsAnimating(true);
+                  stopAutoRotate();
+                  setCurrentIndex(index * cardsPerView);
+                  setTimeout(() => {
+                    setIsAnimating(false);
+                    startAutoRotate();
+                  }, 500);
+                }}
+                disabled={isAnimating}
+                className="w-2 h-2 rounded-full bg-muted hover:bg-muted-foreground/50 transition-all duration-300 ease-in-out"
+                aria-label={`Go to page ${index + 1}`}
+                whileTap={{ scale: 0.9 }}
+                initial={{ opacity: 0, scale: 0.5 }}
+                animate={{ opacity: 1, scale: 1 }}
+                transition={{ duration: 0.2, delay: 0.05 }}
+              />
+            ) : null;
+          })}
         </div>
       )}
     </div>
