@@ -18,13 +18,12 @@ import { motion, AnimatePresence } from "framer-motion"
 import Map from "./map"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "../components/ui/tooltip"
 import Image from "next/image"
-import { format } from "date-fns"
 
 interface AddEventModalProps {
   isOpen: boolean
   onClose: () => void
   onEventAdded: () => void
-  initialDate?: Date | null
+  initialDate?: Date
 }
 
 type PrivacyOption = "PUBLIC" | "FRIENDS_ONLY" | "PRIVATE";
@@ -62,7 +61,7 @@ const STEPS: Array<{id: Step, label: string, icon: React.ReactNode, description:
     id: "invitations", 
     label: "Invites", 
     icon: <Users className="h-4 w-4" />,
-    description: "Who&apos;s coming?"
+    description: "Who's coming?"
   },
   { 
     id: "preview", 
@@ -74,12 +73,7 @@ const STEPS: Array<{id: Step, label: string, icon: React.ReactNode, description:
 
 // Animation variants are defined but not used, removing to fix linter errors
 
-export function AddEventModal({
-  isOpen,
-  onClose,
-  onEventAdded,
-  initialDate = null,
-}: AddEventModalProps) {
+export function AddEventModal({ isOpen, onClose, onEventAdded, initialDate }: AddEventModalProps) {
   const [currentStep, setCurrentStep] = useState<Step>("basicInfo");
   const [eventName, setEventName] = useState("")
   const [eventDate, setEventDate] = useState("")
@@ -388,15 +382,17 @@ export function AddEventModal({
     const timer = setTimeout(debouncedValidate, 500);
     return () => clearTimeout(timer);
   }, [debouncedValidate]);
+
+  // Get current step index
+  const currentStepIndex = STEPS.findIndex(step => step.id === currentStep);
   
   // Enhanced step indicator
   const renderStepIndicator = () => {
     return (
-      <div className="flex items-center justify-center mb-4 px-2">
+      <div className="flex items-center justify-center mb-6 px-2">
         {STEPS.map((step, index) => {
           const isCompleted = completedSteps.has(step.id);
           const isCurrent = currentStep === step.id;
-          const stepIndex = STEPS.findIndex(s => s.id === currentStep);
           
           return (
             <div key={step.id} className="flex items-center">
@@ -405,7 +401,7 @@ export function AddEventModal({
                   <TooltipTrigger asChild>
                     <button
                       type="button"
-                      className={`flex items-center justify-center h-8 w-8 sm:h-10 sm:w-10 rounded-full text-xs font-medium transition-all 
+                      className={`flex items-center justify-center h-10 w-10 rounded-full text-xs font-medium transition-all 
                       ${isCurrent 
                         ? "bg-primary text-primary-foreground ring-2 ring-offset-2 ring-primary" 
                         : isCompleted
@@ -413,17 +409,13 @@ export function AddEventModal({
                           : "bg-muted text-muted-foreground"}`}
                       onClick={() => {
                         // Allow jumping to completed steps or next incomplete step
-                        if (isCompleted || index === stepIndex + 1) {
+                        if (isCompleted || index === currentStepIndex + 1) {
                           setCurrentStep(step.id);
                         }
                       }}
-                      disabled={!isCompleted && index > stepIndex + 1}
+                      disabled={!isCompleted && index > currentStepIndex + 1}
                     >
-                      {isCompleted && !isCurrent ? 
-                        <Check className="h-4 w-4 sm:h-5 sm:w-5" /> : 
-                        <span className="hidden sm:block">{step.icon}</span>
-                      }
-                      <span className="sm:hidden">{index + 1}</span>
+                      {isCompleted && !isCurrent ? <Check className="h-5 w-5" /> : step.icon}
                     </button>
                   </TooltipTrigger>
                   <TooltipContent>
@@ -434,8 +426,8 @@ export function AddEventModal({
               </TooltipProvider>
               
               {index < STEPS.length - 1 && (
-                <div className={`h-1 w-4 sm:w-8 mx-1 transition-colors ${
-                  index < stepIndex || (isCompleted && index === stepIndex)
+                <div className={`h-1 w-8 md:w-10 mx-1 transition-colors ${
+                  index < currentStepIndex || (isCompleted && index === currentStepIndex)
                     ? "bg-primary" 
                     : "bg-muted"
                 }`}></div>
@@ -737,91 +729,20 @@ export function AddEventModal({
                 <Label htmlFor="eventLocation" className="text-base font-medium flex items-center">
                   Location <span className="text-red-500 ml-1">*</span>
                 </Label>
-                <Input
-                  id="eventLocation"
-                  value={eventLocation}
-                  onChange={(e) => setEventLocation(e.target.value)}
-                  className={errors.location ? "border-red-500" : ""}
-                  placeholder="E.g., Coffee Shop, Park, Office..."
-                  disabled={isSubmitting}
-                />
-                {errors.location && (
-                  <motion.p 
-                    initial={{opacity: 0}} 
-                    animate={{opacity: 1}} 
-                    className="text-sm text-red-500"
-                  >
-                    {errors.location}
-                  </motion.p>
-                )}
-              </div>
-              
-              <div className="space-y-2">
-                <Label className="text-base font-medium">Find on Map</Label>
-                <div className="h-[250px] sm:h-[300px] rounded-md overflow-hidden border">
-                  <Map
-                    defaultAddress={eventLocation}
-                    onLocationSelect={(location) => {
-                      setEventLocation(location.address);
-                      setLocationCoords({ lat: location.lat, lng: location.lng });
-                    }}
-                    height="100%"
-                  />
-                </div>
-                <p className="text-xs text-muted-foreground">
-                  Search for a location or click on the map to set a precise location
+                <p className="text-sm text-muted-foreground">
+                  Search for a location or click on the map to choose a spot
                 </p>
-              </div>
-              
-              <div className="space-y-2">
-                <Label htmlFor="eventDescription" className="text-base font-medium">
-                  Description <span className="text-xs text-muted-foreground ml-2">(optional)</span>
-                </Label>
-                <Textarea
-                  id="eventDescription"
-                  value={eventDescription}
-                  onChange={(e) => setEventDescription(e.target.value)}
-                  placeholder="Add any details your guests should know..."
-                  className="min-h-[100px]"
-                  disabled={isSubmitting}
+                <Map
+                  height="300px"
+                  defaultAddress={eventLocation}
+                  onLocationSelect={({ address, lat, lng }) => {
+                    setEventLocation(address);
+                    setLocationCoords({ lat, lng });
+                    setErrors(prev => ({ ...prev, location: "" }));
+                  }}
+                  className={errors.location ? "border-red-500 shadow-sm" : "shadow-sm"}
                 />
-              </div>
-              
-              <div className="space-y-2">
-                <Label className="text-base font-medium">Privacy</Label>
-                <p className="text-sm text-muted-foreground mb-2">
-                  Choose who can see your event
-                </p>
-                
-                <div className="space-y-2">
-                  <div
-                    className={`flex items-start p-3 rounded-md cursor-pointer border transition-colors ${
-                      privacyOption === "PUBLIC" 
-                        ? "bg-primary/10 border-primary/30" 
-                        : "hover:bg-muted/50"
-                    }`}
-                    onClick={() => setPrivacyOption("PUBLIC")}
-                  >
-                    <div className="flex h-5 items-center">
-                      <input
-                        type="radio"
-                        checked={privacyOption === "PUBLIC"}
-                        onChange={() => setPrivacyOption("PUBLIC")}
-                        className="mr-2"
-                        disabled={isSubmitting}
-                      />
-                    </div>
-                    <div className="space-y-1 flex-1">
-                      <div className="flex items-center gap-2">
-                        <Globe className="h-4 w-4 text-green-500" />
-                        <label className="font-medium text-sm cursor-pointer">Public</label>
-                      </div>
-                      <p className="text-xs text-muted-foreground">
-                        Everyone can see this event, even if they&apos;re not invited
-                      </p>
-                    </div>
-                  </div>
-                </div>
+                {errors.location && <motion.p initial={{opacity: 0}} animate={{opacity: 1}} className="text-sm text-red-500">{errors.location}</motion.p>}
               </div>
             </div>
           )}
@@ -948,7 +869,7 @@ export function AddEventModal({
                   <motion.div 
                     initial={{opacity: 0}} 
                     animate={{opacity: 1}} 
-                    className="grid grid-cols-1 sm:grid-cols-2 gap-2 mt-2"
+                    className="grid grid-cols-2 gap-2 mt-2"
                   >
                     {friends.map(friend => (
                       <motion.div 
@@ -974,7 +895,7 @@ export function AddEventModal({
                           <AvatarImage src={friend.image || undefined} />
                           <AvatarFallback>{friend.name?.[0] || "?"}</AvatarFallback>
                         </Avatar>
-                        <label htmlFor={`friend-${friend.id}`} className="text-sm cursor-pointer truncate">
+                        <label htmlFor={`friend-${friend.id}`} className="text-sm cursor-pointer">
                           {friend.name}
                         </label>
                       </motion.div>
@@ -1020,7 +941,7 @@ export function AddEventModal({
                   >
                     <Card className="overflow-hidden border border-teal-200 dark:border-teal-900 shadow-sm">
                       <div 
-                        className={`w-full transition-all ${isExpandedView ? "h-48 sm:h-60" : "h-28 sm:h-32"}`}
+                        className={`w-full transition-all ${isExpandedView ? "h-60" : "h-32"}`}
                         style={{ 
                           backgroundColor: headerType === "color" ? headerColor : undefined,
                           backgroundImage: headerImagePreview ? `url(${headerImagePreview})` : undefined,
@@ -1028,24 +949,24 @@ export function AddEventModal({
                           backgroundPosition: 'center'
                         }}
                       >
-                        <div className="h-full w-full flex items-end p-3 sm:p-4 bg-gradient-to-b from-black/0 to-black/70">
+                        <div className="h-full w-full flex items-end p-4 bg-gradient-to-b from-black/0 to-black/70">
                           <Badge className="bg-blue-500 text-white">Upcoming</Badge>
                         </div>
                       </div>
-                      <CardContent className={`p-3 sm:p-4 transition-all ${isExpandedView ? "p-4 sm:p-6" : ""}`}>
-                        <h3 className={`font-bold mb-2 sm:mb-3 transition-all ${isExpandedView ? "text-xl sm:text-2xl" : "text-lg sm:text-xl"}`}>
+                      <CardContent className={`p-4 transition-all ${isExpandedView ? "p-6" : ""}`}>
+                        <h3 className={`font-bold mb-3 transition-all ${isExpandedView ? "text-2xl" : "text-xl"}`}>
                           {eventName || "Your Event"}
                         </h3>
                         
-                        <div className="space-y-2 sm:space-y-3 text-sm">
+                        <div className="space-y-3 text-sm">
                           <div className="flex items-center">
                             <CalendarIcon className="h-4 w-4 mr-2 text-teal-500" />
-                            <span className="text-xs sm:text-sm">{formattedDate || "Date not set"}</span>
+                            <span>{formattedDate || "Date not set"}</span>
                           </div>
                           
                           <div className="flex items-center">
                             <Clock className="h-4 w-4 mr-2 text-teal-500" />
-                            <span className="text-xs sm:text-sm">
+                            <span>
                               {isAllDay 
                                 ? "All day" 
                                 : eventTime 
@@ -1056,7 +977,7 @@ export function AddEventModal({
                           
                           <div className="flex items-center">
                             <MapPin className="h-4 w-4 mr-2 text-teal-500" />
-                            <span className="text-xs sm:text-sm truncate">{eventLocation || "Location not set"}</span>
+                            <span>{eventLocation || "Location not set"}</span>
                           </div>
 
                           <div className="flex items-center">
@@ -1197,13 +1118,11 @@ export function AddEventModal({
     );
   };
 
-  // Use initialDate if provided when the component mounts or when initialDate changes
   useEffect(() => {
-    if (initialDate && isOpen) {
-      const formattedDate = format(initialDate, 'yyyy-MM-dd');
-      setEventDate(formattedDate);
+    if (initialDate) {
+      setEventDate(initialDate.toISOString().split("T")[0])
     }
-  }, [initialDate, isOpen]);
+  }, [initialDate])
 
   // Fetch user's friends when modal opens
   useEffect(() => {
@@ -1306,9 +1225,9 @@ export function AddEventModal({
 
   return (
     <Dialog open={isOpen} onOpenChange={handleClose}>
-      <DialogContent className="w-[95vw] sm:max-w-[500px] max-h-[90vh] overflow-y-auto p-4 sm:p-6">
+      <DialogContent className="sm:max-w-[500px] max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle className="text-xl sm:text-2xl font-bold bg-gradient-to-r from-teal-400 to-blue-500 bg-clip-text text-transparent">
+          <DialogTitle className="text-2xl font-bold bg-gradient-to-r from-teal-400 to-blue-500 bg-clip-text text-transparent">
             {currentStep === "preview" && eventId 
               ? "Share Your Event" 
               : "Create Event"}
@@ -1320,16 +1239,16 @@ export function AddEventModal({
           </DialogDescription>
         </DialogHeader>
         
-        <form onSubmit={handleSubmit} className="space-y-4 mt-2">
+        <form onSubmit={handleSubmit} className="space-y-4">
           {renderStepContent()}
           
-          <DialogFooter className="flex-col sm:flex-row sm:justify-between sm:space-x-2 pt-4 border-t mt-4">
+          <DialogFooter className="flex-col sm:flex-row sm:justify-between sm:space-x-2">
             {(currentStep !== "basicInfo" && !(currentStep === "preview" && eventId)) && (
               <Button
                 type="button"
                 variant="outline"
                 onClick={prevStep}
-                className="mb-2 sm:mb-0 w-full sm:w-auto"
+                className="mb-2 sm:mb-0"
                 disabled={isSubmitting}
               >
                 <ChevronLeft className="mr-1 h-4 w-4" />
@@ -1355,7 +1274,7 @@ export function AddEventModal({
                   type="button"
                   onClick={() => handleSubmit()}
                   disabled={isSubmitting}
-                  className="flex-1 sm:flex-initial bg-gradient-to-r from-blue-500 to-gray-500 text-white hover:from-gray-500 hover:to-blue-600"
+                  className="flex-1 sm:flex-initial bg-gradient-to-r from-teal-400 to-blue-500 text-white hover:from-teal-500 hover:to-blue-600"
                 >
                   {isSubmitting ? (
                     <>
