@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import Link from 'next/link'
 import { useParams, useRouter } from 'next/navigation'
 import { useSession } from 'next-auth/react'
@@ -66,12 +66,32 @@ interface UserProfile {
   createdAt?: string
 }
 
+// Error display component
+const ErrorDisplay = ({ error, onRetry }: { error: string; onRetry?: () => void }) => (
+  <div className="container max-w-4xl mx-auto px-4 py-10 pt-20">
+    <Button variant="ghost" onClick={() => window.history.back()} className="mb-6">
+      <ArrowLeft className="h-5 w-5 mr-2" /> Back
+    </Button>
+    <Card className="py-12">
+      <CardContent className="flex flex-col items-center justify-center text-center">
+        <AlertTriangle className="h-16 w-16 text-amber-500 mb-4" />
+        <CardTitle className="text-xl mb-2">An Error Occurred</CardTitle>
+        <CardDescription className="mb-6">{error}</CardDescription>
+        {onRetry && (
+          <Button onClick={onRetry}>Retry</Button>
+        )}
+      </CardContent>
+    </Card>
+  </div>
+);
+
 export default function UserProfilePage() {
   const params = useParams()
   const router = useRouter()
   const { data: session } = useSession()
   const [profile, setProfile] = useState<UserProfile | null>(null)
   const [isLoading, setIsLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
   const [isSendingRequest, setIsSendingRequest] = useState(false)
   const [isProcessingAction, setIsProcessingAction] = useState(false)
   const [showInviteDialog, setShowInviteDialog] = useState(false)
@@ -80,27 +100,47 @@ export default function UserProfilePage() {
   const [isInviting, setIsInviting] = useState(false)
   const { addToast } = useToast()
 
-  const { id } = params
+  // Handle null params
+  if (!params) {
+    // Handle the case where params are null - e.g., show an error or loading state
+    // You might want to return an error component or redirect
+    // For now, we'll let the useEffect handle the missing ID
+    console.error("User page params are null.");
+    // Potentially redirect or return an error message component here
+  }
+
+  const id = params?.id as string; // Use optional chaining and type assertion
+
+  // Define fetchProfile outside useEffect, wrapped in useCallback
+  const fetchProfile = useCallback(async () => {
+    setIsLoading(true)
+    setError(null)
+    if (!id) {
+      setError("User ID is missing or invalid.");
+      setIsLoading(false);
+      return;
+    }
+    try {
+      const response = await fetch(`/api/users/${id}`)
+      if (!response.ok) throw new Error('User not found.')
+      const data = await response.json()
+      setProfile(data)
+    } catch (error) {
+      console.error('Error fetching profile:', error)
+      const errorMessage = error instanceof Error ? error.message : "Could not load user.";
+      setError(errorMessage);
+      addToast({ title: 'Error', description: errorMessage, variant: 'destructive' })
+    } finally {
+      setIsLoading(false)
+    }
+  }, [id, addToast]); // Add dependencies for useCallback
 
   const isCurrentUser = session?.user?.id === profile?.id
 
+  // useEffect for initial profile fetch
   useEffect(() => {
-    const fetchProfile = async () => {
-      setIsLoading(true)
-      try {
-        const response = await fetch(`/api/users/${id}`)
-        if (!response.ok) throw new Error('User not found.')
-        const data = await response.json()
-        setProfile(data)
-      } catch (error) {
-        console.error('Error fetching profile:', error)
-        addToast({ title: 'Error', description: 'Could not load user.', variant: 'destructive' })
-      } finally {
-        setIsLoading(false)
-      }
-    }
-    fetchProfile()
-  }, [id, addToast])
+    fetchProfile(); // Call the function here
+  }, [fetchProfile]); // Depend on fetchProfile
 
   // Fetch current user's events for inviting
   useEffect(() => {
@@ -277,6 +317,10 @@ export default function UserProfilePage() {
         </Card>
       </div>
     )
+  }
+
+  if (error) {
+    return <ErrorDisplay error={error} onRetry={fetchProfile} />;
   }
 
   if (!profile) {

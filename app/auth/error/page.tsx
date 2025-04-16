@@ -13,6 +13,12 @@ export default function AuthErrorPage() {
 
 function ErrorContent() {
   const searchParams = useSearchParams()
+
+  // Handle the case where searchParams might be null
+  if (!searchParams) {
+    return <p>Loading...</p>; // Or some other fallback UI
+  }
+
   return (
     <div>
       <h1>Authentication Error</h1>

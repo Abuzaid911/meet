@@ -134,7 +134,6 @@ const ErrorDisplay = ({ error }: { error: string }) => (
 // Main Component
 export default function EventPage() {
   const params = useParams();
-  const id = params.id as string;
   const router = useRouter();
   const { data: session } = useSession();
   const { addToast } = useToast();
@@ -148,6 +147,18 @@ export default function EventPage() {
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [showAddAttendeeModal, setShowAddAttendeeModal] = useState(false);
   const [showEditEventModal, setShowEditEventModal] = useState(false);
+
+  // Handle potential null params
+  if (!params) {
+    // Optionally, return a loading state or handle the error appropriately
+    // For now, we can let the existing id check handle it, or return a specific message.
+    // Consider returning a loading indicator or specific error component if desired.
+    // Example: return <EventPageSkeleton />; 
+    // Or set an error state:
+    // useEffect(() => { setError("Could not load event parameters."); setIsLoading(false); }, []);
+  }
+
+  const id = params?.id as string; // Use optional chaining
 
   // Fetch event data
   const fetchEvent = useCallback(async () => {
@@ -173,7 +184,7 @@ export default function EventPage() {
   // Initial data load
   useEffect(() => {
     if (!id) {
-      setError("Event ID is missing");
+      setError("Event ID is missing or invalid"); // Updated error message
       setIsLoading(false);
       return;
     }
