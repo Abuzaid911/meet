@@ -50,3 +50,29 @@ export async function POST(request: NextRequest) {
   }
 }
 
+export async function DELETE(request: NextRequest) {
+  try {
+    const { id } = await request.json();
+    if (!id) {
+      return NextResponse.json({ error: "User ID is required" }, { status: 400 });
+    }
+    const deletedUser = await prisma.user.delete({ where: { id } });
+    return NextResponse.json(deletedUser);
+  } catch {
+    return NextResponse.json({ error: "Error deleting user" }, { status: 500 });
+  }
+}
+
+export async function PUT(request: NextRequest) {
+  try {
+    const { id, ...data } = await request.json();
+    if (!id) {
+      return NextResponse.json({ error: "User ID is required" }, { status: 400 });
+    }
+    const updatedUser = await prisma.user.update({ where: { id }, data });
+    return NextResponse.json(updatedUser);
+  } catch {
+    return NextResponse.json({ error: "Error updating user" }, { status: 500 });
+  }
+}
+

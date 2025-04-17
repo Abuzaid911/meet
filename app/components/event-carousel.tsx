@@ -125,7 +125,8 @@ export const EventCarousel = memo(({ searchTerm = "", filter = "all" }: EventCar
   const isSmallScreen = useMediaQuery("(max-width: 768px)");
 
   // --- Data Fetching --- // Changed to use /api/events/public
-  const fetchEvents = useCallback(async () => {
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  const fetchEvents = async () => {
     try {
       setIsLoading(true);
       setFetchError(null);
@@ -139,7 +140,7 @@ export const EventCarousel = memo(({ searchTerm = "", filter = "all" }: EventCar
     } finally {
       setIsLoading(false);
     }
-  }, []); // Removed dependency array
+  };
 
   const applyFilters = useCallback(
     debounce(() => {

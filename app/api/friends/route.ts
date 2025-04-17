@@ -128,37 +128,54 @@ export async function DELETE(request: Request) {
       return NextResponse.json({ error: 'Friend ID is required' }, { status: 400 })
     }
 
-    const currentUser = await prisma.user.findUnique({
-      where: { email: session.user.email! },
-      include: { friends: true }
-    })
-
-    if (!currentUser) {
-      return NextResponse.json({ error: 'Current user not found' }, { status: 404 })
-    }
-
-    // Remove the friend connection
+    // Remove friend relationship (both sides)
     await prisma.user.update({
-      where: { id: currentUser.id },
-      data: {
-        friends: {
-          disconnect: { id: friendId }
-        }
-      }
+      where: { id: session.user.id },
+      data: { friends: { disconnect: { id: friendId } } },
     })
-
     await prisma.user.update({
       where: { id: friendId },
-      data: {
-        friends: {
-          disconnect: { id: currentUser.id }
-        }
-      }
+      data: { friends: { disconnect: { id: session.user.id } } },
     })
 
     return NextResponse.json({ message: 'Friend removed successfully' })
   } catch (error) {
     console.error('Error removing friend:', error)
     return NextResponse.json({ error: 'Error removing friend' }, { status: 500 })
+  }
+}
+
+export async function PUT(request: Request) {
+  try {
+    const session = await getServerSession(authOptions)
+    if (!session || !session.user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+    const { friendId, status } = await request.json()
+    if (!friendId || !status) {
+      return NextResponse.json({ error: 'Friend ID and status are required' }, { status: 400 })
+    }
+    const updatedRequest = await prisma.friendRequest.updateMany({
+      where: {
+        receiverId: session.user.id,
+        senderId: friendId
+      },
+      data: { status }
+    })
+    if (status === 'accepted') {
+      // Add each other as friends
+      await prisma.user.update({
+        where: { id: session.user.id },
+        data: { friends: { connect: { id: friendId } } },
+      })
+      await prisma.user.update({
+        where: { id: friendId },
+        data: { friends: { connect: { id: session.user.id } } },
+      })
+    }
+    return NextResponse.json({ message: 'Friend request updated', updatedRequest })
+  } catch (error) {
+    console.error('Error updating friend request:', error)
+    return NextResponse.json({ error: 'Error updating friend request' }, { status: 500 })
   }
 }

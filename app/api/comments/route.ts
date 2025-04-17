@@ -50,3 +50,43 @@ export async function POST(request: Request) {
   }
 }
 
+export async function DELETE(request: Request) {
+  const session = await getServerSession(authOptions)
+
+  if (!session) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  }
+
+  try {
+    const { id } = await request.json()
+    if (!id) {
+      return NextResponse.json({ error: 'Comment ID is required' }, { status: 400 })
+    }
+    const deleted = await prisma.comment.delete({ where: { id } })
+    return NextResponse.json(deleted)
+  } catch (error) {
+    console.error('Error deleting comment:', error)
+    return NextResponse.json({ error: 'Error deleting comment' }, { status: 500 })
+  }
+}
+
+export async function PUT(request: Request) {
+  const session = await getServerSession(authOptions)
+
+  if (!session) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  }
+
+  try {
+    const { id, text } = await request.json()
+    if (!id || !text) {
+      return NextResponse.json({ error: 'Comment ID and text are required' }, { status: 400 })
+    }
+    const updated = await prisma.comment.update({ where: { id }, data: { text } })
+    return NextResponse.json(updated)
+  } catch (error) {
+    console.error('Error updating comment:', error)
+    return NextResponse.json({ error: 'Error updating comment' }, { status: 500 })
+  }
+}
+
