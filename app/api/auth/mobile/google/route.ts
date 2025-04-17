@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server'
 import { OAuth2Client } from 'google-auth-library'
-import { getServerSession } from 'next-auth'
-import { authOptions } from '../../auth.config'
+import { cookies } from 'next/headers'
+import jwt from 'jsonwebtoken'
 
 // Create OAuth clients for both web and iOS
 const webClient = new OAuth2Client(process.env.GOOGLE_CLIENT_ID)
@@ -36,12 +36,27 @@ export async function POST(req: Request) {
     console.log('Token verified successfully')
     console.log('Payload:', JSON.stringify(payload, null, 2))
 
-    // Create NextAuth session
-    const session = await getServerSession(authOptions)
-    if (!session) {
-      console.log('Failed to create session')
-      return NextResponse.json({ error: 'Failed to create session' }, { status: 401 })
-    }
+    // Create a custom session token
+    const sessionToken = jwt.sign(
+      {
+        id: payload.sub,
+        email: payload.email,
+        name: payload.name,
+        picture: payload.picture,
+      },
+      process.env.NEXTAUTH_SECRET!,
+      { expiresIn: '1d' }
+    )
+
+    // Set the session cookie
+    const cookieStore = cookies()
+    cookieStore.set('next-auth.session-token', sessionToken, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
+      path: '/',
+      expires: new Date(Date.now() + 24 * 60 * 60 * 1000) // 1 day
+    })
 
     // Return user info and access token
     return NextResponse.json({
@@ -51,8 +66,8 @@ export async function POST(req: Request) {
         email: payload.email,
         image: payload.picture
       },
-      accessToken: session.accessToken,
-      expires: session.expires
+      accessToken: sessionToken,
+      expires: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString()
     })
   } catch (error) {
     console.error('Mobile auth error:', error)
@@ -61,4 +76,4 @@ export async function POST(req: Request) {
       details: error instanceof Error ? error.message : 'Unknown error'
     }, { status: 401 })
   }
-} 
+}
