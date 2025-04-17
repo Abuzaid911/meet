@@ -1,6 +1,5 @@
 import { NextResponse } from 'next/server'
 import { OAuth2Client } from 'google-auth-library'
-import { cookies } from 'next/headers'
 import jwt from 'jsonwebtoken'
 
 // Create OAuth clients for both web and iOS
@@ -48,18 +47,8 @@ export async function POST(req: Request) {
       { expiresIn: '1d' }
     )
 
-    // Set the session cookie
-    const cookieStore = cookies()
-    cookieStore.set('next-auth.session-token', sessionToken, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'lax',
-      path: '/',
-      expires: new Date(Date.now() + 24 * 60 * 60 * 1000) // 1 day
-    })
-
-    // Return user info and access token
-    return NextResponse.json({
+    // Create response with session token
+    const response = NextResponse.json({
       user: {
         id: payload.sub,
         name: payload.name,
@@ -69,6 +58,18 @@ export async function POST(req: Request) {
       accessToken: sessionToken,
       expires: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString()
     })
+
+    // Set the session cookie in the response
+    response.cookies.set('next-auth.session-token', sessionToken, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
+      path: '/',
+      expires: new Date(Date.now() + 24 * 60 * 60 * 1000) // 1 day
+    })
+
+    return response
+
   } catch (error) {
     console.error('Mobile auth error:', error)
     return NextResponse.json({ 
@@ -76,4 +77,4 @@ export async function POST(req: Request) {
       details: error instanceof Error ? error.message : 'Unknown error'
     }, { status: 401 })
   }
-}
+} 
