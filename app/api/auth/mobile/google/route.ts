@@ -35,16 +35,30 @@ export async function POST(req: Request) {
     console.log('Token verified successfully')
     console.log('Payload:', JSON.stringify(payload, null, 2))
 
-    // Create a custom session token
+    const expires = new Date(Date.now() + 24 * 60 * 60 * 1000) // 1 day
+
+    // Create a NextAuth compatible session token
     const sessionToken = jwt.sign(
       {
-        id: payload.sub,
-        email: payload.email,
         name: payload.name,
+        email: payload.email,
         picture: payload.picture,
+        sub: payload.sub, // NextAuth uses 'sub' as the user ID
+        iat: Math.floor(Date.now() / 1000),
+        exp: Math.floor(expires.getTime() / 1000),
+        jti: crypto.randomUUID(), // Required by NextAuth
+        // Add NextAuth specific claims
+        email_verified: payload.email_verified,
+        aud: "authenticated",
+        iss: process.env.NEXTAUTH_URL,
+        "https://hasura.io/jwt/claims": {
+          "x-hasura-allowed-roles": ["user"],
+          "x-hasura-default-role": "user",
+          "x-hasura-role": "user",
+          "x-hasura-user-id": payload.sub
+        }
       },
-      process.env.NEXTAUTH_SECRET!,
-      { expiresIn: '1d' }
+      process.env.NEXTAUTH_SECRET!
     )
 
     // Create response with session token
@@ -56,7 +70,7 @@ export async function POST(req: Request) {
         image: payload.picture
       },
       accessToken: sessionToken,
-      expires: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString()
+      expires: expires.toISOString()
     })
 
     // Set the session cookie in the response
@@ -65,7 +79,7 @@ export async function POST(req: Request) {
       secure: process.env.NODE_ENV === 'production',
       sameSite: 'lax',
       path: '/',
-      expires: new Date(Date.now() + 24 * 60 * 60 * 1000) // 1 day
+      expires: expires
     })
 
     return response
