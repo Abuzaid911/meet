@@ -34,18 +34,63 @@ const createEventSchema = z.object({
  */
 export async function GET(request: Request) {
   try {
-    const session = await getServerSession(authOptions)
-
-    if (!session?.user?.id) {
-      return NextResponse.json({ error: "You must be signed in to view events" }, { status: 401 })
+    const isMobileClient = request.headers.get("X-Mobile-Client") === "true"
+    let userId: string | undefined
+    
+    if (isMobileClient) {
+      console.log("Processing mobile client request")
+      
+      // Extract the token from Authorization header or query parameter
+      const authHeader = request.headers.get("Authorization")
+      const url = new URL(request.url)
+      const queryToken = url.searchParams.get("sessionToken")
+      
+      // Use either the Authorization header or query parameter
+      const token = authHeader?.replace("Bearer ", "") || queryToken
+      
+      if (!token) {
+        console.log("No token provided for mobile client")
+        return NextResponse.json({ error: "Authentication required" }, { status: 401 })
+      }
+      
+      // Verify the JWT token
+      try {
+        const jwt = await import('jsonwebtoken')
+        const decoded = jwt.default.verify(token, process.env.NEXTAUTH_SECRET!) as {
+          sub?: string
+          user?: { id: string }
+        }
+        
+        // Extract user ID from the token
+        userId = decoded?.user?.id || decoded?.sub
+        
+        if (!userId) {
+          console.log("No user ID in token for mobile client")
+          return NextResponse.json({ error: "Invalid token format" }, { status: 401 })
+        }
+        
+        console.log("Mobile client authenticated, user ID:", userId)
+      } catch (error) {
+        console.log("Token validation error for mobile client:", error)
+        return NextResponse.json({ error: "Invalid token" }, { status: 401 })
+      }
+    } else {
+      // Regular web client - use NextAuth session
+      const session = await getServerSession(authOptions)
+      
+      if (!session?.user?.id) {
+        return NextResponse.json({ error: "You must be signed in to view events" }, { status: 401 })
+      }
+      
+      userId = session.user.id
     }
-
-    const userId = session.user.id;
+    
+    // The rest of your function remains the same, but uses userId from either source
     const { searchParams } = new URL(request.url)
     const requestedUserId = searchParams.get("userId")
     
     // If a specific user's events are requested, use that, otherwise use the current user's ID
-    const targetUserId = requestedUserId || userId;
+    const targetUserId = requestedUserId || userId
     
     // Find user's friends for the friends-only privacy setting
     const currentUser = await prisma.user.findUnique({
@@ -54,7 +99,7 @@ export async function GET(request: Request) {
         id: true,
         friends: { select: { id: true } }
       }
-    });
+    })
     
     if (!currentUser) {
       return NextResponse.json({ error: "User not found" }, { status: 404 });
