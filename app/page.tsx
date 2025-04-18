@@ -40,7 +40,7 @@ const features = [
   },
   {
     title: "Invite Friends",
-    description: "Bring your social circle together for memorable experiences.",
+    description: "Bring your social circles together for memorable experiences.",
     icon: <Users className="h-10 w-10 text-blue-600" />,
   },
   {
