@@ -206,7 +206,7 @@ export default function UserProfilePage() {
       })
     } catch (error) {
       console.error('Error removing friend:', error)
-      addToast({ title: 'Error', description: 'Could not remove friend', variant: 'destructive' })
+      addToast({ title: 'Error', description: 'Could not remove a friend', variant: 'destructive' })
     } finally {
       setIsProcessingAction(false)
     }
