@@ -10,6 +10,15 @@ datasource db {
   url          = env("DATABASE_URL")
 }
 
+// Add verification model required by better-auth
+model verification {
+  id      String @id
+  token   String
+  expires BigInt
+
+  @@map("verification")
+}
+
 model Session {
   id           String   @id @default(cuid())
   sessionToken String   @unique
