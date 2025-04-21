@@ -1,7 +1,9 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { useSession } from "next-auth/react";
+import { createAuthClient } from "better-auth/react"
+
+const {  useSession  } = createAuthClient();
 import { useRouter } from "next/navigation";
 import { Button } from "./ui/button";
 import { useToast } from "./ui/use-toast";

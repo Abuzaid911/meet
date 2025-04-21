@@ -1,7 +1,9 @@
 "use client"
 
 import { useState, useEffect, useCallback } from "react"
-import { useSession } from "next-auth/react"
+import { createAuthClient } from "better-auth/react"
+
+const {  useSession  } = createAuthClient()
 import { Button } from "./ui/button"
 import { useToast } from "./ui/use-toast"
 

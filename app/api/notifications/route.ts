@@ -1,7 +1,6 @@
 // app/api/notifications/route.ts
+import { auth } from "@/lib/auth";
 import { NextResponse } from "next/server"
-import { getServerSession } from "next-auth/next"
-import { authOptions } from "@/lib/auth"
 import { prisma } from "@/lib/prisma"
 import { z } from "zod"
 import { Prisma, NotificationSourceType } from "@prisma/client"
@@ -24,7 +23,7 @@ type NotificationWhereClause = {
  */
 export async function GET(request: Request) {
   try {
-    const session = await getServerSession(authOptions)
+    const session = await auth.api.getSession(request)
 
     if (!session?.user?.id) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
@@ -177,7 +176,7 @@ export async function GET(request: Request) {
  */
 export async function PATCH(request: Request) {
   try {
-    const session = await getServerSession(authOptions)
+    const session = await auth.api.getSession(request)
 
     if (!session?.user?.id) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
@@ -231,7 +230,7 @@ export async function PATCH(request: Request) {
  */
 export async function DELETE(request: Request) {
   try {
-    const session = await getServerSession(authOptions)
+    const session = await auth.api.getSession(request)
 
     if (!session?.user?.id) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })

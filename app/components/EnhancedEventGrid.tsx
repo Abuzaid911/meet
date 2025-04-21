@@ -1,7 +1,9 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { useSession } from "next-auth/react";
+import { createAuthClient } from "better-auth/react"
+
+const {  useSession  } = createAuthClient();
 import { motion } from "framer-motion";
 import { 
   Search,

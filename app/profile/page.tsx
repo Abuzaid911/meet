@@ -1,7 +1,9 @@
 "use client"
 
 import { useEffect, useState, useCallback, useRef } from "react"
-import { useSession } from "next-auth/react"
+import { createAuthClient } from "better-auth/react"
+
+const {  useSession  } = createAuthClient()
 import { Button } from "../components/ui/button"
 import { useToast } from "../components/ui/use-toast"
 import { FriendList, Friend, FriendRequest } from "./friend-list"
@@ -57,7 +59,7 @@ export default function ProfilePage() {
     setIsClient(true)
   }, [])
   
-  const { data: session, status, update: updateSession } = useSession()
+  const { data: session, isPending: status } = useSession()
   const [profile, setProfile] = useState<UserProfile | null>(null)
   const [isLoadingProfile, setIsLoadingProfile] = useState(true)
   const [events, setEvents] = useState<Event[]>([])
@@ -204,7 +206,7 @@ export default function ProfilePage() {
   }, [addToast]);
 
   useEffect(() => {
-    if (status === 'authenticated' && session?.user) {
+    if (!status && session && session?.user) {
       const fetchData = async () => {
         try {
           await Promise.all([
@@ -253,18 +255,7 @@ export default function ProfilePage() {
       }));
       
       setIsEditDialogOpen(false);
-
-      // Update session to reflect name changes
-      if (updateSession && data.name !== session?.user?.name) {
-        await updateSession({
-          ...session,
-          user: {
-            ...session?.user,
-            name: data.name || session?.user?.name
-          }
-        });
-      }
-
+      
       addToast({
         title: "Success",
         description: "Profile updated successfully!",
@@ -272,7 +263,6 @@ export default function ProfilePage() {
       });
 
       // Force a re-fetch of profile data to ensure everything is in sync
-      // This is safe practice and handles potential eventual consistency issues
       setTimeout(() => {
         fetchProfile();
       }, 300);
@@ -342,24 +332,13 @@ export default function ProfilePage() {
 
       // Update the profile state with the new image
       setProfile(prev => prev ? { ...prev, image: data.image } : prev);
-
-      // Update the session to reflect the new image
-      if (updateSession) {
-        await updateSession({
-          ...session,
-          user: {
-            ...session?.user,
-            image: data.image
-          }
-        });
-      }
-
+      
       addToast({
         title: "Success",
         description: "Profile picture updated successfully!",
         variant: "success"
       });
-      
+
       // Force a re-fetch of profile data to ensure everything is in sync
       setTimeout(() => {
         fetchProfile();
@@ -404,24 +383,13 @@ export default function ProfilePage() {
 
       // Update the profile state with the default image
       setProfile(prev => prev ? { ...prev, image: null } : prev);
-
-      // Update the session to reflect the removal of the image
-      if (updateSession) {
-        await updateSession({
-          ...session,
-          user: {
-            ...session?.user,
-            image: null
-          }
-        });
-      }
-
+      
       addToast({
         title: "Success",
         description: "Profile picture removed successfully!",
         variant: "success"
       });
-      
+
       // Force a re-fetch of profile data to ensure everything is in sync
       setTimeout(() => {
         fetchProfile();
@@ -453,7 +421,7 @@ export default function ProfilePage() {
     )
   }
 
-  if (status === 'loading' || isLoadingProfile) {
+  if (status === true || isLoadingProfile) {
     return (
       <div className="flex flex-col items-center justify-center h-screen">
         <div className="flex flex-col items-center justify-center space-y-4">
@@ -469,7 +437,7 @@ export default function ProfilePage() {
     )
   }
 
-  if (status === 'unauthenticated') {
+  if (!status && !session) {
     return (
       <div className="flex flex-col items-center justify-center min-h-screen p-4">
         <div className="w-full max-w-md bg-white dark:bg-gray-800 rounded-xl shadow-xl overflow-hidden">

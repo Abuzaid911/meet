@@ -2,8 +2,10 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { useParams, useRouter } from "next/navigation";
-import { useSession } from "next-auth/react";
+import { createAuthClient } from "better-auth/react";
 import { motion } from "framer-motion";
+
+const { useSession } = createAuthClient();
 
 // UI Components
 import { Card } from "@/app/components/ui/card";

@@ -4,7 +4,7 @@ import { useState, useEffect, useRef } from "react"
 // Removing unused import
 // import { EventFeed } from "./components/event-feed"
 import { AddEventModal } from "./components/add-event-modal"
-import { useSession } from "next-auth/react"
+import { createAuthClient } from "better-auth/react"
 import { Button } from "./components/ui/button"
 import {
   Calendar,
@@ -108,14 +108,16 @@ const FloatingParticle = ({ delay = 0, left, top, color = "primary" }:
     )
 }
 
+const { useSession } = createAuthClient()
+
 export default function Home() {
-  const { data: session, status } = useSession()
+  const { data: session, isPending: status } = useSession()
   const [isAddEventModalOpen, setIsAddEventModalOpen] = useState(false)
   const [refreshKey, setRefreshKey] = useState(0)
   const [searchTerm, setSearchTerm] = useState("")
   const [filter, setFilter] = useState("all")
   const [showScrollIndicator, setShowScrollIndicator] = useState(true)
-  const isLoading = status === "loading"
+  const isLoading = status === true
 
   const heroRef = useRef<HTMLDivElement>(null)
   const featuresRef = useRef<HTMLDivElement>(null)
@@ -463,7 +465,7 @@ export default function Home() {
       </motion.section>
 
       {/* Logged Out CTA Section with enhanced animations */}
-      {!session && status !== 'loading' && (
+      {!session && !status && (
         <motion.section
           initial={{ opacity: 0 }}
           whileInView={{ opacity: 1 }}

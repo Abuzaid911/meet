@@ -1,7 +1,6 @@
 // app/api/friends/request/route.ts
+import { auth } from "@/lib/auth";
 import { NextResponse } from 'next/server';
-import { getServerSession } from "next-auth/next";
-import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 
 /**
@@ -10,7 +9,7 @@ import { prisma } from "@/lib/prisma";
  */
 export async function POST(request: Request) {
   try {
-    const session = await getServerSession(authOptions);
+    const session = await auth.api.getSession(request);
     if (!session?.user?.id) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
@@ -176,9 +175,9 @@ export async function POST(request: Request) {
 /**
  * GET: Fetch friend requests and existing friends
  */
-export async function GET() {
+export async function GET(request: Request) {
   try {
-    const session = await getServerSession(authOptions);
+    const session = await auth.api.getSession(request);
     if (!session?.user?.id) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
@@ -229,7 +228,7 @@ export async function GET() {
  */
 export async function PUT(request: Request) {
   try {
-    const session = await getServerSession(authOptions);
+    const session = await auth.api.getSession(request);
 
     if (!session?.user?.id) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });

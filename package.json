@@ -7,10 +7,10 @@
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
-    "postinstall": "prisma generate"
+    "postinstall": "prisma generate",
+    "auth:migrate": "node --experimental-modules ./scripts/migrate-auth.js"
   },
   "dependencies": {
-    "@auth/prisma-adapter": "^2.7.4",
     "@aws-sdk/client-s3": "^3.787.0",
     "@aws-sdk/lib-storage": "^3.787.0",
     "@hookform/resolvers": "^5.0.1",
@@ -31,6 +31,7 @@
     "@radix-ui/react-tooltip": "^1.1.8",
     "@react-google-maps/api": "^2.20.6",
     "bcryptjs": "^2.4.3",
+    "better-auth": "^1.2.7",
     "class-variance-authority": "^0.7.1",
     "cloudinary": "^2.6.0",
     "clsx": "^2.1.1",
@@ -41,7 +42,6 @@
     "gsap": "^3.12.7",
     "lucide-react": "^0.469.0",
     "next": "^15.1.2",
-    "next-auth": "^4.24.11",
     "next-cloudinary": "^6.16.0",
     "next-pwa": "^5.6.0",
     "pg": "^8.13.1",

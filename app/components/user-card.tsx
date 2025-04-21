@@ -2,7 +2,9 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
-import { useSession } from 'next-auth/react';
+import { createAuthClient } from "better-auth/react"
+
+const {  useSession  } = createAuthClient();
 import { useRouter } from 'next/navigation';
 import { useToast } from './ui/use-toast';
 import { Button } from './ui/button';

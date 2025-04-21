@@ -8,7 +8,9 @@ import { Label } from "../components/ui/label"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "../components/ui/dialog"
 import { useToast } from "../components/ui/use-toast"
 import { Loader2, Image as ImageIcon, Palette, Check, ChevronLeft, ChevronRight, Calendar as CalendarIcon, Clock, MapPin, Users, Info, CheckCircle2, Eye, EyeOff, Globe, Lock } from "lucide-react"
-import { useSession } from "next-auth/react"
+import { createAuthClient } from "better-auth/react"
+
+const {  useSession  } = createAuthClient()
 import { Avatar, AvatarFallback, AvatarImage } from "../components/ui/avatar"
 import { Tabs, TabsList, TabsTrigger } from "../components/ui/tabs"
 import { Card, CardContent } from "../components/ui/card"

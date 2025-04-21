@@ -1,6 +1,5 @@
+import { auth } from "@/lib/auth";
 import { NextResponse } from 'next/server'
-import { getServerSession } from "next-auth/next"
-import { authOptions } from "@/lib/auth";
 import { PrismaClient } from '@prisma/client'
 
 const prisma = new PrismaClient()
@@ -9,9 +8,9 @@ function generateUsername(name: string): string {
   return name.toLowerCase().replace(/\s+/g, '') + Math.floor(Math.random() * 1000).toString()
 }
 
-export async function GET() {
+export async function GET(request: Request) {
   try {
-    const session = await getServerSession(authOptions)
+    const session = await auth.api.getSession(request)
 
     if (!session || !session.user) {
       return NextResponse.json({ error: 'Not authenticated' }, { status: 401 })
@@ -43,7 +42,7 @@ export async function GET() {
 
 export async function PUT(request: Request) {
   try {
-    const session = await getServerSession(authOptions)
+    const session = await auth.api.getSession(request)
 
     if (!session || !session.user) {
       return NextResponse.json({ error: 'Not authenticated' }, { status: 401 })

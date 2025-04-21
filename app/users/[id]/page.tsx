@@ -3,7 +3,9 @@
 import { useState, useEffect, useCallback } from 'react'
 import Link from 'next/link'
 import { useParams, useRouter } from 'next/navigation'
-import { useSession } from 'next-auth/react'
+import { createAuthClient } from "better-auth/react"
+
+const {  useSession  } = createAuthClient()
 import { useToast } from '@/app/components/ui/use-toast'
 import { Button } from '@/app/components/ui/button'
 import { Avatar, AvatarFallback, AvatarImage } from '@/app/components/ui/avatar'

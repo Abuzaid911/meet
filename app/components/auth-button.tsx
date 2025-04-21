@@ -1,13 +1,15 @@
 'use client'
 
-import { useSession, signIn, signOut } from 'next-auth/react'
+import { createAuthClient } from 'better-auth/react'
 import { Button } from './ui/button'
 import { Loader2, LogIn } from 'lucide-react'
 
-export function AuthButton() {
-  const { data: session, status } = useSession()
+const { useSession, signIn, signOut } = createAuthClient()
 
-  if (status === 'loading') {
+export function AuthButton() {
+  const { data: session, isPending: status } = useSession()
+
+  if (status === true) {
     return (
       <Button 
         disabled 
@@ -26,7 +28,7 @@ export function AuthButton() {
       <button 
         data-auth-button
         className="hidden" // Hidden button that's targeted by other components
-        onClick={() => signOut({ callbackUrl: '/' })}
+        onClick={() => signOut()}
       >
         Sign out
       </button>
@@ -35,7 +37,7 @@ export function AuthButton() {
 
   return (
     <Button 
-      onClick={() => signIn()}
+      onClick={() => signIn.social({ provider: 'google' })}
       size="sm"
       className="gap-2 h-9"
       data-auth-button

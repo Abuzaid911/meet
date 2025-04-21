@@ -1,7 +1,6 @@
 // app/api/user/image/route.ts
+import { auth } from "@/lib/auth";
 import { NextRequest, NextResponse } from 'next/server';
-import { getServerSession } from 'next-auth/next';
-import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { uploadToR2, deleteFromR2, generateFileKey } from '@/lib/cloudflare-r2';
 
@@ -26,7 +25,7 @@ function extractKeyFromUrl(imageUrl: string): string | null {
 export async function POST(request: NextRequest) {
   try {
     // Check authentication
-    const session = await getServerSession(authOptions);
+    const session = await auth.api.getSession(request);
     if (!session?.user?.id) {
       return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
     }
@@ -105,10 +104,10 @@ export async function POST(request: NextRequest) {
 /**
  * Handler for removing a profile image
  */
-export async function DELETE() {
+export async function DELETE(request: Request) {
   try {
     // Check authentication
-    const session = await getServerSession(authOptions);
+    const session = await auth.api.getSession(request);
     if (!session?.user?.id) {
       return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
     }

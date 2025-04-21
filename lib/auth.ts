@@ -1,21 +1,33 @@
-import { PrismaAdapter } from "@auth/prisma-adapter"
-import GoogleProvider from "next-auth/providers/google"
-import type { NextAuthOptions } from "next-auth"
-import { prisma } from "@/lib/prisma"
-import GithubProvider from "next-auth/providers/github"
+import { betterAuth } from "better-auth";
+import { prismaAdapter } from "better-auth/adapters/prisma";
+import { prisma } from "@/lib/prisma";
 
-/**
- * Extending NextAuth's Session type to include user.id
- */
-declare module "next-auth" {
-  interface Session {
-    user: {
-      id: string
-      name?: string | null
-      email?: string | null
-      image?: string | null
-      username?: string | null
-    }
+// Define user type
+interface User {
+  id: string;
+  name?: string | null;
+  username?: string | null;
+  email?: string | null;
+  image?: string | null;
+}
+
+// Define our token interface matching the actual structure
+interface Token {
+  id: string;
+  name?: string | null;
+  email?: string | null;
+  picture?: string | null;
+  username?: string | null;
+}
+
+// Define Session interface matching better-auth
+interface SessionType {
+  user: {
+    id: string;
+    name?: string | null;
+    email?: string | null;
+    image?: string | null;
+    username?: string | null;
   }
 }
 
@@ -42,139 +54,43 @@ if (!process.env.GOOGLE_CLIENT_ID || !process.env.GOOGLE_CLIENT_SECRET) {
   throw new Error("Missing Google OAuth credentials")
 }
 
-export const authOptions: NextAuthOptions = {
-  adapter: PrismaAdapter(prisma),
-  providers: [
-    GoogleProvider({
+export const auth = betterAuth({
+  database: prismaAdapter(prisma, {
+    provider: "postgresql", // Assuming PostgreSQL based on PrismaClient import
+  }),
+  socialProviders: {
+    google: {
       clientId: process.env.GOOGLE_CLIENT_ID as string,
       clientSecret: process.env.GOOGLE_CLIENT_SECRET as string,
-      authorization: {
-        params: {
-          scope: "openid email profile",
-          prompt: "consent",
-          access_type: "offline",
-          response_type: "code"
-        }
-      }
-    }),
-    GithubProvider({
+      scope: ["openid", "email", "profile"],
+    },
+    github: {
       clientId: process.env.GITHUB_ID as string,
       clientSecret: process.env.GITHUB_SECRET as string,
-    }),
-  ],
-  callbacks: {
-    /**
-     * Handles the sign-in process
-     */
-    async signIn({ user, account }) {
-      try {
-        if (account?.provider === "google" && user.email) {
-          if (!user.name) {
-            console.error("User name is missing from Google profile")
-            return false
-          }
-
-          // Check if the user already exists in the database
-          const existingUser = await prisma.user.findUnique({
-            where: { email: user.email },
-            include: { accounts: true },
-          })
-
-          if (existingUser) {
-            // If the user exists but doesn't have a Google account, create it
-            const existingGoogleAccount = existingUser.accounts.some(
-              (acc) => acc.provider === "google"
-            )
-
-            if (!existingGoogleAccount) {
-              await prisma.account.create({
-                data: {
-                  userId: existingUser.id,
-                  provider: "google",
-                  providerAccountId: account.providerAccountId,
-                  type: "oauth",
-                  access_token: account.access_token,
-                  refresh_token: account.refresh_token,
-                  expires_at: account.expires_at,
-                  token_type: account.token_type,
-                  scope: account.scope,
-                  id_token: account.id_token,
-                  session_state: account.session_state,
-                },
-              })
-            }
-          } else {
-            // If the user doesn't exist, create a new one with a Google account
-            await prisma.user.create({
-              data: {
-                name: user.name,
-                email: user.email,
-                image: user.image,
-                username: generateUsername(user.name),
-                accounts: {
-                  create: {
-                    provider: "google",
-                    providerAccountId: account.providerAccountId,
-                    type: "oauth",
-                    access_token: account.access_token,
-                    refresh_token: account.refresh_token,
-                    expires_at: account.expires_at,
-                    token_type: account.token_type,
-                    scope: account.scope,
-                    id_token: account.id_token,
-                    session_state: account.session_state,
-                  },
-                },
-              },
-            })
-          }
-        }
-        return true
-      } catch (error) {
-        console.error("Error in signIn callback:", error)
-        return false
-      }
     },
-
-    /**
-     * Manages JWT token behavior
-     */
-    async jwt({ token, user }) {
-      const dbUser = await prisma.user.findFirst({
-        where: {
-          email: token.email,
-        },
-      });
-
-      if (!dbUser) {
-        token.id = user!.id;
-        return token;
-      }
-
-      if (!dbUser.username) {
+  },
+  jwt: {
+    strategy: "jwt",
+  },
+  secret: process.env.NEXTAUTH_SECRET,
+  debug: process.env.NODE_ENV === "development",
+  pages: {
+    signIn: "/auth/signin",
+    error: "/auth/error",
+  },
+  callbacks: {
+    // Custom user creation hook to handle username generation
+    onUserCreated: async ({ user }: { user: User }) => {
+      if (user.name && !user.username) {
         await prisma.user.update({
-          where: {
-            id: dbUser.id,
-          },
-          data: {
-            username: dbUser.name?.split(" ").join("").toLowerCase(),
-          },
+          where: { id: user.id },
+          data: { username: generateUsername(user.name) }
         });
       }
-      
-      return {
-        id: dbUser.id,
-        name: dbUser.name,
-        email: dbUser.email,
-        picture: dbUser.image,
-        username: dbUser.username
-      };
+      return user;
     },
-
-    /**
-     * Handles session updates
-     */
-    async session({ session, token }) {
+    // Custom session handling
+    session: ({ session, token }: { session: SessionType, token: Token }) => {
       if (token) {
         session.user.id = token.id;
         session.user.name = token.name;
@@ -183,23 +99,6 @@ export const authOptions: NextAuthOptions = {
         session.user.username = token.username;
       }
       return session;
-    },
-  },
-
-  /**
-   * Custom authentication pages
-   */
-  pages: {
-    signIn: "/auth/signin",
-    error: "/auth/error",
-  },
-
-  /**
-   * Debugging & Session Strategy
-   */
-  debug: process.env.NODE_ENV === "development",
-  session: {
-    strategy: "jwt",
-  },
-  secret: process.env.NEXTAUTH_SECRET,
-}
+    }
+  }
+});

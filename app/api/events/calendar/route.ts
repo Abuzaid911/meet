@@ -1,6 +1,5 @@
+import { auth } from "@/lib/auth";
 import { NextRequest, NextResponse } from "next/server";
-import { getServerSession } from "next-auth/next";
-import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 
 /**
@@ -9,7 +8,7 @@ import { prisma } from "@/lib/prisma";
 export async function GET(request: NextRequest) {
   try {
     // Get the current user's session
-    const session = await getServerSession(authOptions);
+    const session = await auth.api.getSession(request);
     const userId = session?.user?.id;
     
     // Get query parameters for date filtering

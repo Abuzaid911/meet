@@ -5,15 +5,17 @@ import { motion } from "framer-motion";
 import { Container } from "@/app/components/ui/container";
 import { Button } from "@/app/components/ui/button";
 import { AlertTriangle, Loader2 } from "lucide-react";
-import { useSession } from "next-auth/react";
+import { createAuthClient } from "better-auth/react";
 import { Alert, AlertDescription } from "@/app/components/ui/alert";
 import MiniCalendar from "@/app/components/mini-calendar";
 import { EventsHeader } from "@/app/components/events-header";
 import { Card, CardContent } from "@/app/components/ui/card";
 import { AddEventModal } from "@/app/components/add-event-modal";
 
+const { useSession } = createAuthClient()
+
 function EventContent() {
-  const { status } = useSession();
+  const { data: session, isPending: status } = useSession();
   const [isLoadingCalendar, setIsLoadingCalendar] = useState(false);
   const [calendarError, setCalendarError] = useState<string | null>(null);
   const [isAddEventModalOpen, setIsAddEventModalOpen] = useState(false);
@@ -39,7 +41,7 @@ function EventContent() {
 
   // Fetch events when month changes or refresh key changes
   useEffect(() => {
-    if (status === "authenticated") {
+    if (!status && session) {
       fetchCalendarEvents();
     }
   }, [fetchCalendarEvents, status, refreshKey]);
@@ -71,7 +73,7 @@ function EventContent() {
                 Calendar View
               </h3>
             </div>
-            {status === "authenticated" && (
+            {!status && session && (
               <Button 
                 className="w-full sm:w-auto bg-gradient-to-r from-primary to-blue-500 text-white hover:from-primary/90 hover:to-blue-500/90 shadow-md hover:shadow-lg transition-all h-9 px-4 rounded-full"
                 onClick={() => handleOpenAddEventModal()}
@@ -81,14 +83,14 @@ function EventContent() {
             )}
           </div>
           
-          {status === "unauthenticated" ? (
+          {!status && !session ? (
             <Alert className="bg-yellow-50 border border-yellow-200 text-yellow-800">
               <AlertTriangle className="h-5 w-5 !text-yellow-600" />
               <AlertDescription>
                 Please sign in to view your personalized calendar.
               </AlertDescription>
             </Alert>
-          ) : status === "loading" || isLoadingCalendar ? (
+          ) : status === true || isLoadingCalendar ? (
             <div className="flex items-center justify-center h-60 text-muted-foreground">
               <Loader2 className="h-6 w-6 mr-2 animate-spin" />
               Loading your calendar...

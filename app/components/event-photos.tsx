@@ -1,7 +1,9 @@
 "use client";
 
 import React, { useState, useEffect, useRef, useCallback } from "react";
-import { useSession } from "next-auth/react";
+import { createAuthClient } from "better-auth/react"
+
+const {  useSession  } = createAuthClient();
 import Image from "next/image";
 import Link from "next/link";
 import {

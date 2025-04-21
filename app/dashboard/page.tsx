@@ -2,7 +2,9 @@
 
 import { useEffect, useState, useCallback } from 'react';
 import { Calendar, Home, Plus, MessageCircle, User, CalendarX, UserPlus, Share2, Heart } from 'lucide-react';
-import { useSession } from 'next-auth/react';
+import { createAuthClient } from "better-auth/react"
+
+const {  useSession  } = createAuthClient();
 import Link from 'next/link';
 import { Avatar, AvatarFallback, AvatarImage } from '../components/ui/avatar';
 import { Button } from '../components/ui/button';
@@ -34,7 +36,7 @@ interface Invitation {
 }
 
 export default function DashboardPage() {
-    const { data: session, status } = useSession();
+    const { data: session, isPending: status } = useSession();
     const [loading, setLoading] = useState(true);
     const [upcomingEvents, setUpcomingEvents] = useState<Event[]>([]);
     const [invitations, setInvitations] = useState<Invitation[]>([]);
@@ -42,7 +44,7 @@ export default function DashboardPage() {
 
     // Fetch both invitations and upcoming events
     const fetchData = useCallback(async () => {
-        if (status !== 'authenticated') return;
+        if (!session) return;
 
         setLoading(true);
         setError(null);
@@ -69,10 +71,10 @@ export default function DashboardPage() {
         } finally {
             setLoading(false);
         }
-    }, [session, status]);
+    }, [session]);
 
     useEffect(() => {
-        if (status === 'authenticated') {
+        if (!status && session) {
             fetchData();
         }
     }, [status, fetchData]);
@@ -101,7 +103,7 @@ export default function DashboardPage() {
     };
 
     // Loading state
-    if (status === 'loading' || loading) {
+    if (status === true || loading) {
         return (
             <main className="min-h-screen bg-gray-50 dark:bg-gray-900 p-6 pb-24">
                 <Skeleton className="h-8 w-48 mb-4" />
@@ -134,7 +136,7 @@ export default function DashboardPage() {
     }
 
     // Not authenticated state
-    if (status === 'unauthenticated') {
+    if (!status && !session) {
         return (
             <main className="min-h-screen bg-gray-50 dark:bg-gray-900 p-6 flex flex-col items-center justify-center">
                 <h1 className="text-2xl font-bold mb-4">Welcome to MeetOn</h1>

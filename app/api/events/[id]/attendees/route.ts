@@ -1,6 +1,5 @@
+import { auth } from "@/lib/auth";
 import { NextRequest, NextResponse } from 'next/server';
-import { getServerSession } from 'next-auth/next';
-import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { z } from 'zod';
 
@@ -19,7 +18,7 @@ export async function POST(
   try {
     const { id } = await context.params;
 
-    const session = await getServerSession(authOptions);
+    const session = await auth.api.getSession(request);
     if (!session?.user?.id) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
@@ -102,7 +101,7 @@ export async function GET(
     // Await the params to extract the 'id'
     const { id } = await context.params;
 
-    const session = await getServerSession(authOptions);
+    const session = await auth.api.getSession(request);
     if (!session?.user?.id) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
@@ -148,7 +147,7 @@ export async function DELETE(
   context: { params: Promise<{ id: string }> }
 ) {
   try {
-    const session = await getServerSession(authOptions);
+    const session = await auth.api.getSession(request);
     if (!session?.user?.id) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }

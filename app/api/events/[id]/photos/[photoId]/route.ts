@@ -1,6 +1,5 @@
+import { auth } from "@/lib/auth";
 import { NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { deleteFromR2 } from "@/lib/cloudflare-r2";
 import { getStorageKey } from "@/lib/models/event-photo";
@@ -72,7 +71,7 @@ export async function DELETE(request: Request) {
       return NextResponse.json({ error: "Missing event ID or photo ID" }, { status: 400 });
     }
 
-    const session = await getServerSession(authOptions);
+    const session = await auth.api.getSession(request);
     
     // Check if user is logged in
     if (!session?.user?.id) {

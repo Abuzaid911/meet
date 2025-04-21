@@ -30,7 +30,9 @@ import {
   TooltipTrigger,
 } from "./ui/tooltip"
 import { Button } from '@/app/components/ui/button'
-import { useSession } from 'next-auth/react'
+import { createAuthClient } from "better-auth/react"
+
+const {  useSession  } = createAuthClient()
 import { useRouter } from 'next/navigation'
 import { format, formatDistance } from 'date-fns'
 import { Avatar, AvatarFallback, AvatarImage } from '@/app/components/ui/avatar'

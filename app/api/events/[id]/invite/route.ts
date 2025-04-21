@@ -1,7 +1,6 @@
+import { auth } from "@/lib/auth";
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import { getServerSession } from 'next-auth/next';
-import { authOptions } from '@/lib/auth';
 import { createEventInvitationNotification } from '@/lib/notification-service';
 
 export async function POST(
@@ -13,7 +12,7 @@ export async function POST(
     const { id } = await context.params;
     
     // Get the current user session
-    const session = await getServerSession(authOptions);
+    const session = await auth.api.getSession(request);
     
     if (!session?.user?.id) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });

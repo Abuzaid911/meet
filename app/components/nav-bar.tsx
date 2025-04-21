@@ -3,7 +3,9 @@
 import { useState, useEffect } from "react"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
-import { useSession, signOut } from "next-auth/react"
+import { createAuthClient } from "better-auth/react"
+
+const {  useSession, signOut  } = createAuthClient()
 import {
   Home,
   Calendar,
@@ -53,7 +55,7 @@ function NavItem({ href, icon, label, isActive, onClick }: NavItemProps) {
 export function NavBar() {
   const [isScrolled, setIsScrolled] = useState(false)
   const pathname = usePathname()
-  const { data: session, status } = useSession()
+  const { data: session, isPending: status } = useSession()
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
   const [profile, setProfile] = useState<{ image: string | null } | null>(null)
 
@@ -83,7 +85,7 @@ export function NavBar() {
   }, [])
 
   const handleSignOut = () => {
-    signOut({ callbackUrl: '/' });
+    signOut();
   }
 
   const navItems = [
@@ -117,7 +119,7 @@ export function NavBar() {
             
             {session && <NotificationBell />}
 
-            {status === 'loading' ? (
+            {status === true ? (
               <div className="h-8 w-8 rounded-full bg-muted animate-pulse" />
             ) : session ? (
               <DropdownMenu>
