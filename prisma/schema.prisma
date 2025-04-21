@@ -12,9 +12,10 @@ datasource db {
 
 // Add verification model required by better-auth
 model verification {
-  id      String @id
-  token   String
-  expires BigInt
+  id         String   @id
+  identifier String
+  token      String   // This is the field name expected by better-auth
+  expires    BigInt   // Changed to BigInt as seen in other parts of the error
 
   @@map("verification")
 }
