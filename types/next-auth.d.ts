@@ -1,5 +1,4 @@
-import NextAuth, { DefaultSession } from "next-auth"
-import { JWT } from "next-auth/jwt"
+import { DefaultSession } from "next-auth"
 
 declare module "next-auth" {
   /**
@@ -15,12 +14,6 @@ declare module "next-auth" {
       email?: string | null
       image?: string | null
     } & DefaultSession["user"]
-    /** Google API access token for calendar access */
-    accessToken?: string
-    /** Google API refresh token */
-    refreshToken?: string
-    /** Expiration time for the access token */
-    accessTokenExpires?: number
   }
 }
 
@@ -31,11 +24,5 @@ declare module "next-auth/jwt" {
     id: string
     /** The user's username */
     username?: string
-    /** Google API access token for calendar access */
-    accessToken?: string
-    /** Google API refresh token */
-    refreshToken?: string
-    /** Expiration time for the access token */
-    accessTokenExpires?: number
   }
 }

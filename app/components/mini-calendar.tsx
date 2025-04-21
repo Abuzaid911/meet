@@ -7,7 +7,6 @@ import { Card, CardContent } from "./ui/card"
 import { Alert, AlertDescription } from "./ui/alert"
 import { Skeleton } from "./ui/skeleton"
 import { CalendarIcon, RefreshCcw, Plus } from "lucide-react"
-import { useSession } from "next-auth/react"
 import { motion } from "framer-motion"
 import { fadeIn } from "@/lib/animations"
 import { format } from "date-fns"
@@ -15,14 +14,11 @@ import "./calendar-fix.css"
 
 interface CalendarEvent {
   id: string
-  name?: string
-  title?: string // For Google Calendar events
+  name: string
   date: string
   time?: string
   location?: string
   headerColor?: string
-  source?: string
-  colorId?: string
 }
 
 interface MiniCalendarProps {
@@ -33,18 +29,13 @@ interface MiniCalendarProps {
 interface AppEvent {
   id: string
   name: string
-  title?: string
   date: string
   time?: string
   location?: string
   headerColor?: string
-  source?: string
-  colorId?: string
 }
 
-
 export default function MiniCalendar({ onDateSelect }: MiniCalendarProps) {
-  const { data: session } = useSession()
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(new Date())
   const [month, setMonth] = useState<Date>(new Date())
   const [events, setEvents] = useState<CalendarEvent[]>([])
@@ -78,8 +69,7 @@ export default function MiniCalendar({ onDateSelect }: MiniCalendarProps) {
         // Format events
         const formattedEvents = (appEvents as AppEvent[]).map((event) => ({
           ...event,
-          source: 'app',
-          name: event.name || event.title
+          name: event.name
         }))
         
         setEvents(formattedEvents)
@@ -92,7 +82,7 @@ export default function MiniCalendar({ onDateSelect }: MiniCalendarProps) {
     }
     
     fetchEvents()
-  }, [month, session?.user])
+  }, [month])
 
   // Get events for a specific date
   const getEventsForDate = (date: Date) => {
@@ -127,13 +117,7 @@ export default function MiniCalendar({ onDateSelect }: MiniCalendarProps) {
           <div 
             key={i}
             className="h-1.5 w-1.5 rounded-full" 
-            style={{ 
-              backgroundColor: event.source === 'google' 
-                ? '#4285F4' 
-                : event.source === 'app'
-                  ? '#10b981'
-                  : event.headerColor || '#14b8a6' 
-            }}
+            style={{ backgroundColor: event.headerColor || '#14b8a6' }}
           />
         ))}
         {dayEvents.length > 3 && (
@@ -229,16 +213,10 @@ export default function MiniCalendar({ onDateSelect }: MiniCalendarProps) {
                       <div className="flex items-start gap-2">
                         <div
                           className="w-3 h-3 rounded-full mt-1.5"
-                          style={{ 
-                            backgroundColor: event.source === 'google' 
-                              ? '#4285F4' 
-                              : event.source === 'app'
-                                ? '#10b981'
-                                : event.headerColor || '#14b8a6' 
-                          }}
+                          style={{ backgroundColor: event.headerColor || '#14b8a6' }}
                         />
                         <div>
-                          <p className="font-medium text-sm">{event.name || event.title}</p>
+                          <p className="font-medium text-sm">{event.name}</p>
                           {event.time && (
                             <p className="text-xs text-muted-foreground">{event.time}</p>
                           )}
@@ -260,39 +238,20 @@ export default function MiniCalendar({ onDateSelect }: MiniCalendarProps) {
             </CardContent>
           </Card>
           
-          {!session?.user ? (
-            <Card>
-              <CardContent className="p-4">
-                <h3 className="font-semibold mb-1">Connect Your Calendar</h3>
-                <p className="text-sm text-muted-foreground mb-3">
-                  Sign in to sync events from Google Calendar
-                </p>
-                <Button 
-                  variant="default" 
-                  size="sm"
-                  className="w-full"
-                  onClick={() => window.location.href = '/api/auth/signin'}
-                >
-                  Connect Calendar
-                </Button>
-              </CardContent>
-            </Card>
-          ) : (
-            <Card>
-              <CardContent className="p-4">
-                <h3 className="font-semibold mb-2">Quick Add</h3>
-                <Button 
-                  variant="outline" 
-                  size="sm"
-                  className="w-full"
-                  onClick={() => onDateSelect && onDateSelect(selectedDate || new Date())}
-                >
-                  <Plus className="h-3.5 w-3.5 mr-1" />
-                  Create New Event
-                </Button>
-              </CardContent>
-            </Card>
-          )}
+          <Card>
+            <CardContent className="p-4">
+              <h3 className="font-semibold mb-2">Quick Add</h3>
+              <Button 
+                variant="outline" 
+                size="sm"
+                className="w-full"
+                onClick={() => onDateSelect && onDateSelect(selectedDate || new Date())}
+              >
+                <Plus className="h-3.5 w-3.5 mr-1" />
+                Create New Event
+              </Button>
+            </CardContent>
+          </Card>
         </div>
       </div>
     </motion.div>

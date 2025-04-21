@@ -50,7 +50,7 @@ export const authOptions: NextAuthOptions = {
       clientSecret: process.env.GOOGLE_CLIENT_SECRET as string,
       authorization: {
         params: {
-          scope: "openid email profile https://www.googleapis.com/auth/calendar.readonly",
+          scope: "openid email profile",
           prompt: "consent",
           access_type: "offline",
           response_type: "code"
@@ -139,7 +139,7 @@ export const authOptions: NextAuthOptions = {
     /**
      * Manages JWT token behavior
      */
-    async jwt({ token, user, account }) {
+    async jwt({ token, user }) {
       const dbUser = await prisma.user.findFirst({
         where: {
           email: token.email,
@@ -162,22 +162,12 @@ export const authOptions: NextAuthOptions = {
         });
       }
       
-      // Store access token for Google Calendar access
-      if (account && account.provider === 'google') {
-        token.accessToken = account.access_token;
-        token.refreshToken = account.refresh_token;
-        token.accessTokenExpires = account.expires_at;
-      }
-
       return {
         id: dbUser.id,
         name: dbUser.name,
         email: dbUser.email,
         picture: dbUser.image,
-        username: dbUser.username,
-        accessToken: token.accessToken,
-        refreshToken: token.refreshToken,
-        accessTokenExpires: token.accessTokenExpires
+        username: dbUser.username
       };
     },
 
@@ -191,11 +181,6 @@ export const authOptions: NextAuthOptions = {
         session.user.email = token.email;
         session.user.image = token.picture;
         session.user.username = token.username;
-        
-        // Add Google calendar token if available
-        if (token.accessToken) {
-          session.accessToken = token.accessToken;
-        }
       }
       return session;
     },
