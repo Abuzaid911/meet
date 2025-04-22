@@ -10,13 +10,17 @@ datasource db {
   url          = env("DATABASE_URL")
 }
 
-// Add verification model required by better-auth
+// Create the verification model exactly as better-auth expects
 model verification {
   id         String   @id
   identifier String
-  token      String   // This is the field name expected by better-auth
-  expires    BigInt   // Changed to BigInt as seen in other parts of the error
+  value      String
+  token      String   @default("placeholder_token")
+  expiresAt  DateTime
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @default(now()) @updatedAt
 
+  @@index([identifier])
   @@map("verification")
 }
 
